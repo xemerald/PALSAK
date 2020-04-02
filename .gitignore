@@ -7,3 +7,6 @@
 # Ignore the backup files.
 *.BAK
 *.DSK
+
+# Ignore the Project files.
+*.PRJ
