@@ -1,0 +1,9 @@
+# Ignore the object files.
+*.OBJ
+
+# Ignore the execute files.
+*.EXE
+
+# Ignore the backup files.
+*.BAK
+*.DSK
