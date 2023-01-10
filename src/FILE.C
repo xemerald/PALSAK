@@ -30,11 +30,11 @@ ulong FileSeek( const FILE_DATA far *fileptr, const char mark, const uint order,
 
 /* */
 	if ( fileptr ) {
-		c_ptr  = AddFarPtrLong(fileptr->addr, start);
+		c_ptr = (char far *)AddFarPtrLong(fileptr->addr, start);
 		while ( start++ < (fileptr->size - 1) ) {
 			if ( *c_ptr == mark && _order++ == order )
 				return start;
-			c_ptr = AddFarPtrLong(c_ptr, 1);
+			c_ptr = (char far *)AddFarPtrLong(c_ptr, 1);
 		}
 	}
 
@@ -68,7 +68,7 @@ char *GetFileStr( const FILE_DATA far *fileptr, const char *key, const char *def
 		if ( !(scan_pos = FileSeek( fileptr, '*', 1, scan_pos )) )
 			goto def_return;  /* Cannot find '*' */
 	/* */
-		sscanf(AddFarPtrLong(fileptr->addr, scan_pos), "%31s", buf);
+		sscanf((const char far *)AddFarPtrLong(fileptr->addr, scan_pos), "%31s", buf);
 	/* */
 		if ( !(strncmp(key, buf, strlen(key))) ) {
 		/* To find the 1st '=' from scan_pos */
@@ -76,7 +76,7 @@ char *GetFileStr( const FILE_DATA far *fileptr, const char *key, const char *def
 				goto def_return;  /* Cannot find '=' */
 		/* */
 			buf[0] = '\0';
-			sscanf(AddFarPtrLong(fileptr->addr, scan_pos), "%31s", buf);
+			sscanf((const char far *)AddFarPtrLong(fileptr->addr, scan_pos), "%31s", buf);
 		/* From this point we will use the scan_pos to store the result length, 'cause the scaning position isn't used any more */
 			if ( !(scan_pos = strlen(buf)) )
 				goto def_return;  /* Cannot find string */

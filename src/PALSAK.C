@@ -708,6 +708,10 @@ static int SetPalertNetwork( const uint msec )
  */
 static int CheckPalertDisk( const int mode, const uint msec )
 {
+/*
+ * It would be some problem when using seperated variables (for disk size) instead an array,
+ * I think it might be caused by the near & far pointer difference.
+ */
 	uchar dsize[3] = { 0, 0, 0 };
 	char *pos;
 
@@ -1211,7 +1215,7 @@ static int ReadFileBlockZero( const FILE_DATA far *fileptr, BYTE *dest, size_t d
 		/* */
 			if (
 				sscanf(
-					AddFarPtrLong(fileptr->addr, scan_pos),
+					(const char far *)AddFarPtrLong(fileptr->addr, scan_pos),
 					"%hi %hi %hi %hi %hi %hi %hi %hi",
 					dest, dest + 1, dest + 2, dest + 3, dest + 4, dest + 5, dest + 6, dest + 7
 				) == EEPROM_BYTE_PER_LINE
