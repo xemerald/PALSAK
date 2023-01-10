@@ -1,0 +1,15 @@
+# Ignore the object files.
+*.OBJ
+
+# Ignore the execute files.
+*.EXE
+
+# Ignore the backup files.
+*.BAK
+*.DSK
+
+# Ignore the Project files.
+*.PRJ
+
+# Ignore the vscode Folder
+.vscode
