@@ -665,6 +665,7 @@ static int SetPalertNetwork( const uint msec )
 	/* */
 		sprintf(strbuf, "ip %u.%u.%u.%u", addr[0], addr[1], addr[2], addr[3]);
 		while ( BroadcastCommand( strbuf ) != NORMAL );
+		Print("668 %s\n\r", MsgBuffer);
 	/* Show 'S. iP.' on the 7-seg led */
 		Show5DigitLedWithDot(1, 0x05);
 		Show5DigitLedSeg(2, 0x00);
@@ -675,8 +676,10 @@ static int SetPalertNetwork( const uint msec )
 	/* Send out the IP address request command for rechecking */
 		while ( BroadcastCommand( "ip" ) != NORMAL );
 	/* Extract the IP address from the raw response */
+		Print("678 %s\n\r", MsgBuffer);
 		if ( !(pos = ExtractResponse( MsgBuffer, IPV4_STRING )) )
 			return ERROR;
+		Print("681 %s\n\r", MsgBuffer);
 	/* Parsing the IP address to bytes & compare it with storage data */
 		sscanf(pos, "%hu.%hu.%hu.%hu", (BYTE *)&strbuf[0], (BYTE *)&strbuf[1], (BYTE *)&strbuf[2], (BYTE *)&strbuf[3]);
 		if ( memcmp(&addr[0], &strbuf[0], 4) )
