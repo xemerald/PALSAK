@@ -625,7 +625,7 @@ static int GetPalertNetworkSetting( const uint msec )
  */
 static int SetPalertNetwork( const uint msec )
 {
-	int  optval = 0;
+	char optval = 1;
 	uint  seq = 0;
 	uint  delay_msec = msec;
 	char *pos;
