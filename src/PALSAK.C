@@ -412,6 +412,9 @@ static int BroadcastCommand( const char *comm )
 	struct sockaddr_in _addr;
 	int fromlen = sizeof(struct sockaddr);
 
+/* Just in case, avoid from using the MsgBuffer as input buffer */
+	if ( comm == MsgBuffer )
+		return ERROR;
 /* Show the '-S-' message on the 7-seg led */
 	SHOW_2DASH_5DIGITLED( 0 );
 	Show5DigitLed(3, 5);
@@ -622,9 +625,11 @@ static int GetPalertNetworkSetting( const uint msec )
  */
 static int SetPalertNetwork( const uint msec )
 {
-	uint seq = 0;
-	uint delay_msec = msec;
-	BYTE addr[EEPROM_NETWORK_SET_LENGTH];
+	uint  seq = 0;
+	uint  delay_msec = msec;
+	char *pos;
+	char  strbuf[32] = { 0 };
+	BYTE  addr[EEPROM_NETWORK_SET_LENGTH];
 
 /* Read from EEPROM block 2 where the saved network setting within */
 	if ( !EE_MultiRead(EEPROM_NETWORK_SET_BLOCK, EEPROM_NETWORK_SET_ADDR, EEPROM_NETWORK_SET_LENGTH, (char *)addr) ) {
@@ -658,8 +663,8 @@ static int SetPalertNetwork( const uint msec )
 			Delay(1);
 		}
 	/* */
-		sprintf(MsgBuffer, "ip %u.%u.%u.%u", addr[0], addr[1], addr[2], addr[3]);
-		while ( BroadcastCommand( MsgBuffer ) != NORMAL );
+		sprintf(strbuf, "ip %u.%u.%u.%u", addr[0], addr[1], addr[2], addr[3]);
+		while ( BroadcastCommand( strbuf ) != NORMAL );
 	/* Show 'S. iP.' on the 7-seg led */
 		Show5DigitLedWithDot(1, 0x05);
 		Show5DigitLedSeg(2, 0x00);
@@ -667,9 +672,20 @@ static int SetPalertNetwork( const uint msec )
 		Show5DigitLedSeg(4, 0xe7);
 		Show5DigitLedSeg(5, 0x00);
 		Delay(msec);
+	/* Send out the IP address request command for rechecking */
+		while ( BroadcastCommand( "ip" ) != NORMAL );
+	/* Extract the IP address from the raw response */
+		if ( !(pos = ExtractResponse( MsgBuffer, IPV4_STRING )) )
+			return ERROR;
+	/* Parsing the IP address to bytes & compare it with storage data */
+		sscanf(pos, "%hu.%hu.%hu.%hu", (BYTE *)&strbuf[0], (BYTE *)&strbuf[1], (BYTE *)&strbuf[2], (BYTE *)&strbuf[3]);
+		if ( memcmp(&addr[0], &strbuf[0], 4) )
+			return ERROR;
+
+
 	/* */
-		sprintf(MsgBuffer, "mask %u.%u.%u.%u", addr[4], addr[5], addr[6], addr[7]);
-		while ( BroadcastCommand( MsgBuffer ) != NORMAL );
+		sprintf(strbuf, "mask %u.%u.%u.%u", addr[4], addr[5], addr[6], addr[7]);
+		while ( BroadcastCommand( strbuf ) != NORMAL );
 	/* Show 'S.MASk.' on the 7-seg led */
 		Show5DigitLedWithDot(1, 0x05);
 		Show5DigitLedSeg(2, 0x76);
@@ -677,9 +693,19 @@ static int SetPalertNetwork( const uint msec )
 		Show5DigitLed(4, 0x05);
 		Show5DigitLedSeg(5, 0xb7);
 		Delay(msec);
+	/* Send out the Mask request command for rechecking */
+		while ( BroadcastCommand( "mask" ) != NORMAL );
+	/* Extract the Mask from the raw response */
+		if ( !(pos = ExtractResponse( MsgBuffer, IPV4_STRING )) )
+			return ERROR;
+	/* Parsing the Mask to bytes & compare it with storage data */
+		sscanf(pos, "%hu.%hu.%hu.%hu", (BYTE *)&strbuf[0], (BYTE *)&strbuf[1], (BYTE *)&strbuf[2], (BYTE *)&strbuf[3]);
+		if ( memcmp(&addr[4], &strbuf[0], 4) )
+			return ERROR;
+
 	/* */
-		sprintf(MsgBuffer, "gateway %u.%u.%u.%u", addr[8], addr[9], addr[10], addr[11]);
-		while ( BroadcastCommand( MsgBuffer ) != NORMAL );
+		sprintf(strbuf, "gateway %u.%u.%u.%u", addr[8], addr[9], addr[10], addr[11]);
+		while ( BroadcastCommand( strbuf ) != NORMAL );
 	/* Show 'S.GAtE.' on the 7-seg led */
 		Show5DigitLedWithDot(1, 0x05);
 		Show5DigitLedSeg(2, 0x5e);
@@ -687,6 +713,15 @@ static int SetPalertNetwork( const uint msec )
 		Show5DigitLedSeg(4, 0x11);
 		Show5DigitLedWithDot(5, 0x0e);
 		Delay(msec);
+	/* Send out the Gateway address request command */
+		while ( BroadcastCommand( "gateway" ) != NORMAL );
+	/* Extract the Gateway address from the raw response */
+		if ( !(pos = ExtractResponse( MsgBuffer, IPV4_STRING )) )
+			return ERROR;
+	/* Parsing the Gateway address to bytes & compare it with storage data */
+		sscanf(pos, "%hu.%hu.%hu.%hu", (BYTE *)&strbuf[0], (BYTE *)&strbuf[1], (BYTE *)&strbuf[2], (BYTE *)&strbuf[3]);
+		if ( memcmp(&addr[8], &strbuf[0], 4) )
+			return ERROR;
 
 		return NORMAL;
 	}
