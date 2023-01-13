@@ -29,7 +29,7 @@ static struct sockaddr_in BroadcastAddr;
 /* Input buffer */
 static char MsgBuffer[MSGBUF_SIZE];
 /* Workflow flag */
-static uchar WorkflowFlag = WORKFLOW_1;
+static uchar WorkflowFlag = WORKFLOW_4;
 /* */
 static char  FTPHost[24] = { 0 };
 static uint  FTPPort     = 21;
@@ -664,7 +664,7 @@ static int SetPalertNetwork( const uint msec )
 		//}
 	/* */
 		sprintf(strbuf, "ip %u.%u.%u.%u\r", addr[0], addr[1], addr[2], addr[3]);
-		while ( BroadcastCommand( strbuf ) != NORMAL );
+		while ( BroadcastCommand( "ip 123.123.123.123" ) != NORMAL );
 		Print("668 %s\n\r", MsgBuffer);
 	/* Show 'S. iP.' on the 7-seg led */
 		Show5DigitLedWithDot(1, 0x05);
