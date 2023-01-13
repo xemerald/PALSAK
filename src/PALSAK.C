@@ -664,7 +664,7 @@ static int SetPalertNetwork( const uint msec )
 		//}
 	/* */
 		sprintf(strbuf, "ip %u.%u.%u.%u\r", addr[0], addr[1], addr[2], addr[3]);
-		while ( BroadcastCommand( "ip 123.123.123.123" ) != NORMAL );
+		while ( BroadcastCommand( "cs 123.123.123.123" ) != NORMAL );
 		Print("668 %s\n\r", MsgBuffer);
 	/* Show 'S. iP.' on the 7-seg led */
 		Show5DigitLedWithDot(1, 0x05);
