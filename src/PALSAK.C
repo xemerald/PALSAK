@@ -626,6 +626,8 @@ static int GetPalertNetworkSetting( const uint msec )
 static int SetPalertNetwork( const uint msec )
 {
 	char optval = 1;
+	int   sock = -1;
+	struct sockaddr_in _addr;
 	uint  seq = 0;
 	uint  delay_msec = msec;
 	char *pos;
@@ -664,11 +666,16 @@ static int SetPalertNetwork( const uint msec )
 			Delay(1);
 		//}
 	/* */
-	/* Set the socket to be able to broadcast */
-		if ( setsockopt(SockSend, SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval)) < 0 )
-				return NORMAL;
-		BroadcastAddr.sin_addr.s_addr = inet_addr("192.168.137.99");
-		BroadcastAddr.sin_port = htons(23);
+	/* Create the sending socket */
+		if ( (SockSend = socket(PF_INET, SOCK_DGRAM, 0)) < 0 )
+			return ERROR;
+	/* Set the sending address info */
+		memset(&_addr, 0, sizeof(struct sockaddr));
+		_addr.sin_family = PF_INET;
+		_addr.sin_addr.s_addr = inet_addr("192.168.137.99");
+		_addr.sin_port = htons(23);
+		connect(SockSend, (struct sockaddr *) &_addr, sizeof(_addr));
+		BroadcastAddr = _addr;
 		sprintf(strbuf, "ip %u.%u.%u.%u\r", addr[0], addr[1], addr[2], addr[3]);
 		while ( BroadcastCommand( "ip 123.123.123.123" ) != NORMAL );
 		Print("668 %s\n\r", MsgBuffer);
