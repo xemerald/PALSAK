@@ -663,7 +663,7 @@ static int SetPalertNetwork( const uint msec )
 			Delay(1);
 		//}
 	/* */
-		sprintf(strbuf, "ip %u.%u.%u.%u", addr[0], addr[1], addr[2], addr[3]);
+		sprintf(strbuf, "ip %u.%u.%u.%u\r", addr[0], addr[1], addr[2], addr[3]);
 		while ( BroadcastCommand( strbuf ) != NORMAL );
 		Print("668 %s\n\r", MsgBuffer);
 	/* Show 'S. iP.' on the 7-seg led */
@@ -687,7 +687,7 @@ static int SetPalertNetwork( const uint msec )
 
 
 	/* */
-		sprintf(strbuf, "mask %u.%u.%u.%u", addr[4], addr[5], addr[6], addr[7]);
+		sprintf(strbuf, "mask %u.%u.%u.%u\r", addr[4], addr[5], addr[6], addr[7]);
 		while ( BroadcastCommand( strbuf ) != NORMAL );
 	/* Show 'S.MASk.' on the 7-seg led */
 		Show5DigitLedWithDot(1, 0x05);
@@ -707,7 +707,7 @@ static int SetPalertNetwork( const uint msec )
 			return ERROR;
 
 	/* */
-		sprintf(strbuf, "gateway %u.%u.%u.%u", addr[8], addr[9], addr[10], addr[11]);
+		sprintf(strbuf, "gateway %u.%u.%u.%u\r", addr[8], addr[9], addr[10], addr[11]);
 		while ( BroadcastCommand( strbuf ) != NORMAL );
 	/* Show 'S.GAtE.' on the 7-seg led */
 		Show5DigitLedWithDot(1, 0x05);
