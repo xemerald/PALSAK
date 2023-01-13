@@ -420,8 +420,10 @@ static int BroadcastCommand( const char *comm )
 	Show5DigitLed(3, 5);
 /* Flush the receiving buffer from client, just in case */
 	while ( recvfrom(SockRecv, MsgBuffer, MSGBUF_SIZE, 0, (struct sockaddr *)&_addr, &fromlen) > 0 );
+		Print("423 %s\n\r", MsgBuffer);
 /* Appending the '\r' to the input command */
 	sprintf(MsgBuffer, "%s\r", comm);
+		Print("426 %s\n\r", MsgBuffer);
 /* Broadcasting the command to others */
 	sendto(SockSend, MsgBuffer, strlen(MsgBuffer), 0, (struct sockaddr *)&BroadcastAddr, sizeof(BroadcastAddr));
 	Delay(250);
@@ -437,6 +439,7 @@ static int BroadcastCommand( const char *comm )
 			return ERROR;
 	}
 	MsgBuffer[ret] = '\0';
+		Print("442 %s\n\r", MsgBuffer);
 
 	return NORMAL;
 }
