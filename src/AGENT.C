@@ -29,11 +29,11 @@ static BYTE BlockZero[EEPROM_SET_TOTAL_LENGTH];
 static volatile int SockRecv;
 static volatile int SockSend;
 /* Global address info, expecially for broadcasting command */
-static struct sockaddr_in BroadcastAddr;
+static struct sockaddr_in TransmitAddr;
 /* Input buffer */
 static char MsgBuffer[MSGBUF_SIZE];
 /* */
-static int InitNetwork( const int, const int );
+static int InitBroadcastNetwork( const int, const int );
 static int RecvBlockZeroData( const uint );
 static int RecvCommand( const uint );
 static int SwitchCommand( void );
@@ -57,7 +57,7 @@ void main( void )
 	InitLib();
 	Init5DigitLed();
 /* Initialization for network interface library */
-	if ( InitNetwork( CONTROL_PORT, LISTEN_PORT ) < 0 ) {
+	if ( InitBroadcastNetwork( CONTROL_PORT, LISTEN_PORT ) < 0 ) {
 		SHOW_ERROR_5DIGITLED();
 		Delay(2000);
 		return;
@@ -124,7 +124,7 @@ err_return:
  * @param sport
  * @return int
  */
-static int InitNetwork( const int rport, const int sport )
+static int InitBroadcastNetwork( const int rport, const int sport )
 {
 	char optval = 1;
 	struct sockaddr_in _addr;
@@ -165,7 +165,7 @@ static int InitNetwork( const int rport, const int sport )
 	_addr.sin_family = PF_INET;
 	_addr.sin_addr.s_addr = htonl(INADDR_BROADCAST);
 	_addr.sin_port = htons(sport);
-	BroadcastAddr = _addr;
+	TransmitAddr = _addr;
 
 	return NORMAL;
 /* Return for error */
@@ -216,7 +216,7 @@ static int RecvBlockZeroData( const uint msec )
 		MsgBuffer[0] = NAK;
 	}
 /* Broadcasting the command to others */
-	sendto(SockSend, MsgBuffer, 1, 0, (struct sockaddr *)&BroadcastAddr, sizeof(BroadcastAddr));
+	sendto(SockSend, MsgBuffer, 1, 0, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
 
 	return MsgBuffer[0] == ACK ? NORMAL : ERROR;
 }
@@ -290,7 +290,7 @@ static int SwitchCommand( void )
 static int BroadcastResp( char *resp, const uint msec )
 {
 /* Broadcasting the command to others */
-	sendto(SockSend, resp, strlen(resp), 0, (struct sockaddr *)&BroadcastAddr, sizeof(BroadcastAddr));
+	sendto(SockSend, resp, strlen(resp), 0, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
 	Delay(msec);
 
 	return NORMAL;
