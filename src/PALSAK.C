@@ -636,11 +636,6 @@ static int SetPalertNetwork( const uint msec )
 
 /* Read from EEPROM block 2 where the saved network setting within */
 	if ( !EE_MultiRead(EEPROM_NETWORK_SET_BLOCK, EEPROM_NETWORK_SET_ADDR, EEPROM_NETWORK_SET_LENGTH, (char *)addr) ) {
-	/* Send out the IP address request command for following connection */
-		while ( TransmitCommand( "ip" ) != NORMAL );
-	/* Extract the IP address from the raw response */
-		if ( !(pos = ExtractResponse( MsgBuffer, IPV4_STRING )) )
-			return ERROR;
 	/* Show 'U.PLUG.' on the 7-seg led */
 		Show5DigitLedSeg(1, 0xbe);
 		Show5DigitLedSeg(2, 0x67);
@@ -670,6 +665,11 @@ static int SetPalertNetwork( const uint msec )
 				return NORMAL;
 			Delay(1);
 		}
+	/* Send out the IP address request command for following connection */
+		while ( TransmitCommand( "ip" ) != NORMAL );
+	/* Extract the IP address from the raw response */
+		if ( !(pos = ExtractResponse( MsgBuffer, IPV4_STRING )) )
+			return ERROR;
 	/* */
 		if ( InitControlSocket( pos ) == ERROR )
 			return ERROR;
