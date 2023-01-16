@@ -211,19 +211,19 @@ static int InitControlSocket( const char *dotted )
 	closesocket(SockSend);
 	closesocket(SockRecv);
 /* External variables for broadcast setting: Setup for accepting broadcast packet */
-	bAcceptBroadcast = dotted ? 0 : 1;
+	bAcceptBroadcast = 1;
 
 /* Create the sending socket */
 	if ( (SockSend = socket(PF_INET, SOCK_DGRAM, 0)) < 0 )
+		return ERROR;
+/* Set the broadcast ability */
+	if ( setsockopt(SockSend, SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval)) < 0 )
 		return ERROR;
 /* */
 	if ( dotted ) {
 		SockRecv = SockSend;
 	}
 	else {
-	/* Set the broadcast ability */
-		if ( setsockopt(SockSend, SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval)) < 0 )
-			return ERROR;
 	/* Create the receiving socket */
 		if ( (SockRecv = socket(PF_INET, SOCK_DGRAM, 0)) < 0 ) 
 			return ERROR;
@@ -641,9 +641,6 @@ static int SetPalertNetwork( const uint msec )
 	/* Extract the IP address from the raw response */
 		if ( !(pos = ExtractResponse( MsgBuffer, IPV4_STRING )) )
 			return ERROR;
-	/* */
-		if ( InitControlSocket( pos ) == ERROR )
-			return ERROR;
 	/* Show 'U.PLUG.' on the 7-seg led */
 		Show5DigitLedSeg(1, 0xbe);
 		Show5DigitLedSeg(2, 0x67);
@@ -673,6 +670,9 @@ static int SetPalertNetwork( const uint msec )
 				return NORMAL;
 			Delay(1);
 		}
+	/* */
+		if ( InitControlSocket( pos ) == ERROR )
+			return ERROR;
 	/* */
 		sprintf(strbuf, "ip %u.%u.%u.%u", addr[0], addr[1], addr[2], addr[3]);
 		while ( TransmitCommand( strbuf ) != NORMAL );
