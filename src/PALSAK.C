@@ -211,43 +211,41 @@ static int InitControlSocket( const char *dotted )
 	closesocket(SockSend);
 	closesocket(SockRecv);
 /* External variables for broadcast setting: Setup for accepting broadcast packet */
-	bAcceptBroadcast = 1;
+	bAcceptBroadcast = dotted ? 0 : 1;
 
 /* Create the sending socket */
 	if ( (SockSend = socket(PF_INET, SOCK_DGRAM, 0)) < 0 )
 		return ERROR;
-/* Set the broadcast ability depends on the existing of argument, dotted */
+/* Set the broadcast ability */
 	if ( setsockopt(SockSend, SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval)) < 0 )
 		return ERROR;
-/* Set the sending address info */
-	memset(&_addr, 0, sizeof(struct sockaddr));
-	_addr.sin_family = PF_INET;
-	_addr.sin_addr.s_addr = dotted ? inet_addr(dotted) : htonl(INADDR_BROADCAST);
-	_addr.sin_port = htons(CONTROL_PORT);
-	TransmitAddr = _addr;
 /* */
-	if ( dotted ) {
-		connect(SockSend, (struct sockaddr *)&_addr, sizeof(struct sockaddr));
-	/* Create the receiving socket */
+	if ( dotted )
 		SockRecv = SockSend;
-	}
-	else {
-	/* Create the receiving socket */
-		if ( (SockRecv = socket(PF_INET, SOCK_DGRAM, 0)) < 0 )
+/* Create the receiving socket */
+	else if ( (SockRecv = socket(PF_INET, SOCK_DGRAM, 0)) < 0 ) 
 			return ERROR;
-	/* Set the socket to reuse the address */
-		if ( setsockopt(SockRecv, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0 )
-			return ERROR;
-	/* Bind the receiving socket to the broadcast port */
-		memset(&_addr, 0, sizeof(struct sockaddr));
-		_addr.sin_family = PF_INET;
-		_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-		_addr.sin_port = htons(LISTEN_PORT);
-		if ( bind(SockRecv, (struct sockaddr *)&_addr, sizeof(struct sockaddr)) < 0 )
-			return ERROR;
-	}
+
+/* Set the socket to reuse the address */
+	if ( setsockopt(SockRecv, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0 )
+		return ERROR;
+/* Bind the receiving socket to the broadcast port */
+	memset(&_addr, 0, sizeof(struct sockaddr));
+	_addr.sin_family = AF_INET;
+	_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	_addr.sin_port = htons(dotted ? CONTROL_PORT : LISTEN_PORT);
+
+	if ( bind(SockRecv, (struct sockaddr *)&_addr, sizeof(struct sockaddr)) < 0 )
+		return ERROR;
 /* Set the timeout of receiving socket to 0.25 sec. */
 	SOCKET_RXTOUT(SockRecv, 250);
+
+/* Set the sending address info */
+	memset(&_addr, 0, sizeof(struct sockaddr));
+	_addr.sin_family = AF_INET;
+	_addr.sin_addr.s_addr = dotted ? inet_addr((char *)dotted) : htonl(INADDR_BROADCAST);
+	_addr.sin_port = htons(CONTROL_PORT);
+	TransmitAddr = _addr;
 
 	return NORMAL;
 }
@@ -426,10 +424,7 @@ static int TransmitCommand( const char *comm )
 /* Appending the '\r' to the input command */
 	sprintf(MsgBuffer, "%s\r", comm);
 /* Transmitting the command to others */
-	if ( SockSend == SockRecv )
-		send(SockSend, MsgBuffer, strlen(MsgBuffer), 0);
-	else
-		sendto(SockSend, MsgBuffer, strlen(MsgBuffer), 0, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
+	sendto(SockSend, MsgBuffer, strlen(MsgBuffer), 0, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
 	Delay(250);
 
 /* Flush the input buffer */
@@ -468,10 +463,7 @@ static int TransmitDataByCommand( const char *data, int data_length )
 	while ( SOCKET_HASDATA(SockRecv) )
 		recvfrom(SockRecv, MsgBuffer, MSGBUF_SIZE, 0, (struct sockaddr *)&_addr, &fromlen);
 /* Sending the data bytes by command line method */
-	if ( SockSend == SockRecv )
-		send(SockSend, (char *)data, data_length, 0);
-	else
-		sendto(SockSend, (char *)data, data_length, 0, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
+	sendto(SockSend, (char *)data, data_length, 0, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
 	
 /* Flush the input buffer */
 	memset(MsgBuffer, 0, MSGBUF_SIZE);
@@ -634,9 +626,6 @@ static int GetPalertNetworkSetting( const uint msec )
  */
 static int SetPalertNetwork( const uint msec )
 {
-	char optval = 1;
-	int   sock = -1;
-	struct sockaddr_in _addr;
 	uint  seq = 0;
 	uint  delay_msec = msec;
 	char *pos;
