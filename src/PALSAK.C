@@ -216,14 +216,14 @@ static int InitControlSocket( const char *dotted )
 /* Create the sending socket */
 	if ( (SockSend = socket(PF_INET, SOCK_DGRAM, 0)) < 0 )
 		return ERROR;
-/* Set the broadcast ability */
-	if ( setsockopt(SockSend, SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval)) < 0 )
-		return ERROR;
 /* */
 	if ( dotted ) {
 		SockRecv = SockSend;
 	}
 	else {
+	/* Set the broadcast ability */
+		if ( setsockopt(SockSend, SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval)) < 0 )
+			return ERROR;
 	/* Create the receiving socket */
 		if ( (SockRecv = socket(PF_INET, SOCK_DGRAM, 0)) < 0 ) 
 			return ERROR;
