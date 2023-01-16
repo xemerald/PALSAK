@@ -642,7 +642,7 @@ static int SetPalertNetwork( const uint msec )
 		if ( !(pos = ExtractResponse( MsgBuffer, IPV4_STRING )) )
 			return ERROR;
 	/* */
-		if ( InitControlSocket( pos ) == ERROR || TransmitCommand( "" ) == ERROR )
+		if ( InitControlSocket( pos ) == ERROR )
 			return ERROR;
 	/* Show 'U.PLUG.' on the 7-seg led */
 		Show5DigitLedSeg(1, 0xbe);
