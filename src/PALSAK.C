@@ -671,9 +671,14 @@ static int SetPalertNetwork( const uint msec )
 		if ( !(pos = ExtractResponse( MsgBuffer, IPV4_STRING )) )
 			return ERROR;
 	/* */
-		if ( InitControlSocket( pos ) == ERROR )
+		sprintf(strbuf, "%s", pos);
+
+		while ( TransmitCommand( "reset" ) != NORMAL );
+		Delay(1000);
+		if ( InitControlSocket( strbuf ) == ERROR )
 			return ERROR;
 	/* */
+
 		sprintf(strbuf, "ip %u.%u.%u.%u", addr[0], addr[1], addr[2], addr[3]);
 		while ( TransmitCommand( strbuf ) != NORMAL );
 	/* Show 'S. iP.' on the 7-seg led */
