@@ -225,9 +225,9 @@ static int InitControlSocket( const char *dotted )
 	_addr.sin_addr.s_addr = dotted ? inet_addr(dotted) : htonl(INADDR_BROADCAST);
 	_addr.sin_port = htons(CONTROL_PORT);
 	TransmitAddr = _addr;
-
 /* */
 	if ( dotted ) {
+		connect(SockSend, (struct sockaddr *)&_addr, sizeof(struct sockaddr));
 	/* Create the receiving socket */
 		SockRecv = SockSend;
 	}
@@ -425,8 +425,11 @@ static int TransmitCommand( const char *comm )
 	while ( recvfrom(SockRecv, MsgBuffer, MSGBUF_SIZE, 0, (struct sockaddr *)&_addr, &fromlen) > 0 );
 /* Appending the '\r' to the input command */
 	sprintf(MsgBuffer, "%s\r", comm);
-/* Broadcasting the command to others */
-	sendto(SockSend, MsgBuffer, strlen(MsgBuffer), 0, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
+/* Transmitting the command to others */
+	if ( SockSend == SockRecv )
+		send(SockSend, MsgBuffer, strlen(MsgBuffer), 0);
+	else
+		sendto(SockSend, MsgBuffer, strlen(MsgBuffer), 0, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
 	Delay(250);
 
 /* Flush the input buffer */
@@ -465,8 +468,11 @@ static int TransmitDataByCommand( const char *data, int data_length )
 	while ( SOCKET_HASDATA(SockRecv) )
 		recvfrom(SockRecv, MsgBuffer, MSGBUF_SIZE, 0, (struct sockaddr *)&_addr, &fromlen);
 /* Sending the data bytes by command line method */
-	sendto(SockSend, (char *)data, data_length, 0, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
-
+	if ( SockSend == SockRecv )
+		send(SockSend, (char *)data, data_length, 0);
+	else
+		sendto(SockSend, (char *)data, data_length, 0, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
+	
 /* Flush the input buffer */
 	memset(MsgBuffer, 0, MSGBUF_SIZE);
 /* Receiving the response from the palert */
