@@ -182,8 +182,8 @@ void main( void )
 
 normal_return:
 /* Close the sockets */
-	closesocket(SockRecv);
 	closesocket(SockSend);
+	closesocket(SockRecv);
 /* Terminate the network interface */
 	Nterm();
 	return;
@@ -204,29 +204,14 @@ err_return:
  */
 static int InitControlSocket( const char *dotted )
 {
-	char optval = dotted ? 0 : 1;
+	char optval = 1;
 	struct sockaddr_in _addr;
 
 /* Close the previous sockets for following process */
-	closesocket(SockRecv);
 	closesocket(SockSend);
+	closesocket(SockRecv);
 /* External variables for broadcast setting: Setup for accepting broadcast packet */
 	bAcceptBroadcast = 1;
-/* Create the receiving socket */
-	if ( (SockRecv = socket(PF_INET, SOCK_DGRAM, 0)) < 0 )
-		return ERROR;
-/* Set the socket to reuse the address */
-	if ( setsockopt(SockRecv, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0 )
-		return ERROR;
-/* Bind the receiving socket to the broadcast port */
-	memset(&_addr, 0, sizeof(struct sockaddr));
-	_addr.sin_family = PF_INET;
-	_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	_addr.sin_port = htons(dotted ? CONTROL_PORT : LISTEN_PORT);
-	if ( bind(SockRecv, (struct sockaddr *)&_addr, sizeof(struct sockaddr)) < 0 )
-		return ERROR;
-/* Set the timeout of receiving socket to 0.25 sec. */
-	SOCKET_RXTOUT(SockRecv, 250);
 
 /* Create the sending socket */
 	if ( (SockSend = socket(PF_INET, SOCK_DGRAM, 0)) < 0 )
@@ -240,6 +225,29 @@ static int InitControlSocket( const char *dotted )
 	_addr.sin_addr.s_addr = dotted ? inet_addr(dotted) : htonl(INADDR_BROADCAST);
 	_addr.sin_port = htons(CONTROL_PORT);
 	TransmitAddr = _addr;
+
+/* */
+	if ( dotted ) {
+	/* Create the receiving socket */
+		SockRecv = SockSend;
+	}
+	else {
+	/* Create the receiving socket */
+		if ( (SockRecv = socket(PF_INET, SOCK_DGRAM, 0)) < 0 )
+			return ERROR;
+	/* Set the socket to reuse the address */
+		if ( setsockopt(SockRecv, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0 )
+			return ERROR;
+	/* Bind the receiving socket to the broadcast port */
+		memset(&_addr, 0, sizeof(struct sockaddr));
+		_addr.sin_family = PF_INET;
+		_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+		_addr.sin_port = htons(LISTEN_PORT);
+		if ( bind(SockRecv, (struct sockaddr *)&_addr, sizeof(struct sockaddr)) < 0 )
+			return ERROR;
+	}
+/* Set the timeout of receiving socket to 0.25 sec. */
+	SOCKET_RXTOUT(SockRecv, 250);
 
 	return NORMAL;
 }
@@ -669,7 +677,7 @@ static int SetPalertNetwork( const uint msec )
 			Delay(1);
 		}
 	/* */
-		sprintf(strbuf, "ip %u.%u.%u.%u\r", addr[0], addr[1], addr[2], addr[3]);
+		sprintf(strbuf, "ip %u.%u.%u.%u", addr[0], addr[1], addr[2], addr[3]);
 		while ( TransmitCommand( strbuf ) != NORMAL );
 	/* Show 'S. iP.' on the 7-seg led */
 		Show5DigitLedWithDot(1, 0x05);
@@ -689,7 +697,7 @@ static int SetPalertNetwork( const uint msec )
 			return ERROR;
 
 	/* */
-		sprintf(strbuf, "mask %u.%u.%u.%u\r", addr[4], addr[5], addr[6], addr[7]);
+		sprintf(strbuf, "mask %u.%u.%u.%u", addr[4], addr[5], addr[6], addr[7]);
 		while ( TransmitCommand( strbuf ) != NORMAL );
 	/* Show 'S.MASk.' on the 7-seg led */
 		Show5DigitLedWithDot(1, 0x05);
@@ -709,7 +717,7 @@ static int SetPalertNetwork( const uint msec )
 			return ERROR;
 
 	/* */
-		sprintf(strbuf, "gateway %u.%u.%u.%u\r", addr[8], addr[9], addr[10], addr[11]);
+		sprintf(strbuf, "gateway %u.%u.%u.%u", addr[8], addr[9], addr[10], addr[11]);
 		while ( TransmitCommand( strbuf ) != NORMAL );
 	/* Show 'S.GAtE.' on the 7-seg led */
 		Show5DigitLedWithDot(1, 0x05);
