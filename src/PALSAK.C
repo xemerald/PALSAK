@@ -216,31 +216,33 @@ static int InitControlSocket( const char *dotted )
 /* Create the sending socket */
 	if ( (SockSend = socket(PF_INET, SOCK_DGRAM, 0)) < 0 )
 		return ERROR;
-/* Set the broadcast ability */
-	if ( setsockopt(SockSend, SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval)) < 0 )
-		return ERROR;
 /* */
-	if ( dotted )
+	if ( dotted ) {
 		SockRecv = SockSend;
-/* Create the receiving socket */
-	else if ( (SockRecv = socket(PF_INET, SOCK_DGRAM, 0)) < 0 ) 
+	}
+	else {
+	/* Set the broadcast ability */
+		if ( setsockopt(SockSend, SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval)) < 0 )
 			return ERROR;
+	/* Create the receiving socket */
+		if ( (SockRecv = socket(PF_INET, SOCK_DGRAM, 0)) < 0 ) 
+			return ERROR;
+	}
 
 /* Set the socket to reuse the address */
 	if ( setsockopt(SockRecv, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0 )
 		return ERROR;
-/* Bind the receiving socket to the broadcast port */
+/* Bind the receiving socket to the port number 54321 */
 	memset(&_addr, 0, sizeof(struct sockaddr));
 	_addr.sin_family = AF_INET;
 	_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	_addr.sin_port = htons(dotted ? CONTROL_PORT : LISTEN_PORT);
-
+	_addr.sin_port = htons(LISTEN_PORT);
 	if ( bind(SockRecv, (struct sockaddr *)&_addr, sizeof(struct sockaddr)) < 0 )
 		return ERROR;
 /* Set the timeout of receiving socket to 0.25 sec. */
 	SOCKET_RXTOUT(SockRecv, 250);
 
-/* Set the sending address info */
+/* Set the transmitting address info */
 	memset(&_addr, 0, sizeof(struct sockaddr));
 	_addr.sin_family = AF_INET;
 	_addr.sin_addr.s_addr = dotted ? inet_addr((char *)dotted) : htonl(INADDR_BROADCAST);
@@ -640,7 +642,7 @@ static int SetPalertNetwork( const uint msec )
 		if ( !(pos = ExtractResponse( MsgBuffer, IPV4_STRING )) )
 			return ERROR;
 	/* */
-		if ( InitControlSocket( pos ) == ERROR )
+		if ( InitControlSocket( pos ) == ERROR || TransmitCommand( "" ) == ERROR )
 			return ERROR;
 	/* Show 'U.PLUG.' on the 7-seg led */
 		Show5DigitLedSeg(1, 0xbe);
