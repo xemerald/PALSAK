@@ -673,7 +673,7 @@ static int SetPalertNetwork( const uint msec )
 	/* */
 		sprintf(strbuf, "%s", pos);
 
-		while ( TransmitCommand( "reset" ) != NORMAL );
+		TransmitCommand( "reset" );
 		Delay(1000);
 		if ( InitControlSocket( strbuf ) == ERROR )
 			return ERROR;
