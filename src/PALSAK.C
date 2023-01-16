@@ -236,7 +236,7 @@ static int InitControlSocket( const char *dotted )
 	memset(&_addr, 0, sizeof(struct sockaddr));
 	_addr.sin_family = AF_INET;
 	_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	_addr.sin_port = htons(dotted ? CONTROL_PORT : LISTEN_PORT);
+	_addr.sin_port = htons(LISTEN_PORT);
 	if ( bind(SockRecv, (struct sockaddr *)&_addr, sizeof(struct sockaddr)) < 0 )
 		return ERROR;
 /* Set the timeout of receiving socket to 0.25 sec. */
@@ -643,7 +643,7 @@ static int SetPalertNetwork( const uint msec )
 		Show5DigitLedSeg(4, 0x3e);
 		Show5DigitLedSeg(5, 0xde);
 	/* */
-		while ( bEthernetLinkOk != 0x00 )
+		//while ( bEthernetLinkOk != 0x00 )
 			Delay(1);
 	/* Show the fetched IP on the 7-seg led roller once */
 		sprintf(
@@ -654,7 +654,7 @@ static int SetPalertNetwork( const uint msec )
 		);
 		EncodeAddrDisplayContent( MsgBuffer );
 	/* */
-		while ( bEthernetLinkOk == 0x00 ) {
+		//while ( bEthernetLinkOk == 0x00 ) {
 		/* */
 			if ( ++delay_msec >= msec ) {
 				ShowContent5DigitsLedRoller( seq++ );
@@ -663,8 +663,8 @@ static int SetPalertNetwork( const uint msec )
 		/* */
 			if ( ReadInitPin() )
 				return NORMAL;
-			Delay(1);
-		}
+			Delay(1000);
+		//}
 	/* Send out the IP address request command for following connection */
 		while ( TransmitCommand( "ip" ) != NORMAL );
 	/* Extract the IP address from the raw response */
