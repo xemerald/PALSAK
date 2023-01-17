@@ -1318,7 +1318,7 @@ static ulong __inet_addr( const char *dotted )
 	uchar result[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	if ( dotted )
-		scanf(dotted, "%hu.%hu.%hu.%hu", &result[0], &result[1], &result[2], &result[3]);
+		sscanf(dotted, "%hu.%hu.%hu.%hu", &result[0], &result[1], &result[2], &result[3]);
 
 	return *(ulong *)result;
 }
