@@ -224,7 +224,7 @@ static int InitControlSocket( char *dotted )
 	if ( setsockopt(SockSend, SOL_SOCKET, SO_DONTROUTE, &optval, sizeof(optval)) < 0 )
 		return ERROR;
 /* */
-	if ( dotted ) {
+	if ( dotted != NULL ) {
 		SockRecv = SockSend;
 	}
 	else {
@@ -253,7 +253,7 @@ static int InitControlSocket( char *dotted )
 	Print("252 %lu %lu\n\r", __inet_addr(dotted), __inet_addr("192.168.137.255"));
 	memset(&_addr, 0, sizeof(struct sockaddr));
 	_addr.sin_family = AF_INET;
-	_addr.sin_addr.s_addr = dotted ? __inet_addr(dotted) : htonl(INADDR_BROADCAST);
+	_addr.sin_addr.s_addr = dotted != NULL ? __inet_addr(dotted) : htonl(INADDR_BROADCAST);
 	_addr.sin_port = htons(CONTROL_PORT);
 	TransmitAddr = _addr;
 	Print("257 %s %s\n\r", inet_ntoa(_addr.sin_addr), inet_ntoa(TransmitAddr.sin_addr));
@@ -474,6 +474,9 @@ static int TransmitDataByCommand( const char *data, int data_length )
 	struct sockaddr_in _addr;
 	int fromlen = sizeof(struct sockaddr);
 
+/* Just in case, avoid from using the MsgBuffer as input buffer */
+	if ( data == MsgBuffer )
+		return ERROR;
 /* Flush the receiving buffer from client, just in case */
 	while ( SOCKET_HASDATA(SockRecv) )
 		recvfrom(SockRecv, MsgBuffer, MSGBUF_SIZE, MSG_OOB, (struct sockaddr *)&_addr, &fromlen);
@@ -529,7 +532,7 @@ static char *ExtractResponse( char *buffer, const uint length )
 {
 	char *pos = NULL;
 
-	if ( buffer ) {
+	if ( buffer != NULL ) {
 	/* Find out where is the '=', and skip all the following space or tab. */
 		pos = strchr(buffer, '=');
 		if ( pos ) {
@@ -563,7 +566,7 @@ static int GetPalertMac( const uint msec )
 /* Send out the MAC address request command */
 	while ( TransmitCommand( "mac" ) != NORMAL );
 /* Extract the MAC address from the raw response */
-	if ( !(pos = ExtractResponse( MsgBuffer, MAC_STRING )) )
+	if ( (pos = ExtractResponse( MsgBuffer, MAC_STRING )) == NULL )
 		return ERROR;
 
 /* Parsing the MAC address with hex format into Display content buffer */
@@ -594,7 +597,7 @@ static int GetPalertNetworkSetting( const uint msec )
 /* Send out the IP address request command */
 	while ( TransmitCommand( "ip" ) != NORMAL );
 /* Extract the IP address from the raw response */
-	if ( !(pos = ExtractResponse( MsgBuffer, IPV4_STRING )) )
+	if ( (pos = ExtractResponse( MsgBuffer, IPV4_STRING )) == NULL )
 		return ERROR;
 /* Parsing the IP address to bytes */
 	sscanf(pos, "%hu.%hu.%hu.%hu", &addr[0], &addr[1], &addr[2], &addr[3]);
@@ -602,7 +605,7 @@ static int GetPalertNetworkSetting( const uint msec )
 /* Send out the Mask request command */
 	while ( TransmitCommand( "mask" ) != NORMAL );
 /* Extract the Mask from the raw response */
-	if ( !(pos = ExtractResponse( MsgBuffer, IPV4_STRING )) )
+	if ( (pos = ExtractResponse( MsgBuffer, IPV4_STRING )) == NULL )
 		return ERROR;
 /* Parsing the Mask to bytes */
 	sscanf(pos, "%hu.%hu.%hu.%hu", &addr[4], &addr[5], &addr[6], &addr[7]);
@@ -610,7 +613,7 @@ static int GetPalertNetworkSetting( const uint msec )
 /* Send out the Gateway address request command */
 	while ( TransmitCommand( "gateway" ) != NORMAL );
 /* Extract the Gateway address from the raw response */
-	if ( !(pos = ExtractResponse( MsgBuffer, IPV4_STRING )) )
+	if ( (pos = ExtractResponse( MsgBuffer, IPV4_STRING )) == NULL )
 		return ERROR;
 /* Parsing the Gateway address to bytes */
 	sscanf(pos, "%hu.%hu.%hu.%hu", &addr[8], &addr[9], &addr[10], &addr[11]);
@@ -681,7 +684,7 @@ static int SetPalertNetwork( const uint msec )
 	/* Send out the IP address request command for following connection */
 		while ( TransmitCommand( "ip" ) != NORMAL );
 	/* Extract the IP address from the raw response */
-		if ( !(pos = ExtractResponse( MsgBuffer, IPV4_STRING )) )
+		if ( (pos = ExtractResponse( MsgBuffer, IPV4_STRING )) == NULL )
 			return ERROR;
 	/* */
 		sprintf(strbuf, "%s", pos);
@@ -705,7 +708,7 @@ static int SetPalertNetwork( const uint msec )
 	/* Send out the IP address request command for rechecking */
 		while ( TransmitCommand( "ip" ) != NORMAL );
 	/* Extract the IP address from the raw response */
-		if ( !(pos = ExtractResponse( MsgBuffer, IPV4_STRING )) )
+		if ( (pos = ExtractResponse( MsgBuffer, IPV4_STRING )) == NULL )
 			return ERROR;
 	/* Parsing the IP address to bytes & compare it with storage data */
 		sscanf(pos, "%hu.%hu.%hu.%hu", (BYTE *)&strbuf[0], (BYTE *)&strbuf[1], (BYTE *)&strbuf[2], (BYTE *)&strbuf[3]);
@@ -725,7 +728,7 @@ static int SetPalertNetwork( const uint msec )
 	/* Send out the Mask request command for rechecking */
 		while ( TransmitCommand( "mask" ) != NORMAL );
 	/* Extract the Mask from the raw response */
-		if ( !(pos = ExtractResponse( MsgBuffer, IPV4_STRING )) )
+		if ( (pos = ExtractResponse( MsgBuffer, IPV4_STRING )) == NULL )
 			return ERROR;
 	/* Parsing the Mask to bytes & compare it with storage data */
 		sscanf(pos, "%hu.%hu.%hu.%hu", (BYTE *)&strbuf[0], (BYTE *)&strbuf[1], (BYTE *)&strbuf[2], (BYTE *)&strbuf[3]);
@@ -745,7 +748,7 @@ static int SetPalertNetwork( const uint msec )
 	/* Send out the Gateway address request command */
 		while ( TransmitCommand( "gateway" ) != NORMAL );
 	/* Extract the Gateway address from the raw response */
-		if ( !(pos = ExtractResponse( MsgBuffer, IPV4_STRING )) )
+		if ( (pos = ExtractResponse( MsgBuffer, IPV4_STRING )) == NULL )
 			return ERROR;
 	/* Parsing the Gateway address to bytes & compare it with storage data */
 		sscanf(pos, "%hu.%hu.%hu.%hu", (BYTE *)&strbuf[0], (BYTE *)&strbuf[1], (BYTE *)&strbuf[2], (BYTE *)&strbuf[3]);
@@ -785,7 +788,7 @@ static int CheckPalertDisk( const int mode, const uint msec )
 /* Function switch between "reset" & "check", then end out the request command */
 	while ( TransmitCommand( mode == RESET ? "disksize 3 4" : "disksize" ) != NORMAL );
 /* Extract the DiskA size from the raw response */
-	if ( !(pos = ExtractResponse( MsgBuffer, DABSIZE_STRING )) )
+	if ( (pos = ExtractResponse( MsgBuffer, DABSIZE_STRING )) == NULL )
 		return ERROR;
 /* Parsing the size with integer */
 	sscanf(pos, "%hu", &dsize[0]);
@@ -796,7 +799,7 @@ static int CheckPalertDisk( const int mode, const uint msec )
 	pos += DABSIZE_STRING + 1;
 
 /* Extract the DiskB size from the raw response */
-	if ( !(pos = ExtractResponse( pos, DABSIZE_STRING )) )
+	if ( (pos = ExtractResponse( pos, DABSIZE_STRING )) == NULL )
 		return ERROR;
 /* Parsing the size with integer */
 	sscanf(pos, "%hu", &dsize[1]);
@@ -807,7 +810,7 @@ static int CheckPalertDisk( const int mode, const uint msec )
 	pos += DABSIZE_STRING + 1;
 
 /* Extract the Reserved size from the raw response */
-	if ( !(pos = ExtractResponse( pos, RSVSIZE_STRING )) )
+	if ( (pos = ExtractResponse( pos, RSVSIZE_STRING )) == NULL )
 		return ERROR;
 /* Parsing the size with integer */
 	sscanf(pos, "%hu", &dsize[2]);
@@ -957,7 +960,7 @@ static int AgentCommand( const char *comm, const uint msec )
 	Delay(250);
 
 /* Extract the remote palert serial from the raw response */
-	if ( !(pos = ExtractResponse( MsgBuffer, PSERIAL_STRING )) )
+	if ( (pos = ExtractResponse( MsgBuffer, PSERIAL_STRING )) == NULL )
 		return ERROR;
 /* Show the serial on the 7-seg led */
 	Show5DigitLed(1, pos[0] - '0');
@@ -982,7 +985,7 @@ static int AgentCommand( const char *comm, const uint msec )
 
 /* Extract the remote 1g & 0g corr value from the raw response */
 	for ( i = 0; i < 2; i++ ) {
-		if ( !(pos = ExtractResponse( pos, CVALUE_STRING )) )
+		if ( (pos = ExtractResponse( pos, CVALUE_STRING )) == NULL )
 			return ERROR;
 	/* Parse the value to strings for comparasion */
 		sscanf(pos, "%17s:%17s", data, _data);
@@ -1041,7 +1044,7 @@ static int UploadFileData( const int disk, const FILE_DATA far *fileptr )
 	BYTE  outbuffer[260];
 
 /* Checking this opened file is file or not, and check the size of this file */
-	if ( !fileptr || fileptr->mark != 0x7188 || fileptr->size <= 0 )
+	if ( fileptr == NULL || fileptr->mark != 0x7188 || fileptr->size <= 0 )
 		return ERROR;
 /* Initialize the CRC16 table for following CRC16 computation */
 	if ( CRC16_MakeTable() )
@@ -1218,7 +1221,7 @@ static int DownloadFirmware( const char *target_name )
 	char result = ERROR;
 
 /* First, check the target_name is not null */
-	if ( strlen(target_name) ) {
+	if ( target_name != NULL && strlen(target_name) ) {
 		if ( GetFileNo_AB(DISKB) )
 			OS7_DeleteAllFile(DISKB);
 		if ( FTPRetrFile( FTPPath, target_name, target_name, DISKB ) == FTP_SUCCESS )
@@ -1239,7 +1242,7 @@ static int DownloadFirmware( const char *target_name )
 static int ReadFileFTPInfo( const FILE_DATA far *fileptr )
 {
 /* */
-	if ( fileptr ) {
+	if ( fileptr != NULL ) {
 		GetFileStr( fileptr, "REMOTE_FTP_HOST", "127.0.0.1", FTPHost, sizeof(FTPHost) );
 		GetFileStr( fileptr, "REMOTE_FTP_PORT", "21", FTPUser, sizeof(FTPUser) );
 		FTPPort = atoi(FTPUser);
@@ -1272,7 +1275,7 @@ static int ReadFileBlockZero( const FILE_DATA far *fileptr, BYTE *dest, size_t d
 /* */
 	memset(dest, 0xff, EEPROM_SET_TOTAL_LENGTH);
 /* */
-	if ( fileptr && !CRC16_MakeTable() ) {
+	if ( fileptr != NULL && !CRC16_MakeTable() ) {
 		CRC16_Reset();
 		dest_size = 0;
 		while ( scan_pos < fileptr->size && dest < endptr ) {
@@ -1317,7 +1320,7 @@ static ulong __inet_addr( const char *dotted )
 {
 	uchar result[4] = { 0xff, 0xff, 0xff, 0xff };
 
-	if ( dotted ) {
+	if ( dotted != NULL) {
 		sscanf(dotted, "%hu.%hu.%hu.%hu", &result[0], &result[1], &result[2], &result[3]);
 		Print("1322 %u.%u.%u.%u\n\r", (uchar)result[0], (uchar)result[1], (uchar)result[2], (uchar)result[3]);
 	}
