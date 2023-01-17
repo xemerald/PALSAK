@@ -227,19 +227,17 @@ static int InitControlSocket( char *dotted )
 	/* Create the receiving socket */
 		if ( (SockRecv = socket(PF_INET, SOCK_DGRAM, 0)) < 0 )
 			return ERROR;
-
 	/* Set the socket to reuse the address */
 		if ( setsockopt(SockRecv, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0 )
 			return ERROR;
-	/* Bind the receiving socket to the port number 54321 */
-		memset(&_addr, 0, sizeof(struct sockaddr));
-		_addr.sin_family = AF_INET;
-		_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-		_addr.sin_port = htons(LISTEN_PORT);
-		if ( bind(SockRecv, (struct sockaddr *)&_addr, sizeof(struct sockaddr)) < 0 )
-			return ERROR;
 	}
-
+/* Bind the receiving socket to the port number 54321 */
+	memset(&_addr, 0, sizeof(struct sockaddr));
+	_addr.sin_family = AF_INET;
+	_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	_addr.sin_port = htons(LISTEN_PORT);
+	if ( bind(SockRecv, (struct sockaddr *)&_addr, sizeof(struct sockaddr)) < 0 )
+		return ERROR;
 /* Set the timeout of receiving socket to 0.25 sec. */
 	SOCKET_RXTOUT(SockRecv, 250);
 
