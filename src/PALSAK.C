@@ -1288,6 +1288,7 @@ static int ReadFileBlockZero( const FILE_DATA far *fileptr, BYTE far *dest, size
 					dest, dest + 1, dest + 2, dest + 3, dest + 4, dest + 5, dest + 6, dest + 7
 				) == EEPROM_BYTE_PER_LINE
 			) {
+				Print("%p %p %p %p %p %p %p %p\n\r", dest, dest + 1, dest + 2, dest + 3, dest + 4, dest + 5, dest + 6, dest + 7);
 			/* */
 				dest += EEPROM_BYTE_PER_LINE;
 				dest_size += EEPROM_BYTE_PER_LINE;
@@ -1296,6 +1297,7 @@ static int ReadFileBlockZero( const FILE_DATA far *fileptr, BYTE far *dest, size
 	/* */
 		if ( dest_size ) {
 			dest -= dest_size;
+			Print("%p\n\r", dest, &dest[EEPROM_SET_TOTAL_LENGTH], &dest[EEPROM_SET_TOTAL_LENGTH + 1]);
 			CRC16_AddDataN(dest, EEPROM_SET_TOTAL_LENGTH);
 			scan_pos = CRC16_Read();
 			dest[EEPROM_SET_TOTAL_LENGTH] = (scan_pos >> 8) & 0xff;
@@ -1321,8 +1323,6 @@ static ulong __inet_addr( const char far *dotted )
 
 	if ( dotted != NULL ) {
 		sscanf(dotted, "%hu.%hu.%hu.%hu", ptr, AddFarPtrLong(ptr, 1), AddFarPtrLong(ptr, 2), AddFarPtrLong(ptr, 3));
-		Print("%d %p %p %p %p %p\n\r", sizeof(result), &result, AddFarPtrLong(ptr, 0), AddFarPtrLong(ptr, 1), AddFarPtrLong(ptr, 2), AddFarPtrLong(ptr, 3));
-		Print("%d %p %p %p %p %p\n\r", sizeof(result), &result, (void *)ptr, ptr + 1, ptr + 2, ptr + 3);
 	}
 
 	return result;
