@@ -913,10 +913,8 @@ static int AgentCommand( const char *comm, const uint msec )
 	if ( ReadFileBlockZero( GetFileInfoByName_AB(DISKA, "block_0.ini"), (BYTE *)data, sizeof(data) ) == ERROR )
 		return ERROR;
 	Delay(250);
-	Print("916 %s\n\r", MsgBuffer);
 /* Execute the remote agent */
 	while ( TransmitCommand( "runr" ) != NORMAL );
-	Print("918 %s\n\r", MsgBuffer);
 /* Send the Block zero data to the agent */
 	do {
 		if ( TransmitDataByCommand( data, EEPROM_SET_TOTAL_LENGTH + 2 ) == NORMAL ) {
@@ -933,13 +931,10 @@ static int AgentCommand( const char *comm, const uint msec )
 			}
 		}
 	/* Something wrong, goto error return */
-		Print("936 %s\n\r", MsgBuffer);
 		return ERROR;
 	} while ( 1 );
-	Print("939 %s\n\r", MsgBuffer);
 /* Sending the command to remote agent */
 	while ( TransmitCommand( comm ) != NORMAL );
-	Print("942 %s\n\r", MsgBuffer);
 	if ( !strncmp(comm, "setdef", 6) ) {
 	/* Show 'S. def.' on the 7-seg led */
 		Show5DigitLedWithDot(1, 0x05);
@@ -958,7 +953,6 @@ static int AgentCommand( const char *comm, const uint msec )
 	}
 	else {
 	/* Unknown command */
-		Print("961 %s\n\r", MsgBuffer);
 		return ERROR;
 	}
 /* */
@@ -1295,7 +1289,6 @@ static int ReadFileBlockZero( const FILE_DATA far *fileptr, BYTE far *dest, size
 					dest, dest + 1, dest + 2, dest + 3, dest + 4, dest + 5, dest + 6, dest + 7
 				) == EEPROM_BYTE_PER_LINE
 			) {
-				Print("%p %p %p %p %p %p %p %p\n\r", dest, dest + 1, dest + 2, dest + 3, dest + 4, dest + 5, dest + 6, dest + 7);
 			/* */
 				dest += EEPROM_BYTE_PER_LINE;
 				dest_size += EEPROM_BYTE_PER_LINE;
@@ -1304,7 +1297,6 @@ static int ReadFileBlockZero( const FILE_DATA far *fileptr, BYTE far *dest, size
 	/* */
 		if ( dest_size ) {
 			dest -= dest_size;
-			Print("%p\n\r", dest, &dest[EEPROM_SET_TOTAL_LENGTH], &dest[EEPROM_SET_TOTAL_LENGTH + 1]);
 			CRC16_AddDataN(dest, EEPROM_SET_TOTAL_LENGTH);
 			scan_pos = CRC16_Read();
 			dest[EEPROM_SET_TOTAL_LENGTH] = (scan_pos >> 8) & 0xff;
@@ -1325,11 +1317,12 @@ static int ReadFileBlockZero( const FILE_DATA far *fileptr, BYTE far *dest, size
  */
 static ulong __inet_addr( const char far *dotted )
 {
-	static ulong result = INADDR_BROADCAST;
-	BYTE far *ptr = (BYTE far *)&result;
+	ulong      result = INADDR_BROADCAST;
+	uchar far *ptr = (uchar far *)&result;
 
 	if ( dotted != NULL ) {
-		sscanf(dotted, "%hu.%hu.%hu.%hu", ptr, AddFarPtrLong(ptr, 1), AddFarPtrLong(ptr, 2), AddFarPtrLong(ptr, 3));
+		sscanf(dotted, "%Fhu.%Fhu.%Fhu.%Fhu", ptr, ptr + 1, ptr + 2, ptr + 3);
+		Print("%u %u %u %u", *ptr, *(ptr + 1), *(ptr + 2), *(ptr + 3));
 	}
 
 	return result;
