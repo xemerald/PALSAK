@@ -214,10 +214,13 @@ static int InitControlSocket( char *dotted )
 	YIELD();
 	Delay(5);
 /* External variables for broadcast setting: Setup for accepting broadcast packet */
-	bAcceptBroadcast = dotted ? 0 : 1;
+	bAcceptBroadcast = 1;
 
 /* Create the sending socket */
 	if ( (SockSend = socket(PF_INET, SOCK_DGRAM, 0)) < 0 )
+		return ERROR;
+/* Set the socket to reuse the address */
+	if ( setsockopt(SockSend, SOL_SOCKET, SO_DONTROUTE, &optval, sizeof(optval)) < 0 )
 		return ERROR;
 /* */
 	if ( dotted ) {
@@ -238,7 +241,7 @@ static int InitControlSocket( char *dotted )
 	memset(&_addr, 0, sizeof(struct sockaddr));
 	_addr.sin_family = AF_INET;
 	_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	_addr.sin_port = htons(dotted ? 12345 : LISTEN_PORT);
+	_addr.sin_port = htons(LISTEN_PORT);
 	if ( bind(SockRecv, (struct sockaddr *)&_addr, sizeof(struct sockaddr)) < 0 )
 		return ERROR;
 /* Set the timeout of receiving socket to 0.25 sec. */
