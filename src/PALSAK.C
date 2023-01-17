@@ -62,7 +62,6 @@ static int DownloadFirmware( const char * );
 static int ReadFileFTPInfo( const FILE_DATA far * );
 static int ReadFileBlockZero( const FILE_DATA far *, BYTE *, size_t );
 
-static ulong __inet_addr( const char * );
 static int ConvertMask( ulong );
 
 /* Main function, entry */
@@ -250,10 +249,10 @@ static int InitControlSocket( char *dotted )
 
 /* Set the transmitting address info */
 	Print("251 %s\n\r", dotted == NULL ? "NULL" : dotted);
-	Print("252 %lu\n\r", __inet_addr(dotted));
+	Print("252 %lu\n\r", inet_addr(dotted));
 	memset(&_addr, 0, sizeof(struct sockaddr));
 	_addr.sin_family = AF_INET;
-	_addr.sin_addr.s_addr = dotted != NULL ? __inet_addr(dotted) : htonl(INADDR_BROADCAST);
+	_addr.sin_addr.s_addr = dotted != NULL ? inet_addr(dotted) : htonl(INADDR_BROADCAST);
 	_addr.sin_port = htons(CONTROL_PORT);
 	TransmitAddr = _addr;
 	Print("257 %s %s\n\r", inet_ntoa(_addr.sin_addr), inet_ntoa(TransmitAddr.sin_addr));
@@ -540,7 +539,9 @@ static char *ExtractResponse( char *buffer, const uint length )
 		/* Appending a null-terminator after the data. */
 			for ( buffer = pos; *buffer; buffer++ );
 			if ( buffer > (pos + length) )
-				*(pos + length) = '\0';
+				buffer = pos + length;
+			for ( ; isspace(*buffer); buffer-- )
+				*buffer = '\0';
 		}
 	}
 
@@ -1308,24 +1309,6 @@ static int ReadFileBlockZero( const FILE_DATA far *fileptr, BYTE *dest, size_t d
 	}
 
 	return ERROR;
-}
-
-/**
- * @brief
- *
- * @param dotted
- * @return ulong
- */
-static ulong __inet_addr( const char *dotted )
-{
-	uchar result[4] = { 0xff, 0xff, 0xff, 0xff };
-
-	if ( dotted != NULL ) {
-		sscanf(dotted, "%hu.%hu.%hu.%hu", &result[0], &result[1], &result[2], &result[3]);
-		Print("1322 %u.%u.%u.%u\n\r", (uchar)result[0], (uchar)result[1], (uchar)result[2], (uchar)result[3]);
-	}
-
-	return *(ulong *)result;
 }
 
 /**
