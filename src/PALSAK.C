@@ -211,7 +211,7 @@ static int InitControlSocket( char *dotted )
 	closesocket(SockSend);
 	closesocket(SockRecv);
 /* External variables for broadcast setting: Setup for accepting broadcast packet */
-	bAcceptBroadcast = 1;
+	bAcceptBroadcast = dotted ? 0 : 1;
 
 /* Create the sending socket */
 	if ( (SockSend = socket(PF_INET, SOCK_DGRAM, 0)) < 0 )
@@ -227,10 +227,10 @@ static int InitControlSocket( char *dotted )
 	/* Create the receiving socket */
 		if ( (SockRecv = socket(PF_INET, SOCK_DGRAM, 0)) < 0 )
 			return ERROR;
-	/* Set the socket to reuse the address */
-		if ( setsockopt(SockRecv, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0 )
-			return ERROR;
 	}
+/* Set the socket to reuse the address */
+	if ( setsockopt(SockRecv, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0 )
+		return ERROR;
 /* Bind the receiving socket to the port number 54321 */
 	memset(&_addr, 0, sizeof(struct sockaddr));
 	_addr.sin_family = AF_INET;
