@@ -248,13 +248,13 @@ static int InitControlSocket( char *dotted )
 	SOCKET_RXTOUT(SockRecv, 250);
 
 /* Set the transmitting address info */
-	Print("%s\n\r", dotted);
+	Print("251 %s\n\r", dotted);
 	memset(&_addr, 0, sizeof(struct sockaddr));
 	_addr.sin_family = AF_INET;
 	_addr.sin_addr.s_addr = dotted ? inet_addr(dotted) : htonl(INADDR_BROADCAST);
 	_addr.sin_port = htons(CONTROL_PORT);
 	TransmitAddr = _addr;
-	Print("%s\n\r", inet_ntoa(TransmitAddr.sin_addr));
+	Print("257 %s\n\r", inet_ntoa(TransmitAddr.sin_addr));
 
 	return NORMAL;
 }
@@ -434,8 +434,8 @@ static int TransmitCommand( const char *comm )
 	sprintf(MsgBuffer, "%s\r", comm);
 /* Transmitting the command to others */
 	if ( sendto(SockSend, MsgBuffer, strlen(MsgBuffer), MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr)) <= 0 ) {
-		Print("%d\n\r", errno);
-		Print("%s\n\r", inet_ntoa(TransmitAddr.sin_addr));
+		Print("437 %d\n\r", errno);
+		Print("438 %s\n\r", inet_ntoa(TransmitAddr.sin_addr));
 		return ERROR;
 	}
 	Delay(250);
@@ -683,7 +683,7 @@ static int SetPalertNetwork( const uint msec )
 			return ERROR;
 	/* */
 		sprintf(strbuf, "%s", pos);
-		Print("%s\n\r", strbuf);
+		Print("686 %s\n\r", strbuf);
 		if ( InitControlSocket( strbuf ) == ERROR )
 			return ERROR;
 
