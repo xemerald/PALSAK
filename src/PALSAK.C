@@ -1319,7 +1319,7 @@ static ulong __inet_addr( const char *dotted )
 
 	if ( dotted ) {
 		sscanf(dotted, "%hu.%hu.%hu.%hu", &result[0], &result[1], &result[2], &result[3]);
-		Print("1322 %u.%u.%u.%u", result[0], result[1], result[2], result[3]);
+		Print("1322 %u.%u.%u.%u\n\r", (uchar)result[0], (uchar)result[1], (uchar)result[2], (uchar)result[3]);
 	}
 
 	return *(ulong *)result;
