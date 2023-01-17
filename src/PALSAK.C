@@ -481,7 +481,8 @@ static int TransmitDataByCommand( const char *data, int data_length )
 	while ( SOCKET_HASDATA(SockRecv) )
 		recvfrom(SockRecv, MsgBuffer, MSGBUF_SIZE, MSG_OOB, (struct sockaddr *)&_addr, &fromlen);
 /* Sending the data bytes by command line method */
-	sendto(SockSend, (char *)data, data_length, MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
+	if ( sendto(SockSend, (char *)data, data_length, MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr)) <= 0 )
+		return ERROR;
 
 /* Flush the input buffer */
 	memset(MsgBuffer, 0, MSGBUF_SIZE);
@@ -538,11 +539,10 @@ static char *ExtractResponse( char *buffer, const uint length )
 		if ( pos ) {
 			for ( pos += 1; isspace(*pos); pos++ );
 		/* Appending a null-terminator after the data. */
-			for ( buffer = pos; *buffer; buffer++ );
+			for ( buffer = pos; *buffer && !isspace(*buffer); buffer++ );
 			if ( buffer > (pos + length) )
 				buffer = pos + length;
-			for ( ; isspace(*buffer); buffer-- )
-				*buffer = '\0';
+			*buffer = '\0';
 		}
 	}
 
@@ -1322,10 +1322,8 @@ static ulong __inet_addr( const char *dotted )
 {
 	uchar result[4] = { 0xff, 0xff, 0xff, 0xff };
 
-	if ( dotted != NULL ) {
+	if ( dotted != NULL )
 		sscanf(dotted, "%hu.%hu.%hu.%hu", &result[0], &result[1], &result[2], &result[3]);
-		Print("1322 %u.%u.%u.%u\n\r", (uchar)result[0], (uchar)result[1], (uchar)result[2], (uchar)result[3]);
-	}
 
 	return *(ulong *)result;
 }
