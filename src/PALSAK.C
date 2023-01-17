@@ -1316,7 +1316,7 @@ static int ReadFileBlockZero( const FILE_DATA far *fileptr, BYTE far *dest, size
  */
 static ulong __inet_addr( const char *dotted )
 {
-	ulong result;
+	ulong result = INADDR_BROADCAST;
 	BYTE far *ptr = (BYTE far *)&result;
 
 	if ( dotted != NULL )
