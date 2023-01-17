@@ -210,6 +210,9 @@ static int InitControlSocket( char *dotted )
 /* Close the previous sockets for following process */
 	closesocket(SockSend);
 	closesocket(SockRecv);
+/* Wait for the network interface ready, it might be shorter */
+	YIELD();
+	Delay(5);
 /* External variables for broadcast setting: Setup for accepting broadcast packet */
 	bAcceptBroadcast = dotted ? 0 : 1;
 
