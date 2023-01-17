@@ -1319,8 +1319,10 @@ static ulong __inet_addr( const char *dotted )
 	ulong result = INADDR_BROADCAST;
 	BYTE far *ptr = (BYTE far *)&result;
 
-	if ( dotted != NULL )
+	if ( dotted != NULL ) {
 		sscanf(dotted, "%hu.%hu.%hu.%hu", ptr, ptr + 1, ptr + 2, ptr + 3);
+		Print("%p %p %p %p\n\r",ptr, ptr + 1, ptr + 2, ptr + 3);
+	}
 
 	return result;
 }
