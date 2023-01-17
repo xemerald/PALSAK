@@ -227,18 +227,19 @@ static int InitControlSocket( char *dotted )
 	/* Create the receiving socket */
 		if ( (SockRecv = socket(PF_INET, SOCK_DGRAM, 0)) < 0 )
 			return ERROR;
+
+	/* Set the socket to reuse the address */
+		if ( setsockopt(SockRecv, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0 )
+			return ERROR;
+	/* Bind the receiving socket to the port number 54321 */
+		memset(&_addr, 0, sizeof(struct sockaddr));
+		_addr.sin_family = AF_INET;
+		_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+		_addr.sin_port = htons(LISTEN_PORT);
+		if ( bind(SockRecv, (struct sockaddr *)&_addr, sizeof(struct sockaddr)) < 0 )
+			return ERROR;
 	}
 
-/* Set the socket to reuse the address */
-	if ( setsockopt(SockRecv, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0 )
-		return ERROR;
-/* Bind the receiving socket to the port number 54321 */
-	memset(&_addr, 0, sizeof(struct sockaddr));
-	_addr.sin_family = AF_INET;
-	_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	_addr.sin_port = htons(dotted ? 12345 : LISTEN_PORT);
-	if ( bind(SockRecv, (struct sockaddr *)&_addr, sizeof(struct sockaddr)) < 0 )
-		return ERROR;
 /* Set the timeout of receiving socket to 0.25 sec. */
 	SOCKET_RXTOUT(SockRecv, 250);
 
@@ -426,7 +427,7 @@ static int TransmitCommand( const char *comm )
 /* Appending the '\r' to the input command */
 	sprintf(MsgBuffer, "%s\r", comm);
 /* Transmitting the command to others */
-	sendto(SockSend, MsgBuffer, strlen(MsgBuffer), 0, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
+	sendto(SockSend, MsgBuffer, strlen(MsgBuffer), MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
 	Delay(250);
 
 /* Flush the input buffer */
