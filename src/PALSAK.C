@@ -248,11 +248,13 @@ static int InitControlSocket( char *dotted )
 	SOCKET_RXTOUT(SockRecv, 250);
 
 /* Set the transmitting address info */
+	Print("%s\n\r", dotted);
 	memset(&_addr, 0, sizeof(struct sockaddr));
 	_addr.sin_family = AF_INET;
 	_addr.sin_addr.s_addr = dotted ? inet_addr(dotted) : htonl(INADDR_BROADCAST);
 	_addr.sin_port = htons(CONTROL_PORT);
 	TransmitAddr = _addr;
+	Print("%s\n\r", inet_ntoa(TransmitAddr.sin_addr));
 
 	return NORMAL;
 }
@@ -685,7 +687,8 @@ static int SetPalertNetwork( const uint msec )
 		if ( InitControlSocket( strbuf ) == ERROR )
 			return ERROR;
 
-		TransmitCommand( "reset" );
+		if ( TransmitCommand( "reset" ) == ERROR )
+			return ERROR;
 	/* */
 
 		sprintf(strbuf, "ip %u.%u.%u.%u", addr[0], addr[1], addr[2], addr[3]);
