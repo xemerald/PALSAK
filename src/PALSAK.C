@@ -250,7 +250,7 @@ static int InitControlSocket( char *dotted )
 
 /* Set the transmitting address info */
 	Print("251 %s\n\r", dotted == NULL ? "NULL" : dotted);
-	Print("252 %lu %lu\n\r", __inet_addr(dotted), __inet_addr("192.168.137.255"));
+	Print("252 %lu\n\r", __inet_addr(dotted));
 	memset(&_addr, 0, sizeof(struct sockaddr));
 	_addr.sin_family = AF_INET;
 	_addr.sin_addr.s_addr = dotted != NULL ? __inet_addr(dotted) : htonl(INADDR_BROADCAST);
