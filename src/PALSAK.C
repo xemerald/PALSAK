@@ -471,6 +471,7 @@ static int TransmitDataByCommand( const char *data, int data_length )
 {
 	int   ret = 0;
 	uchar trycount = 0;
+	extern int errno;
 
 	struct sockaddr_in _addr;
 	int fromlen = sizeof(struct sockaddr);
@@ -482,8 +483,12 @@ static int TransmitDataByCommand( const char *data, int data_length )
 	while ( SOCKET_HASDATA(SockRecv) )
 		recvfrom(SockRecv, MsgBuffer, MSGBUF_SIZE, MSG_OOB, (struct sockaddr *)&_addr, &fromlen);
 /* Sending the data bytes by command line method */
-	if ( sendto(SockSend, (char *)data, data_length, MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr)) <= 0 )
+	if ( sendto(SockSend, (char *)data, data_length, MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr)) <= 0 ) {
+				Print("437 %d\n\r", errno);
+		Print("438 %s\n\r", inet_ntoa(TransmitAddr.sin_addr));
 		return ERROR;
+
+	}
 
 /* Flush the input buffer */
 	memset(MsgBuffer, 0, MSGBUF_SIZE);
