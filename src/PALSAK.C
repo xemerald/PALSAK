@@ -432,7 +432,7 @@ static int TransmitCommand( const char *comm )
 	SHOW_2DASH_5DIGITLED( 0 );
 	Show5DigitLed(3, 5);
 /* Flush the receiving buffer from client, just in case */
-	while ( recvfrom(SockRecv, MsgBuffer, MSGBUF_SIZE, MSG_OOB, (struct sockaddr *)&_addr, &fromlen) > 0 );
+	while ( recvfrom(SockRecv, MsgBuffer, MSGBUF_SIZE, 0, (struct sockaddr *)&_addr, &fromlen) > 0 );
 /* Appending the '\r' to the input command */
 	sprintf(MsgBuffer, "%s\r", comm);
 /* Transmitting the command to others */
@@ -481,7 +481,7 @@ static int TransmitDataByCommand( const char *data, int data_length )
 		return ERROR;
 /* Flush the receiving buffer from client, just in case */
 	while ( SOCKET_HASDATA(SockRecv) )
-		recvfrom(SockRecv, MsgBuffer, MSGBUF_SIZE, MSG_OOB, (struct sockaddr *)&_addr, &fromlen);
+		recvfrom(SockRecv, MsgBuffer, MSGBUF_SIZE, 0, (struct sockaddr *)&_addr, &fromlen);
 /* Sending the data bytes by command line method */
 	if ( sendto(SockSend, (char *)data, data_length, MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr)) <= 0 )
 		return ERROR;
