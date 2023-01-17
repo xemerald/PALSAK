@@ -1321,7 +1321,7 @@ static ulong __inet_addr( const char far *dotted )
 
 	if ( dotted != NULL ) {
 		sscanf(dotted, "%hu.%hu.%hu.%hu", ptr, AddFarPtrLong(ptr, 1), AddFarPtrLong(ptr, 2), AddFarPtrLong(ptr, 3));
-		Print("%d %p %p %p %p %p\n\r", sizeof(result), &result, ptr, AddFarPtrLong(ptr, 1), AddFarPtrLong(ptr, 2), AddFarPtrLong(ptr, 3));
+		Print("%d %p %p %p %p %p\n\r", sizeof(result), &result, AddFarPtrLong(ptr, 0), AddFarPtrLong(ptr, 1), AddFarPtrLong(ptr, 2), AddFarPtrLong(ptr, 3));
 		Print("%d %p %p %p %p %p\n\r", sizeof(result), &result, ptr, ptr + 1, ptr + 2, ptr + 3);
 	}
 
