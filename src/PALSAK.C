@@ -1326,7 +1326,7 @@ static ulong __inet_addr( const char *dotted )
 	if ( dotted != NULL )
 		sscanf(dotted, "%hu.%hu.%hu.%hu", ptr, ptr + 1, ptr + 2, ptr + 3);
 
-	return *(ulong *)result;
+	return result;
 }
 
 /**
