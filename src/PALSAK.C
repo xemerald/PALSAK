@@ -1320,10 +1320,11 @@ static int ReadFileBlockZero( const FILE_DATA far *fileptr, BYTE *dest, size_t d
  */
 static ulong __inet_addr( const char *dotted )
 {
-	uchar result[4] = { 0xff, 0xff, 0xff, 0xff };
+	ulong result;
+	BYTE *ptr = (BYTE *)&result;
 
 	if ( dotted != NULL )
-		sscanf(dotted, "%hu.%hu.%hu.%hu", &result[0], &result[1], &result[2], &result[3]);
+		sscanf(dotted, "%hu.%hu.%hu.%hu", ptr, ptr + 1, ptr + 2, ptr + 3);
 
 	return *(ulong *)result;
 }
