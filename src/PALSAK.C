@@ -38,7 +38,7 @@ static char  FTPPass[24] = { 0 };
 static char  FTPPath[32] = { 0 };
 
 /* */
-static int  InitControlSocket( const char * );
+static int  InitControlSocket( char * );
 static int  InitDHCP( const uint );
 static void SwitchWorkflow( const uint );
 
@@ -202,7 +202,7 @@ err_return:
  * @retval 0 All of the socket we need are created.
  * @retval < 0 Something wrong when creating socket or setting up the operation mode.
  */
-static int InitControlSocket( const char *dotted )
+static int InitControlSocket( char *dotted )
 {
 	char optval = 1;
 	struct sockaddr_in _addr;
@@ -245,7 +245,7 @@ static int InitControlSocket( const char *dotted )
 /* Set the transmitting address info */
 	memset(&_addr, 0, sizeof(struct sockaddr));
 	_addr.sin_family = AF_INET;
-	_addr.sin_addr.s_addr = dotted ? inet_addr((char *)dotted) : htonl(INADDR_BROADCAST);
+	_addr.sin_addr.s_addr = dotted ? inet_addr(dotted) : htonl(INADDR_BROADCAST);
 	_addr.sin_port = htons(CONTROL_PORT);
 	TransmitAddr = _addr;
 
@@ -426,7 +426,7 @@ static int TransmitCommand( const char *comm )
 /* Appending the '\r' to the input command */
 	sprintf(MsgBuffer, "%s\r", comm);
 /* Transmitting the command to others */
-	sendto(SockSend, MsgBuffer, strlen(MsgBuffer), MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
+	sendto(SockSend, MsgBuffer, strlen(MsgBuffer), 0, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
 	Delay(250);
 
 /* Flush the input buffer */
