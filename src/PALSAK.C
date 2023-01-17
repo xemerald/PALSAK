@@ -249,12 +249,13 @@ static int InitControlSocket( char *dotted )
 
 /* Set the transmitting address info */
 	Print("251 %s\n\r", dotted);
+	Print("252 %lu %lu\n\r", inet_addr(dotted), inet_addr("192.168.137.255"));
 	memset(&_addr, 0, sizeof(struct sockaddr));
 	_addr.sin_family = AF_INET;
 	_addr.sin_addr.s_addr = dotted ? inet_addr(dotted) : htonl(INADDR_BROADCAST);
 	_addr.sin_port = htons(CONTROL_PORT);
 	TransmitAddr = _addr;
-	Print("257 %s\n\r", inet_ntoa(TransmitAddr.sin_addr));
+	Print("257 %s %s\n\r", inet_ntoa(_addr.sin_addr), inet_ntoa(TransmitAddr.sin_addr));
 
 	return NORMAL;
 }
