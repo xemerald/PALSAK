@@ -196,9 +196,9 @@ err_return:
 
 /**
  * @brief The initialization process of control socket.
- * 
- * @param dotted 
- * @return int 
+ *
+ * @param dotted
+ * @return int
  * @retval 0 All of the socket we need are created.
  * @retval < 0 Something wrong when creating socket or setting up the operation mode.
  */
@@ -225,7 +225,7 @@ static int InitControlSocket( const char *dotted )
 		if ( setsockopt(SockSend, SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval)) < 0 )
 			return ERROR;
 	/* Create the receiving socket */
-		if ( (SockRecv = socket(PF_INET, SOCK_DGRAM, 0)) < 0 ) 
+		if ( (SockRecv = socket(PF_INET, SOCK_DGRAM, 0)) < 0 )
 			return ERROR;
 	}
 
@@ -422,11 +422,11 @@ static int TransmitCommand( const char *comm )
 	SHOW_2DASH_5DIGITLED( 0 );
 	Show5DigitLed(3, 5);
 /* Flush the receiving buffer from client, just in case */
-	while ( recvfrom(SockRecv, MsgBuffer, MSGBUF_SIZE, 0, (struct sockaddr *)&_addr, &fromlen) > 0 );
+	while ( recvfrom(SockRecv, MsgBuffer, MSGBUF_SIZE, MSG_OOB, (struct sockaddr *)&_addr, &fromlen) > 0 );
 /* Appending the '\r' to the input command */
 	sprintf(MsgBuffer, "%s\r", comm);
 /* Transmitting the command to others */
-	sendto(SockSend, MsgBuffer, strlen(MsgBuffer), 0, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
+	sendto(SockSend, MsgBuffer, strlen(MsgBuffer), MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
 	Delay(250);
 
 /* Flush the input buffer */
@@ -463,10 +463,10 @@ static int TransmitDataByCommand( const char *data, int data_length )
 
 /* Flush the receiving buffer from client, just in case */
 	while ( SOCKET_HASDATA(SockRecv) )
-		recvfrom(SockRecv, MsgBuffer, MSGBUF_SIZE, 0, (struct sockaddr *)&_addr, &fromlen);
+		recvfrom(SockRecv, MsgBuffer, MSGBUF_SIZE, MSG_OOB, (struct sockaddr *)&_addr, &fromlen);
 /* Sending the data bytes by command line method */
-	sendto(SockSend, (char *)data, data_length, 0, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
-	
+	sendto(SockSend, (char *)data, data_length, MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
+
 /* Flush the input buffer */
 	memset(MsgBuffer, 0, MSGBUF_SIZE);
 /* Receiving the response from the palert */
@@ -498,7 +498,7 @@ static void ForceFlushSocket( int sock )
 	Show5DigitLedSeg(5, 0xb7);
 /* Flush the receiving buffer from client, just in case */
 	for ( i = 0; i < NETWORK_OPERATION_RETRY; i++ )
-		while ( recvfrom(sock, MsgBuffer, MSGBUF_SIZE, 0, (struct sockaddr *)&_addr, &fromlen) > 0 );
+		while ( recvfrom(sock, MsgBuffer, MSGBUF_SIZE, MSG_OOB, (struct sockaddr *)&_addr, &fromlen) > 0 );
 
 	return;
 }
@@ -672,11 +672,11 @@ static int SetPalertNetwork( const uint msec )
 			return ERROR;
 	/* */
 		sprintf(strbuf, "%s", pos);
-
-		TransmitCommand( "reset" );
-		Delay(1000);
+		Print("%s\n\r", strbuf);
 		if ( InitControlSocket( strbuf ) == ERROR )
 			return ERROR;
+
+		TransmitCommand( "reset" );
 	/* */
 
 		sprintf(strbuf, "ip %u.%u.%u.%u", addr[0], addr[1], addr[2], addr[3]);
