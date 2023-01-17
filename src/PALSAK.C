@@ -256,7 +256,7 @@ static int InitControlSocket( char *dotted )
 	_addr.sin_addr.s_addr = dotted != NULL ? __inet_addr(dotted) : htonl(INADDR_BROADCAST);
 	_addr.sin_port = htons(CONTROL_PORT);
 	TransmitAddr = _addr;
-	Print("257 %s %s\n\r", inet_ntoa(_addr.sin_addr), inet_ntoa(TransmitAddr.sin_addr));
+	Print("257 %s\n\r", inet_ntoa(TransmitAddr.sin_addr));
 
 	return NORMAL;
 }
