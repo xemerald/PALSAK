@@ -477,10 +477,8 @@ static int TransmitDataByCommand( const char *data, int data_length )
 	int fromlen = sizeof(struct sockaddr);
 
 /* Just in case, avoid from using the MsgBuffer as input buffer */
-	if ( data == MsgBuffer ) {
-		Print("%p %p\n\r", data, MsgBuffer);
+	if ( data == MsgBuffer )
 		return ERROR;
-	}
 /* Flush the receiving buffer from client, just in case */
 	while ( SOCKET_HASDATA(SockRecv) )
 		recvfrom(SockRecv, MsgBuffer, MSGBUF_SIZE, MSG_OOB, (struct sockaddr *)&_addr, &fromlen);
@@ -492,10 +490,8 @@ static int TransmitDataByCommand( const char *data, int data_length )
 	memset(MsgBuffer, 0, MSGBUF_SIZE);
 /* Receiving the response from the palert */
 	while ( (ret = recvfrom(SockRecv, MsgBuffer, MSGBUF_SIZE, 0, (struct sockaddr *)&_addr, &fromlen)) <= 0 ) {
-		if ( ++trycount >= NETWORK_OPERATION_RETRY ) {
-			Print("%d\n\r", trycount);
+		if ( ++trycount >= NETWORK_OPERATION_RETRY )
 			return ERROR;
-		}
 	}
 	MsgBuffer[ret] = '\0';
 
@@ -917,8 +913,10 @@ static int AgentCommand( const char *comm, const uint msec )
 	if ( ReadFileBlockZero( GetFileInfoByName_AB(DISKA, "block_0.ini"), (BYTE *)data, sizeof(data) ) == ERROR )
 		return ERROR;
 	Delay(250);
+	Print("916 %s\n\r", MsgBuffer);
 /* Execute the remote agent */
 	while ( TransmitCommand( "runr" ) != NORMAL );
+	Print("918 %s\n\r", MsgBuffer);
 /* Send the Block zero data to the agent */
 	do {
 		if ( TransmitDataByCommand( data, EEPROM_SET_TOTAL_LENGTH + 2 ) == NORMAL ) {
@@ -935,10 +933,13 @@ static int AgentCommand( const char *comm, const uint msec )
 			}
 		}
 	/* Something wrong, goto error return */
+		Print("936 %s\n\r", MsgBuffer);
 		return ERROR;
 	} while ( 1 );
+	Print("939 %s\n\r", MsgBuffer);
 /* Sending the command to remote agent */
 	while ( TransmitCommand( comm ) != NORMAL );
+	Print("942 %s\n\r", MsgBuffer);
 	if ( !strncmp(comm, "setdef", 6) ) {
 	/* Show 'S. def.' on the 7-seg led */
 		Show5DigitLedWithDot(1, 0x05);
@@ -957,6 +958,7 @@ static int AgentCommand( const char *comm, const uint msec )
 	}
 	else {
 	/* Unknown command */
+		Print("961 %s\n\r", MsgBuffer);
 		return ERROR;
 	}
 /* */
