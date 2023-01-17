@@ -238,7 +238,7 @@ static int InitControlSocket( char *dotted )
 	memset(&_addr, 0, sizeof(struct sockaddr));
 	_addr.sin_family = AF_INET;
 	_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	_addr.sin_port = htons(LISTEN_PORT);
+	_addr.sin_port = htons(dotted ? 12345 : LISTEN_PORT);
 	if ( bind(SockRecv, (struct sockaddr *)&_addr, sizeof(struct sockaddr)) < 0 )
 		return ERROR;
 /* Set the timeout of receiving socket to 0.25 sec. */
@@ -413,7 +413,7 @@ static int TransmitCommand( const char *comm )
 {
 	int   ret = 0;
 	uchar trycount = 0;
-
+	extern int errno;
 	struct sockaddr_in _addr;
 	int fromlen = sizeof(struct sockaddr);
 
@@ -428,7 +428,10 @@ static int TransmitCommand( const char *comm )
 /* Appending the '\r' to the input command */
 	sprintf(MsgBuffer, "%s\r", comm);
 /* Transmitting the command to others */
-	sendto(SockSend, MsgBuffer, strlen(MsgBuffer), MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
+	if ( sendto(SockSend, MsgBuffer, strlen(MsgBuffer), MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr)) <= 0 ) {
+		Print("%d\n\r", errno);
+		return ERROR;
+	}
 	Delay(250);
 
 /* Flush the input buffer */
