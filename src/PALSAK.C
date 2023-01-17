@@ -62,7 +62,7 @@ static int DownloadFirmware( const char * );
 static int ReadFileFTPInfo( const FILE_DATA far * );
 static int ReadFileBlockZero( const FILE_DATA far *, BYTE far *, size_t );
 
-static ulong __inet_addr( const char * );
+static ulong __inet_addr( const char far * );
 static int ConvertMask( ulong );
 
 /* Main function, entry */
@@ -1314,9 +1314,9 @@ static int ReadFileBlockZero( const FILE_DATA far *fileptr, BYTE far *dest, size
  * @param dotted
  * @return ulong
  */
-static ulong __inet_addr( const char *dotted )
+static ulong __inet_addr( const char far *dotted )
 {
-	ulong result = INADDR_BROADCAST;
+	static ulong result = INADDR_BROADCAST;
 	BYTE far *ptr = (BYTE far *)&result;
 
 	if ( dotted != NULL ) {
