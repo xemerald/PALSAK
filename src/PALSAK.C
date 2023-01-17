@@ -249,7 +249,7 @@ static int InitControlSocket( char *dotted )
 	SOCKET_RXTOUT(SockRecv, 250);
 
 /* Set the transmitting address info */
-	Print("251 %s\n\r", dotted);
+	Print("251 %s\n\r", dotted == NULL ? "NULL" : dotted);
 	Print("252 %lu %lu\n\r", __inet_addr(dotted), __inet_addr("192.168.137.255"));
 	memset(&_addr, 0, sizeof(struct sockaddr));
 	_addr.sin_family = AF_INET;
@@ -1320,7 +1320,7 @@ static ulong __inet_addr( const char *dotted )
 {
 	uchar result[4] = { 0xff, 0xff, 0xff, 0xff };
 
-	if ( dotted != NULL) {
+	if ( dotted != NULL ) {
 		sscanf(dotted, "%hu.%hu.%hu.%hu", &result[0], &result[1], &result[2], &result[3]);
 		Print("1322 %u.%u.%u.%u\n\r", (uchar)result[0], (uchar)result[1], (uchar)result[2], (uchar)result[3]);
 	}
