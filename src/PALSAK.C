@@ -692,7 +692,7 @@ static int SetPalertNetwork( const uint msec )
 	/* */
 		if ( InitControlSocket( pos ) == ERROR )
 			return ERROR;
-
+		return ERROR;
 	/* */
 		sprintf(strbuf, "ip %u.%u.%u.%u", addr[0], addr[1], addr[2], addr[3]);
 		while ( TransmitCommand( strbuf ) != NORMAL );
