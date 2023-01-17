@@ -433,6 +433,7 @@ static int TransmitCommand( const char *comm )
 /* Transmitting the command to others */
 	if ( sendto(SockSend, MsgBuffer, strlen(MsgBuffer), MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr)) <= 0 ) {
 		Print("%d\n\r", errno);
+		Print("%s\n\r", inet_ntoa(TransmitAddr.sin_addr));
 		return ERROR;
 	}
 	Delay(250);
