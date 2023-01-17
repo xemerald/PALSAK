@@ -38,7 +38,7 @@ static char  FTPPass[24] = { 0 };
 static char  FTPPath[32] = { 0 };
 
 /* */
-static int  InitControlSocket( char * );
+static int  InitControlSocket( const char * );
 static int  InitDHCP( const uint );
 static void SwitchWorkflow( const uint );
 
@@ -60,7 +60,7 @@ static int CheckFirmwareVer( char *, const uint );
 static int DownloadFirmware( const char * );
 
 static int ReadFileFTPInfo( const FILE_DATA far * );
-static int ReadFileBlockZero( const FILE_DATA far *, BYTE *, size_t );
+static int ReadFileBlockZero( const FILE_DATA far *, BYTE far *, size_t );
 
 static ulong __inet_addr( const char * );
 static int ConvertMask( ulong );
@@ -203,7 +203,7 @@ err_return:
  * @retval 0 All of the socket we need are created.
  * @retval < 0 Something wrong when creating socket or setting up the operation mode.
  */
-static int InitControlSocket( char *dotted )
+static int InitControlSocket( const char *dotted )
 {
 	char optval = 1;
 	struct sockaddr_in _addr;
@@ -223,6 +223,7 @@ static int InitControlSocket( char *dotted )
 /* Set the socket to reuse the address */
 	if ( setsockopt(SockSend, SOL_SOCKET, SO_DONTROUTE, &optval, sizeof(optval)) < 0 )
 		return ERROR;
+
 /* */
 	if ( dotted != NULL ) {
 		SockRecv = SockSend;
@@ -235,6 +236,7 @@ static int InitControlSocket( char *dotted )
 		if ( (SockRecv = socket(PF_INET, SOCK_DGRAM, 0)) < 0 )
 			return ERROR;
 	}
+
 /* Set the socket to reuse the address */
 	if ( setsockopt(SockRecv, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0 )
 		return ERROR;
@@ -249,14 +251,13 @@ static int InitControlSocket( char *dotted )
 	SOCKET_RXTOUT(SockRecv, 250);
 
 /* Set the transmitting address info */
-	Print("251 %s\n\r", dotted == NULL ? "NULL" : dotted);
-	//Print("252 %lu\n\r", __inet_addr(dotted));
+	Print("254 %lu\n\r", __inet_addr( dotted ) );
 	memset(&_addr, 0, sizeof(struct sockaddr));
 	_addr.sin_family = AF_INET;
-	_addr.sin_addr.s_addr = dotted != NULL ? __inet_addr(dotted) : htonl(INADDR_BROADCAST);
+	_addr.sin_addr.s_addr = dotted != NULL ? __inet_addr( dotted ) : htonl(INADDR_BROADCAST);
 	_addr.sin_port = htons(CONTROL_PORT);
 	TransmitAddr = _addr;
-	Print("257 %s\n\r", inet_ntoa(TransmitAddr.sin_addr));
+	Print("260 %lu\n\r", inet_ntoa( TransmitAddr.sin_addr ) );
 
 	return NORMAL;
 }
@@ -529,9 +530,9 @@ static void ForceFlushSocket( int sock )
  *    NULL  - It didn't find out the data.
  *    !NULL - The pointer to the real data string.
  */
-static char *ExtractResponse( char *buffer, const uint length )
+static char *ExtractResponse( char far *buffer, const uint length )
 {
-	char *pos = NULL;
+	char far *pos = NULL;
 
 	if ( buffer != NULL ) {
 	/* Find out where is the '=', and skip all the following space or tab. */
@@ -689,15 +690,10 @@ static int SetPalertNetwork( const uint msec )
 		if ( (pos = ExtractResponse( MsgBuffer, IPV4_STRING )) == NULL )
 			return ERROR;
 	/* */
-		sprintf(strbuf, "%s", pos);
-		Print("686 %s\n\r", strbuf);
-		if ( InitControlSocket( strbuf ) == ERROR )
+		if ( InitControlSocket( pos ) == ERROR )
 			return ERROR;
 
-		if ( TransmitCommand( "reset" ) == ERROR )
-			return ERROR;
 	/* */
-
 		sprintf(strbuf, "ip %u.%u.%u.%u", addr[0], addr[1], addr[2], addr[3]);
 		while ( TransmitCommand( strbuf ) != NORMAL );
 	/* Show 'S. iP.' on the 7-seg led */
@@ -1266,10 +1262,10 @@ static int ReadFileFTPInfo( const FILE_DATA far *fileptr )
  * @param dest_size
  * @return int
  */
-static int ReadFileBlockZero( const FILE_DATA far *fileptr, BYTE *dest, size_t dest_size )
+static int ReadFileBlockZero( const FILE_DATA far *fileptr, BYTE far *dest, size_t dest_size )
 {
 	ulong scan_pos = 0;
-	BYTE * const endptr = dest + EEPROM_SET_TOTAL_LENGTH;
+	BYTE far * const endptr = dest + EEPROM_SET_TOTAL_LENGTH;
 
 /* */
 	if ( dest_size < (EEPROM_SET_TOTAL_LENGTH + 2) )
@@ -1320,7 +1316,7 @@ static int ReadFileBlockZero( const FILE_DATA far *fileptr, BYTE *dest, size_t d
  */
 static ulong __inet_addr( const char *dotted )
 {
-	static ulong result;
+	ulong result;
 	BYTE far *ptr = (BYTE far *)&result;
 
 	if ( dotted != NULL )
