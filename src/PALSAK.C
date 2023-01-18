@@ -103,6 +103,15 @@ void main( void )
 /* Initialization for broadcasting network */
 	if ( InitControlSocket( NULL ) == ERROR )
 		goto err_return;
+/* */
+	if ( WorkflowFlag & STRATEGY_SET_NET ) {
+	/* Set the network of the Palert with saved setting */
+		if ( SetPalertNetwork( 400 ) == ERROR )
+			goto err_return;
+	/* Show the Good result on the 7-seg led */
+		SHOW_GOOD_5DIGITLED();
+		Delay(1000);
+	}
 /*
  * Checking the segment of palert disk. If the result is not consisten with expectation,
  * then resetting the segment of palert disk
@@ -143,15 +152,6 @@ void main( void )
 	if ( WorkflowFlag & STRATEGY_UPL_FW ) {
 	/* Start to upload firmware & batch file */
 		if ( UploadPalertFirmware( 2000 ) == ERROR )
-			goto err_return;
-	/* Show the Good result on the 7-seg led */
-		SHOW_GOOD_5DIGITLED();
-		Delay(1000);
-	}
-/* */
-	if ( WorkflowFlag & STRATEGY_SET_NET ) {
-	/* Set the network of the Palert with saved setting */
-		if ( SetPalertNetwork( 400 ) == ERROR )
 			goto err_return;
 	/* Show the Good result on the 7-seg led */
 		SHOW_GOOD_5DIGITLED();
