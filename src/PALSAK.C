@@ -217,8 +217,8 @@ static int InitControlSocket( const char *dotted )
 	/* Terminate the network interface first */
 		Nterm();
 	/* We should set the Mask to zero, let all the packet skip the routing table */
-		Print("%d %u.%u.%u.%u", __LINE__, netconf[0].Imask.c[0], netconf[0].Imask.c[1], netconf[0].Imask.c[2], netconf[0].Imask.c[3]);
-		Print("%d %u.%u.%u.%u", __LINE__, netconf[1].Imask.c[0], netconf[1].Imask.c[1], netconf[1].Imask.c[2], netconf[1].Imask.c[3]);
+		Print("%d %u.%u.%u.%u", __LINE__, netconf[0].Iaddr.c[0], netconf[0].Iaddr.c[1], netconf[0].Iaddr.c[2], netconf[0].Iaddr.c[3]);
+		Print("%d %u.%u.%u.%u", __LINE__, netconf[1].Iaddr.c[0], netconf[1].Iaddr.c[1], netconf[1].Iaddr.c[2], netconf[1].Iaddr.c[3]);
 	/* Initialization for network interface library */
 		if ( NetStart() < 0 )
 			return ERROR;
@@ -226,8 +226,8 @@ static int InitControlSocket( const char *dotted )
 /* Wait for the network interface ready, it might be shorter */
 	YIELD();
 	Delay(5);
-	Print("%d %u.%u.%u.%u", __LINE__, netconf[0].Imask.c[0], netconf[0].Imask.c[1], netconf[0].Imask.c[2], netconf[0].Imask.c[3]);
-	Print("%d %u.%u.%u.%u", __LINE__, netconf[1].Imask.c[0], netconf[1].Imask.c[1], netconf[1].Imask.c[2], netconf[1].Imask.c[3]);
+	Print("%d %u.%u.%u.%u", __LINE__, netconf[0].Iaddr.c[0], netconf[0].Iaddr.c[1], netconf[0].Iaddr.c[2], netconf[0].Iaddr.c[3]);
+	Print("%d %u.%u.%u.%u", __LINE__, netconf[1].Iaddr.c[0], netconf[1].Iaddr.c[1], netconf[1].Iaddr.c[2], netconf[1].Iaddr.c[3]);
 /* External variables for broadcast setting: Setup for accepting broadcast packet */
 	bAcceptBroadcast = 1;
 
