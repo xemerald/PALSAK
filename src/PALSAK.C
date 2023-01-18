@@ -668,6 +668,7 @@ static int SetPalertNetwork( const uint msec )
 		}
 	/* Send out the IP address request command for following connection */
 		while ( TransmitCommand( "ip" ) != NORMAL );
+		Print("%d %s\n\r", __LINE__, RecvBuffer);
 	/* Extract the IP address from the raw response & connect to it */
 		if ( (pos = ExtractResponse( RecvBuffer, IPV4_STRING )) == NULL )
 			return ERROR;
@@ -676,6 +677,7 @@ static int SetPalertNetwork( const uint msec )
 	/* */
 		sprintf(str_ptr, "ip %u.%u.%u.%u", (BYTE)PreBuffer[0], (BYTE)PreBuffer[1], (BYTE)PreBuffer[2], (BYTE)PreBuffer[3]);
 		while ( TransmitCommand( str_ptr ) != NORMAL );
+		Print("%d %s\n\r", __LINE__, RecvBuffer);
 	/* Show 'S. iP.' on the 7-seg led */
 		Show5DigitLedWithDot(1, 0x05);
 		Show5DigitLedSeg(2, 0x00);
@@ -685,6 +687,7 @@ static int SetPalertNetwork( const uint msec )
 		Delay(msec);
 	/* Send out the IP address request command for rechecking */
 		while ( TransmitCommand( "ip" ) != NORMAL );
+		Print("%d %s\n\r", __LINE__, RecvBuffer);
 	/* Extract the IP address from the raw response */
 		if ( (pos = ExtractResponse( RecvBuffer, IPV4_STRING )) == NULL )
 			return ERROR;
