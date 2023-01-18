@@ -214,6 +214,16 @@ static int InitControlSocket( const char *dotted )
 /* Close the previous sockets for following process */
 	closesocket(SockSend);
 	closesocket(SockRecv);
+/* */
+	if ( dotted != NULL ) {
+	/* Terminate the network interface first */
+		Nterm();
+	/* We should set the Mask to zero, let all the packet skip the routing table */
+		*(long *)NetHost->Imask.c = 0L;
+	/* Initialization for network interface library */
+		if ( NetStart() < 0 )
+			return ERROR;
+	}
 /* Wait for the network interface ready, it might be shorter */
 	YIELD();
 	Delay(5);
@@ -254,9 +264,6 @@ static int InitControlSocket( const char *dotted )
 	_addr.sin_addr.s_addr = dotted != NULL ? inet_addr((char *)dotted) : htonl(INADDR_BROADCAST);
 	_addr.sin_port = htons(CONTROL_PORT);
 	TransmitAddr = _addr;
-
-/* We should set the Mask to zero, let all the packet skip the routing table */
-	*(long *)NetHost->Imask.c = 0L;
 
 	return NORMAL;
 }
