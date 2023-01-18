@@ -251,10 +251,10 @@ static int InitControlSocket( const char *dotted )
 	SOCKET_RXTOUT(SockRecv, 250);
 
 /* Set the transmitting address info */
-	Print("254 %lu\n\r", inet_addr( "192.168.137.1" );
+	Print("254 %lu\n\r", inet_addr( (char *)dotted ));
 	memset(&_addr, 0, sizeof(struct sockaddr));
 	_addr.sin_family = AF_INET;
-	_addr.sin_addr.s_addr = dotted != NULL ? inet_addr( "192.168.137.1" ) : htonl(INADDR_BROADCAST);
+	_addr.sin_addr.s_addr = dotted != NULL ? inet_addr( (char *)dotted ) : htonl(INADDR_BROADCAST);
 	_addr.sin_port = htons(CONTROL_PORT);
 	TransmitAddr = _addr;
 	Print("260 %s\n\r", inet_ntoa( TransmitAddr.sin_addr ) );
