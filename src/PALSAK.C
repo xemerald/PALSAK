@@ -208,6 +208,8 @@ static int InitControlSocket( const char *dotted )
 {
 	char optval = 1;
 	struct sockaddr_in _addr;
+/* Two external struct but not listed in header file, therefore we should declare here */
+	extern struct NETDATA *NetHost;
 
 /* Close the previous sockets for following process */
 	closesocket(SockSend);
@@ -252,6 +254,9 @@ static int InitControlSocket( const char *dotted )
 	_addr.sin_addr.s_addr = dotted != NULL ? inet_addr((char *)dotted) : htonl(INADDR_BROADCAST);
 	_addr.sin_port = htons(CONTROL_PORT);
 	TransmitAddr = _addr;
+
+/* We should set the Mask to zero, let all the packet skip the routing table */
+	*(long *)NetHost->Imask.c = 0L;
 
 	return NORMAL;
 }
