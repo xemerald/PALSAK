@@ -251,10 +251,10 @@ static int InitControlSocket( const char *dotted )
 	SOCKET_RXTOUT(SockRecv, 250);
 
 /* Set the transmitting address info */
-	Print("254 %lu\n\r", __inet_addr( dotted ) );
+	Print("254 %lu\n\r", inet_addr( "192.168.137.1" );
 	memset(&_addr, 0, sizeof(struct sockaddr));
 	_addr.sin_family = AF_INET;
-	_addr.sin_addr.s_addr = dotted != NULL ? __inet_addr( dotted ) : htonl(INADDR_BROADCAST);
+	_addr.sin_addr.s_addr = dotted != NULL ? inet_addr( "192.168.137.1" ) : htonl(INADDR_BROADCAST);
 	_addr.sin_port = htons(CONTROL_PORT);
 	TransmitAddr = _addr;
 	Print("260 %s\n\r", inet_ntoa( TransmitAddr.sin_addr ) );
@@ -1315,14 +1315,23 @@ static int ReadFileBlockZero( const FILE_DATA far *fileptr, BYTE far *dest, size
  * @param dotted
  * @return ulong
  */
-static ulong __inet_addr( const char far *dotted )
+static ulong __inet_addr( const char *dotted )
 {
-	ulong      result = INADDR_BROADCAST;
-	uchar far *ptr = (uchar far *)&result;
+	char  tmp[16] = { 0 };
+	ulong result = INADDR_BROADCAST;
+	BYTE *ptr = (BYTE *)&result;
+	int i;
 
 	if ( dotted != NULL ) {
-		sscanf(dotted, "%Fhu.%Fhu.%Fhu.%Fhu", ptr, ptr + 1, ptr + 2, ptr + 3);
-		Print("%u %u %u %u", *ptr, *(ptr + 1), *(ptr + 2), *(ptr + 3));
+		strcpy(tmp, dotted);
+		for ( i = 0; i < 16; i++ )
+			if ( tmp[i] == '.' )
+				tmp[i] = '\0';
+		for ( i = 0; i < 16; i++ ) {
+			if ( isdigit(tmp[i]) ) {
+				*ptr = atoi(&tmp[i]);
+			}
+		}
 	}
 
 	return result;
