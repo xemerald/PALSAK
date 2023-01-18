@@ -40,9 +40,9 @@ static uint  FTPPort     = 21;
 static char  FTPUser[24] = { 0 };
 static char  FTPPass[24] = { 0 };
 static char  FTPPath[32] = { 0 };
+
 /* */
-static uchar OriginMask[Iid_SZ];
-/* */
+static void SetNetworkConfig( uint );
 static int  InitControlSocket( const char * );
 static int  InitDHCP( const uint );
 static void SwitchWorkflow( const uint );
@@ -75,8 +75,7 @@ void main( void )
 /* Initialization for u7186EX's general library */
 	InitLib();
 	Init5DigitLed();
-/* */
-	GetMask(OriginMask);
+	SetNetworkConfig( NETWORK_DEFAULT );
 /* Initialization for network interface library */
 	if ( NetStart() < 0 )
 		return;
@@ -200,6 +199,29 @@ err_return:
 }
 
 /**
+ * @brief Set the Network Config from EEPROM
+ *
+ */
+static void SetNetworkConfig( uint set )
+{
+/* */
+	if ( set == NETWORK_TEMPORARY )
+		set = EEPROM_NETWORK_TMP_ADDR;
+	else if ( set == NETWORK_DEFAULT )
+		set = EEPROM_NETWORK_DEF_ADDR;
+	else
+		return;
+/* */
+	if ( !EE_MultiRead(EEPROM_NETWORK_SET_BLOCK, set, EEPROM_NETWORK_SET_LENGTH, PreBuffer) ) {
+		SetIp((uchar *)&PreBuffer[0]);
+		SetMask((uchar *)&PreBuffer[4]);
+		SetGateway((uchar *)&PreBuffer[8]);
+	}
+
+	return;
+}
+
+/**
  * @brief The initialization process of control socket.
  *
  * @param dotted
@@ -225,11 +247,6 @@ static int InitControlSocket( const char *dotted )
 	/* Initialization for network interface library */
 		if ( NetStart() < 0 )
 			return ERROR;
-	}
-	else {
-		GetMask((uchar *)&_addr.sin_addr.s_addr);
-		if ( memcmp(OriginMask, &_addr.sin_addr.s_addr, Iid_SZ) )
-			SetMask(OriginMask);
 	}
 /* Wait for the network interface ready, it might be shorter */
 	YIELD();
@@ -338,10 +355,6 @@ static void SwitchWorkflow( const uint msec )
 	uint num = 0;
 	uint delay_msec = msec;
 
-/* Fetch the saved IP from EEPROM */
-	GetIp((uchar *)RecvBuffer);
-	sprintf(PreBuffer, "%u.%u.%u.%u  ", (uchar)RecvBuffer[0], (uchar)RecvBuffer[1], (uchar)RecvBuffer[2], (uchar)RecvBuffer[3]);
-	EncodeAddrDisplayContent( PreBuffer );
 /* Show the "-0-" message on the 7-seg led */
 	SHOW_2DASH_5DIGITLED( 0 );
 /*
@@ -352,6 +365,18 @@ static void SwitchWorkflow( const uint msec )
 	while ( bEthernetLinkOk == 0x00 ) {
 	/* Detect the init. pin condition for switching to the updating firmware func. */
 		if ( ReadInitPin() && WorkflowFlag != WORKFLOW_0 ) {
+		/* Fetch the saved IP from EEPROM */
+			GetIp((uchar *)&RecvBuffer[0]);
+			GetMask((uchar *)&RecvBuffer[4]);
+			GetGateway((uchar *)&RecvBuffer[8]);
+			/* Show the fetched IP on the 7-seg led roller once */
+			sprintf(
+				PreBuffer, "%u.%u.%u.%u-%u  %u.%u.%u.%u  ",
+				(uchar)RecvBuffer[0], (uchar)RecvBuffer[1], (uchar)RecvBuffer[2], (uchar)RecvBuffer[3],
+				ConvertMask( *(long *)&RecvBuffer[4] ),
+				(uchar)RecvBuffer[8], (uchar)RecvBuffer[9], (uchar)RecvBuffer[10], (uchar)RecvBuffer[11]
+			);
+			EncodeAddrDisplayContent( PreBuffer );
 		/* */
 			num = 0;
 			delay_msec = msec;
@@ -625,7 +650,7 @@ static int GetPalertNetworkSetting( const uint msec )
 
 /* */
 	EE_WriteEnable();
-	if ( EE_MultiWrite(EEPROM_NETWORK_SET_BLOCK, EEPROM_NETWORK_SET_ADDR, EEPROM_NETWORK_SET_LENGTH, PreBuffer) ) {
+	if ( EE_MultiWrite(EEPROM_NETWORK_SET_BLOCK, EEPROM_NETWORK_TMP_ADDR, EEPROM_NETWORK_SET_LENGTH, PreBuffer) ) {
 		EE_WriteProtect();
 		return ERROR;
 	}
@@ -655,7 +680,7 @@ static int SetPalertNetwork( const uint msec )
 	char *str_ptr = PreBuffer + EEPROM_NETWORK_SET_LENGTH + 1;
 
 /* Read from EEPROM block 2 where the saved network setting within */
-	if ( !EE_MultiRead(EEPROM_NETWORK_SET_BLOCK, EEPROM_NETWORK_SET_ADDR, EEPROM_NETWORK_SET_LENGTH, PreBuffer) ) {
+	if ( !EE_MultiRead(EEPROM_NETWORK_SET_BLOCK, EEPROM_NETWORK_TMP_ADDR, EEPROM_NETWORK_SET_LENGTH, PreBuffer) ) {
 	/* Show 'U.PLUG.' on the 7-seg led */
 		Show5DigitLedSeg(1, 0xbe);
 		Show5DigitLedSeg(2, 0x67);
@@ -687,7 +712,6 @@ static int SetPalertNetwork( const uint msec )
 		}
 	/* Send out the IP address request command for following connection */
 		while ( TransmitCommand( "ip" ) != NORMAL );
-		Print("%d %s\n\r", __LINE__, RecvBuffer);
 	/* Extract the IP address from the raw response & connect to it */
 		if ( (pos = ExtractResponse( RecvBuffer, IPV4_STRING )) == NULL )
 			return ERROR;
@@ -695,11 +719,9 @@ static int SetPalertNetwork( const uint msec )
 			return ERROR;
 	/* One more carriage return to flush the broadcast record */
 		while ( TransmitCommand( "" ) != NORMAL );
-		Print("%d %s\n\r", __LINE__, RecvBuffer);
 	/* */
 		sprintf(str_ptr, "ip %u.%u.%u.%u", (BYTE)PreBuffer[0], (BYTE)PreBuffer[1], (BYTE)PreBuffer[2], (BYTE)PreBuffer[3]);
 		while ( TransmitCommand( str_ptr ) != NORMAL );
-		Print("%d %s\n\r", __LINE__, RecvBuffer);
 	/* Show 'S. iP.' on the 7-seg led */
 		Show5DigitLedWithDot(1, 0x05);
 		Show5DigitLedSeg(2, 0x00);
@@ -709,7 +731,6 @@ static int SetPalertNetwork( const uint msec )
 		Delay(msec);
 	/* Send out the IP address request command for rechecking */
 		while ( TransmitCommand( "ip" ) != NORMAL );
-		Print("%d %s\n\r", __LINE__, RecvBuffer);
 	/* Extract the IP address from the raw response */
 		if ( (pos = ExtractResponse( RecvBuffer, IPV4_STRING )) == NULL )
 			return ERROR;

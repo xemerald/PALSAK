@@ -67,9 +67,13 @@ extern "C" {
 /* The response from the other palert when receiving data bytes */
 #define ACK   6
 #define NAK  21
+/* */
+#define NETWORK_TEMPORARY  0
+#define NETWORK_DEFAULT    1
 /* Temporary Palert Network setting storage information */
 #define EEPROM_NETWORK_SET_BLOCK   0x02
-#define EEPROM_NETWORK_SET_ADDR    0x00
+#define EEPROM_NETWORK_TMP_ADDR    0x00
+#define EEPROM_NETWORK_DEF_ADDR    0x10
 #define EEPROM_NETWORK_SET_LENGTH  12
 /* */
 #define EEPROM_BYTE_PER_LINE  8
