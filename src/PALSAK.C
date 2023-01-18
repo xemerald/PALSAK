@@ -62,7 +62,6 @@ static int DownloadFirmware( const char * );
 static int ReadFileFTPInfo( const FILE_DATA far * );
 static int ReadFileBlockZero( const FILE_DATA far *, BYTE far *, size_t );
 
-static ulong __inet_addr( const char far * );
 static int ConvertMask( ulong );
 
 /* Main function, entry */
@@ -251,13 +250,11 @@ static int InitControlSocket( const char *dotted )
 	SOCKET_RXTOUT(SockRecv, 250);
 
 /* Set the transmitting address info */
-	Print("254 %lu\n\r", inet_addr( (char *)dotted ));
 	memset(&_addr, 0, sizeof(struct sockaddr));
 	_addr.sin_family = AF_INET;
 	_addr.sin_addr.s_addr = dotted != NULL ? inet_addr( (char *)dotted ) : htonl(INADDR_BROADCAST);
 	_addr.sin_port = htons(CONTROL_PORT);
 	TransmitAddr = _addr;
-	Print("260 %s\n\r", inet_ntoa( TransmitAddr.sin_addr ) );
 
 	return NORMAL;
 }
@@ -693,7 +690,6 @@ static int SetPalertNetwork( const uint msec )
 	/* */
 		if ( InitControlSocket( pos ) == ERROR )
 			return ERROR;
-		return ERROR;
 	/* */
 		sprintf(strbuf, "ip %u.%u.%u.%u", addr[0], addr[1], addr[2], addr[3]);
 		while ( TransmitCommand( strbuf ) != NORMAL );
@@ -1307,34 +1303,6 @@ static int ReadFileBlockZero( const FILE_DATA far *fileptr, BYTE far *dest, size
 	}
 
 	return ERROR;
-}
-
-/**
- * @brief
- *
- * @param dotted
- * @return ulong
- */
-static ulong __inet_addr( const char *dotted )
-{
-	char  tmp[16] = { 0 };
-	ulong result = INADDR_BROADCAST;
-	BYTE *ptr = (BYTE *)&result;
-	int i;
-
-	if ( dotted != NULL ) {
-		strcpy(tmp, dotted);
-		for ( i = 0; i < 16; i++ )
-			if ( tmp[i] == '.' )
-				tmp[i] = '\0';
-		for ( i = 0; i < 16; i++ ) {
-			if ( isdigit(tmp[i]) ) {
-				*ptr = atoi(&tmp[i]);
-			}
-		}
-	}
-
-	return result;
 }
 
 /**
