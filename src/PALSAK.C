@@ -664,7 +664,7 @@ static int SetPalertNetwork( const uint msec )
 		/* */
 			if ( ReadInitPin() )
 				return NORMAL;
-			Delay(1000);
+			Delay(1);
 		}
 	/* Send out the IP address request command for following connection */
 		while ( TransmitCommand( "ip" ) != NORMAL );
@@ -694,7 +694,7 @@ static int SetPalertNetwork( const uint msec )
 			return ERROR;
 
 	/* */
-		sprintf(str_ptr, "mask %u.%u.%u.%u", PreBuffer[4], PreBuffer[5], PreBuffer[6], PreBuffer[7]);
+		sprintf(str_ptr, "mask %u.%u.%u.%u", (BYTE)PreBuffer[4], (BYTE)PreBuffer[5], (BYTE)PreBuffer[6], (BYTE)PreBuffer[7]);
 		while ( TransmitCommand( str_ptr ) != NORMAL );
 	/* Show 'S.MASk.' on the 7-seg led */
 		Show5DigitLedWithDot(1, 0x05);
@@ -714,7 +714,7 @@ static int SetPalertNetwork( const uint msec )
 			return ERROR;
 
 	/* */
-		sprintf(str_ptr, "gateway %u.%u.%u.%u", PreBuffer[8], PreBuffer[9], PreBuffer[10], PreBuffer[11]);
+		sprintf(str_ptr, "gateway %u.%u.%u.%u", (BYTE)PreBuffer[8], (BYTE)PreBuffer[9], (BYTE)PreBuffer[10], (BYTE)PreBuffer[11]);
 		while ( TransmitCommand( str_ptr ) != NORMAL );
 	/* Show 'S.GAtE.' on the 7-seg led */
 		Show5DigitLedWithDot(1, 0x05);
