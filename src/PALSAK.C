@@ -40,7 +40,8 @@ static uint  FTPPort     = 21;
 static char  FTPUser[24] = { 0 };
 static char  FTPPass[24] = { 0 };
 static char  FTPPath[32] = { 0 };
-
+/* */
+static uchar OriginMask[Iid_SZ];
 /* */
 static int  InitControlSocket( const char * );
 static int  InitDHCP( const uint );
@@ -74,6 +75,8 @@ void main( void )
 /* Initialization for u7186EX's general library */
 	InitLib();
 	Init5DigitLed();
+/* */
+	GetMask(OriginMask);
 /* Initialization for network interface library */
 	if ( NetStart() < 0 )
 		return;
@@ -217,20 +220,20 @@ static int InitControlSocket( const char *dotted )
 	/* Terminate the network interface first */
 		Nterm();
 	/* We should set the Mask to zero, let all the packet skip the routing table */
-		Print("%d %u.%u.%u.%u", __LINE__, netconf[0].Iaddr.c[0], netconf[0].Iaddr.c[1], netconf[0].Iaddr.c[2], netconf[0].Iaddr.c[3]);
-		Print("%d %u.%u.%u.%u", __LINE__, netconf[1].Iaddr.c[0], netconf[1].Iaddr.c[1], netconf[1].Iaddr.c[2], netconf[1].Iaddr.c[3]);
-		Print("%d %u.%u.%u.%u", __LINE__, netconf[1].Imask.c[0], netconf[1].Imask.c[1], netconf[1].Imask.c[2], netconf[1].Imask.c[3]);
-		*(long *)netconf[1].Imask.c = 0L;
+		*(long *)PreBuffer = 0L;
+		SetMask((uchar *)PreBuffer);
 	/* Initialization for network interface library */
-		if ( Ninit() < 0 || Portinit("*") < 0 )
+		if ( NetStart() < 0 )
 			return ERROR;
+	}
+	else {
+		GetMask((uchar *)PreBuffer);
+		if ( memcmp(OriginMask, PreBuffer, Iid_SZ) )
+			SetMask(OriginMask);
 	}
 /* Wait for the network interface ready, it might be shorter */
 	YIELD();
 	Delay(5);
-	Print("%d %u.%u.%u.%u", __LINE__, netconf[0].Iaddr.c[0], netconf[0].Iaddr.c[1], netconf[0].Iaddr.c[2], netconf[0].Iaddr.c[3]);
-	Print("%d %u.%u.%u.%u", __LINE__, netconf[1].Iaddr.c[0], netconf[1].Iaddr.c[1], netconf[1].Iaddr.c[2], netconf[1].Iaddr.c[3]);
-	Print("%d %u.%u.%u.%u", __LINE__, netconf[1].Imask.c[0], netconf[1].Imask.c[1], netconf[1].Imask.c[2], netconf[1].Imask.c[3]);
 /* External variables for broadcast setting: Setup for accepting broadcast packet */
 	bAcceptBroadcast = 1;
 
