@@ -33,7 +33,7 @@ static char RecvBuffer[RECVBUF_SIZE];
 /* Output buffer */
 static char PreBuffer[PREBUF_SIZE];
 /* Workflow flag */
-static uchar WorkflowFlag = WORKFLOW_4;
+static uchar WorkflowFlag = WORKFLOW_1;
 /* */
 static char  FTPHost[24] = { 0 };
 static uint  FTPPort     = 21;
