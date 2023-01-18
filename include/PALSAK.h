@@ -26,7 +26,9 @@ extern "C" {
 /* */
 #define NETWORK_OPERATION_RETRY  3
 /* The size of the buffer used to received the data from broadcast */
-#define MSGBUF_SIZE      256
+#define COMMBUF_SIZE     32
+#define RECVBUF_SIZE     256
+#define PREBUF_SIZE      512
 /* String length of those responses from the other palert */
 #define MAC_STRING       17  /* Exclude the null-terminator */
 #define IPV4_STRING      15  /* Exclude the null-terminator */

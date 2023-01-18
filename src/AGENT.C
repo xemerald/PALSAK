@@ -31,9 +31,9 @@ static volatile int SockSend;
 /* Global address info, expecially for broadcasting command */
 static struct sockaddr_in TransmitAddr;
 /* Input buffer */
-static char MsgBuffer[MSGBUF_SIZE];
+static char RecvBuffer[RECVBUF_SIZE];
 /* */
-static int InitBroadcastNetwork( const int, const int );
+static int InitBroadcastNetwork( void );
 static int RecvBlockZeroData( const uint );
 static int RecvCommand( const uint );
 static int SwitchCommand( void );
@@ -57,7 +57,13 @@ void main( void )
 	InitLib();
 	Init5DigitLed();
 /* Initialization for network interface library */
-	if ( InitBroadcastNetwork( CONTROL_PORT, LISTEN_PORT ) < 0 ) {
+	if ( NetStart() < 0 )
+		return;
+/* Wait for the network interface ready, it might be shoter */
+	YIELD();
+	Delay(5);
+/* Initialization for network interface library */
+	if ( InitBroadcastNetwork() < 0 ) {
 		SHOW_ERROR_5DIGITLED();
 		Delay(2000);
 		return;
@@ -68,7 +74,7 @@ void main( void )
 		if ( ++ret >= NETWORK_OPERATION_RETRY )
 			goto err_return;
 /* */
-	memset(MsgBuffer, 0, MSGBUF_SIZE);
+	memset(RecvBuffer, 0, RECVBUF_SIZE);
 /* */
 	if ( !EnrichBlockZero() && !RecvCommand( 250 ) ) {
 	/* */
@@ -97,7 +103,7 @@ void main( void )
 	}
 /* */
 	EnrichSurveyResp();
-	BroadcastResp( MsgBuffer, 250 );
+	BroadcastResp( RecvBuffer, 250 );
 	SHOW_GOOD_5DIGITLED();
 	Delay(2000);
 
@@ -110,8 +116,8 @@ normal_return:
 	return;
 err_return:
 /* If go into error condition, there will an "Error" reps. And show the 'ERROR' on the 7-seg led */
-	strcat(MsgBuffer, "\rError\n");
-	BroadcastResp( MsgBuffer, 250 );
+	strcat(RecvBuffer, "\rError\n");
+	BroadcastResp( RecvBuffer, 250 );
 	SHOW_ERROR_5DIGITLED();
 	Delay(2000);
 	goto normal_return;
@@ -120,58 +126,56 @@ err_return:
 /**
  * @brief
  *
- * @param rport
- * @param sport
  * @return int
  */
-static int InitBroadcastNetwork( const int rport, const int sport )
+static int InitBroadcastNetwork( void )
 {
 	char optval = 1;
 	struct sockaddr_in _addr;
 
-/* Initialization for network interface library */
-	if ( NetStart() < 0 )
-		goto err_return;
-/* Wait for the network interface ready, it might be shoter */
+/* Close the previous sockets for following process */
+	closesocket(SockSend);
+	closesocket(SockRecv);
+/* Wait for the network interface ready, it might be shorter */
 	YIELD();
 	Delay(5);
 /* External variables for broadcast setting: Setup for accepting broadcast packet */
 	bAcceptBroadcast = 1;
 
+/* Create the sending socket */
+	if ( (SockSend = socket(PF_INET, SOCK_DGRAM, 0)) < 0 )
+		return ERROR;
+/* Set the socket to reuse the address */
+	if ( setsockopt(SockSend, SOL_SOCKET, SO_DONTROUTE, &optval, sizeof(optval)) < 0 )
+		return ERROR;
+/* Set the broadcast ability */
+	if ( setsockopt(SockSend, SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval)) < 0 )
+		return ERROR;
+
 /* Create the receiving socket */
 	if ( (SockRecv = socket(PF_INET, SOCK_DGRAM, 0)) < 0 )
-		goto err_return;
+		return ERROR;
 /* Set the socket to reuse the address */
 	if ( setsockopt(SockRecv, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0 )
-		goto err_return;
-/* Bind the receiving socket to the broadcast port */
+		return ERROR;
+/* Bind the receiving socket to the port number 54321 */
 	memset(&_addr, 0, sizeof(struct sockaddr));
-	_addr.sin_family = PF_INET;
+	_addr.sin_family = AF_INET;
 	_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	_addr.sin_port = htons(rport);
+	_addr.sin_port = htons(CONTROL_PORT);
 	if ( bind(SockRecv, (struct sockaddr *)&_addr, sizeof(struct sockaddr)) < 0 )
-		goto err_return;
+		return ERROR;
 /* Set the timeout of receiving socket to 0.25 sec. */
 	SOCKET_RXTOUT(SockRecv, 250);
 
-/* Create the sending socket */
-	if ( (SockSend = socket(PF_INET, SOCK_DGRAM, 0)) < 0 )
-		goto err_return;
-/* Set the socket to be able to broadcast */
-	if ( setsockopt(SockSend, SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval)) < 0 )
-		goto err_return;
-/* Set the sending address info */
+/* Set the transmitting address info */
 	memset(&_addr, 0, sizeof(struct sockaddr));
-	_addr.sin_family = PF_INET;
+	_addr.sin_family = AF_INET;
 	_addr.sin_addr.s_addr = htonl(INADDR_BROADCAST);
-	_addr.sin_port = htons(sport);
+	_addr.sin_port = htons(LISTEN_PORT);
 	TransmitAddr = _addr;
 
 	return NORMAL;
-/* Return for error */
-err_return:
-	Nterm();
-	return ERROR;
 }
 
 /**
@@ -185,7 +189,7 @@ static int RecvBlockZeroData( const uint msec )
 	int   ret = 0;
 	int   fromlen = sizeof(struct sockaddr);
 	int   remain = EEPROM_SET_TOTAL_LENGTH + 2;  /* Add another two bytes for CRC16 */
-	BYTE *bufptr = (BYTE *)MsgBuffer;
+	BYTE *bufptr = (BYTE *)RecvBuffer;
 	struct sockaddr_in _addr;
 
 /* */
@@ -209,16 +213,16 @@ static int RecvBlockZeroData( const uint msec )
 	} while ( remain );
 /* */
 	if ( !(ret = CRC16_Read()) ) {
-		memcpy(BlockZero, MsgBuffer, EEPROM_SET_TOTAL_LENGTH);
-		MsgBuffer[0] = ACK;
+		memcpy(BlockZero, RecvBuffer, EEPROM_SET_TOTAL_LENGTH);
+		RecvBuffer[0] = ACK;
 	}
 	else {
-		MsgBuffer[0] = NAK;
+		RecvBuffer[0] = NAK;
 	}
 /* Broadcasting the command to others */
-	sendto(SockSend, MsgBuffer, 1, 0, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
+	sendto(SockSend, RecvBuffer, 1, 0, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
 
-	return MsgBuffer[0] == ACK ? NORMAL : ERROR;
+	return RecvBuffer[0] == ACK ? NORMAL : ERROR;
 }
 
 /**
@@ -231,12 +235,12 @@ static int RecvCommand( const uint msec )
 {
 	int   ret = 0;
 	int   fromlen = sizeof(struct sockaddr);
-	int   remain = MSGBUF_SIZE - 1;
-	char *bufptr = MsgBuffer;
+	int   remain = RECVBUF_SIZE - 1;
+	char *bufptr = RecvBuffer;
 	struct sockaddr_in _addr;
 
 /* Flush the input buffer */
-	memset(bufptr, 0, MSGBUF_SIZE);
+	memset(bufptr, 0, RECVBUF_SIZE);
 	do {
 	/* Show the "-L-" message on the 7-seg led */
 		SHOW_2DASH_5DIGITLED( 0 );
@@ -271,7 +275,7 @@ static int SwitchCommand( void )
 	char *bufptr;
 
 /* Trim the input string from left */
-	for ( bufptr = MsgBuffer; isspace(*bufptr) && *bufptr; bufptr++ );
+	for ( bufptr = RecvBuffer; isspace(*bufptr) && *bufptr; bufptr++ );
 /* Switch the function by input command */
 	if ( !strncmp(bufptr, "setdef", 6) )
 		return STRATEGY_WRITE_DEFAULT;
@@ -331,7 +335,7 @@ static int EnrichSurveyResp( void )
 		!EE_MultiRead(1, EEPROM_CVALUE_ADDR, EEPROM_CVALUE_LENGTH, (char *)cvalue)
 	) {
 	/* Find the last position of the message */
-		for ( bufptr = MsgBuffer; *bufptr; bufptr++ );
+		for ( bufptr = RecvBuffer; *bufptr; bufptr++ );
 	/* */
 		cvptr = &BlockZero[EEPROM_CVALUE_ADDR];
 		sprintf(

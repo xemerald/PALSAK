@@ -26,8 +26,12 @@ static volatile int SockRecv = -1;
 static volatile int SockSend = -1;
 /* Global address info, expecially for transmitting command */
 static struct sockaddr_in TransmitAddr;
+/* Command buffer */
+static char CommBuffer[COMMBUF_SIZE];
 /* Input buffer */
-static char MsgBuffer[MSGBUF_SIZE];
+static char RecvBuffer[RECVBUF_SIZE];
+/* Output buffer */
+static char PreBuffer[PREBUF_SIZE];
 /* Workflow flag */
 static uchar WorkflowFlag = WORKFLOW_4;
 /* */
@@ -67,8 +71,6 @@ static int ConvertMask( ulong );
 /* Main function, entry */
 void main( void )
 {
-	char fname[16] = { 0 };
-
 /* Initialization for u7186EX's general library */
 	InitLib();
 	Init5DigitLed();
@@ -90,7 +92,7 @@ void main( void )
 		if ( ReadFileFTPInfo( GetFileInfoByName_AB(DISKA, "ftp_info.ini") ) == ERROR )
 			goto err_return;
 	/* */
-		if ( CheckFirmwareVer( fname, 2000 ) == ERROR || (strlen(fname) && DownloadFirmware( fname ) == ERROR) )
+		if ( CheckFirmwareVer( PreBuffer, 2000 ) == ERROR || (strlen(PreBuffer) && DownloadFirmware( PreBuffer ) == ERROR) )
 			goto err_return;
 	/* Show the 'Good' on the 7-seg led */
 		SHOW_GOOD_5DIGITLED();
@@ -222,19 +224,14 @@ static int InitControlSocket( const char *dotted )
 /* Set the socket to reuse the address */
 	if ( setsockopt(SockSend, SOL_SOCKET, SO_DONTROUTE, &optval, sizeof(optval)) < 0 )
 		return ERROR;
+/* Set the broadcast ability */
+	if ( setsockopt(SockSend, SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval)) < 0 )
+		return ERROR;
 
-/* */
-	if ( dotted != NULL ) {
-		SockRecv = SockSend;
-	}
-	else {
-	/* Set the broadcast ability */
-		if ( setsockopt(SockSend, SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval)) < 0 )
-			return ERROR;
-	/* Create the receiving socket */
-		if ( (SockRecv = socket(PF_INET, SOCK_DGRAM, 0)) < 0 )
-			return ERROR;
-	}
+/* Create the receiving socket */
+	SockRecv = dotted != NULL ? SockSend : socket(PF_INET, SOCK_DGRAM, 0);
+	if ( SockRecv < 0 )
+		return ERROR;
 
 /* Set the socket to reuse the address */
 	if ( setsockopt(SockRecv, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0 )
@@ -252,7 +249,7 @@ static int InitControlSocket( const char *dotted )
 /* Set the transmitting address info */
 	memset(&_addr, 0, sizeof(struct sockaddr));
 	_addr.sin_family = AF_INET;
-	_addr.sin_addr.s_addr = dotted != NULL ? inet_addr( (char *)dotted ) : htonl(INADDR_BROADCAST);
+	_addr.sin_addr.s_addr = dotted != NULL ? inet_addr((char *)dotted) : htonl(INADDR_BROADCAST);
 	_addr.sin_port = htons(CONTROL_PORT);
 	TransmitAddr = _addr;
 
@@ -293,12 +290,12 @@ static int InitDHCP( const uint msec )
 		if ( nets[0].DHCPserver && DHCPget(0, DhcpLeaseTime) >= 0 ) {
 		/* Show the fetched IP on the 7-seg led roller once */
 			sprintf(
-				MsgBuffer, "%u.%u.%u.%u-%u  %u.%u.%u.%u  ",
+				PreBuffer, "%u.%u.%u.%u-%u  %u.%u.%u.%u  ",
 				NetHost->Iaddr.c[0], NetHost->Iaddr.c[1], NetHost->Iaddr.c[2], NetHost->Iaddr.c[3],
 				ConvertMask( *(long *)NetHost->Imask.c ),
 				NetGateway->Iaddr.c[0], NetGateway->Iaddr.c[1], NetGateway->Iaddr.c[2], NetGateway->Iaddr.c[3]
 			);
-			EncodeAddrDisplayContent( MsgBuffer );
+			EncodeAddrDisplayContent( PreBuffer );
 		/* */
 			for ( i = 0; i < ContentLength; i++ ) {
 				ShowContent5DigitsLedRoller( i );
@@ -319,14 +316,13 @@ static int InitDHCP( const uint msec )
  */
 static void SwitchWorkflow( const uint msec )
 {
-	BYTE _buffer[4] = { 0xff, 0xff, 0xff, 0xff };
 	uint num = 0;
 	uint delay_msec = msec;
 
 /* Fetch the saved IP from EEPROM */
-	GetIp(_buffer);
-	sprintf(MsgBuffer, "%u.%u.%u.%u  ", _buffer[0], _buffer[1], _buffer[2], _buffer[3]);
-	EncodeAddrDisplayContent( MsgBuffer );
+	GetIp((uchar *)RecvBuffer);
+	sprintf(PreBuffer, "%u.%u.%u.%u  ", (uchar)RecvBuffer[0], (uchar)RecvBuffer[1], (uchar)RecvBuffer[2], (uchar)RecvBuffer[3]);
+	EncodeAddrDisplayContent( PreBuffer );
 /* Show the "-0-" message on the 7-seg led */
 	SHOW_2DASH_5DIGITLED( 0 );
 /*
@@ -373,13 +369,13 @@ static void SwitchWorkflow( const uint msec )
 					if ( !bUseDhcp && num > (ContentLength << 1) ) {
 						bUseDhcp = 1;
 					/* Set the 'dHCP.  ' message to roller buffer */
-						MsgBuffer[0] = 0x3d;
-						MsgBuffer[1] = 0x37;
-						MsgBuffer[2] = 0x4e;
-						MsgBuffer[3] = 0xe7;
-						MsgBuffer[4] = 0x00;
-						MsgBuffer[5] = 0x00;
-						SetDisplayContent( (BYTE *)MsgBuffer, 6 );
+						PreBuffer[0] = 0x3d;
+						PreBuffer[1] = 0x37;
+						PreBuffer[2] = 0x4e;
+						PreBuffer[3] = 0xe7;
+						PreBuffer[4] = 0x00;
+						PreBuffer[5] = 0x00;
+						SetDisplayContent( (BYTE *)PreBuffer, 6 );
 					}
 				/* No break here */
 				default:
@@ -418,39 +414,33 @@ static int TransmitCommand( const char *comm )
 {
 	int   ret = 0;
 	uchar trycount = 0;
-	extern int errno;
+
 	struct sockaddr_in _addr;
 	int fromlen = sizeof(struct sockaddr);
 
-/* Just in case, avoid from using the MsgBuffer as input buffer */
-	if ( comm == MsgBuffer )
-		return ERROR;
 /* Show the '-S-' message on the 7-seg led */
 	SHOW_2DASH_5DIGITLED( 0 );
 	Show5DigitLed(3, 5);
 /* Flush the receiving buffer from client, just in case */
-	while ( recvfrom(SockRecv, MsgBuffer, MSGBUF_SIZE, 0, (struct sockaddr *)&_addr, &fromlen) > 0 );
+	while ( recvfrom(SockRecv, RecvBuffer, RECVBUF_SIZE, 0, (struct sockaddr *)&_addr, &fromlen) > 0 );
 /* Appending the '\r' to the input command */
-	sprintf(MsgBuffer, "%s\r", comm);
+	sprintf(CommBuffer, "%s\r", comm);
 /* Transmitting the command to others */
-	if ( sendto(SockSend, MsgBuffer, strlen(MsgBuffer), MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr)) <= 0 ) {
-		Print("437 %d\n\r", errno);
-		Print("438 %s\n\r", inet_ntoa(TransmitAddr.sin_addr));
+	if ( sendto(SockSend, CommBuffer, strlen(CommBuffer), MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr)) <= 0 )
 		return ERROR;
-	}
 	Delay(250);
 
 /* Flush the input buffer */
-	memset(MsgBuffer, 0, MSGBUF_SIZE);
+	memset(RecvBuffer, 0, RECVBUF_SIZE);
 /* Show the '-L-' message on the 7-seg led */
 	Show5DigitLedSeg(3, 0x0e);
 	Delay(250);
 /* Receiving the response from the palert */
-	while ( (ret = recvfrom(SockRecv, MsgBuffer, MSGBUF_SIZE - 1, 0, (struct sockaddr *)&_addr, &fromlen)) <= 0 ) {
+	while ( (ret = recvfrom(SockRecv, RecvBuffer, RECVBUF_SIZE - 1, 0, (struct sockaddr *)&_addr, &fromlen)) <= 0 ) {
 		if ( ++trycount >= NETWORK_OPERATION_RETRY )
 			return ERROR;
 	}
-	MsgBuffer[ret] = '\0';
+	RecvBuffer[ret] = '\0';
 
 	return NORMAL;
 }
@@ -468,29 +458,25 @@ static int TransmitDataByCommand( const char *data, int data_length )
 {
 	int   ret = 0;
 	uchar trycount = 0;
-	extern int errno;
 
 	struct sockaddr_in _addr;
 	int fromlen = sizeof(struct sockaddr);
 
-/* Just in case, avoid from using the MsgBuffer as input buffer */
-	if ( data == MsgBuffer )
-		return ERROR;
 /* Flush the receiving buffer from client, just in case */
 	while ( SOCKET_HASDATA(SockRecv) )
-		recvfrom(SockRecv, MsgBuffer, MSGBUF_SIZE, 0, (struct sockaddr *)&_addr, &fromlen);
+		recvfrom(SockRecv, RecvBuffer, RECVBUF_SIZE, 0, (struct sockaddr *)&_addr, &fromlen);
 /* Sending the data bytes by command line method */
 	if ( sendto(SockSend, (char *)data, data_length, MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr)) <= 0 )
 		return ERROR;
 
 /* Flush the input buffer */
-	memset(MsgBuffer, 0, MSGBUF_SIZE);
+	memset(RecvBuffer, 0, RECVBUF_SIZE);
 /* Receiving the response from the palert */
-	while ( (ret = recvfrom(SockRecv, MsgBuffer, MSGBUF_SIZE, 0, (struct sockaddr *)&_addr, &fromlen)) <= 0 ) {
+	while ( (ret = recvfrom(SockRecv, RecvBuffer, RECVBUF_SIZE, 0, (struct sockaddr *)&_addr, &fromlen)) <= 0 ) {
 		if ( ++trycount >= NETWORK_OPERATION_RETRY )
 			return ERROR;
 	}
-	MsgBuffer[ret] = '\0';
+	RecvBuffer[ret] = '\0';
 
 	return NORMAL;
 }
@@ -514,7 +500,7 @@ static void ForceFlushSocket( int sock )
 	Show5DigitLedSeg(5, 0xb7);
 /* Flush the receiving buffer from client, just in case */
 	for ( i = 0; i < NETWORK_OPERATION_RETRY; i++ )
-		while ( recvfrom(sock, MsgBuffer, MSGBUF_SIZE, MSG_OOB, (struct sockaddr *)&_addr, &fromlen) > 0 );
+		while ( recvfrom(sock, RecvBuffer, RECVBUF_SIZE, MSG_OOB, (struct sockaddr *)&_addr, &fromlen) > 0 );
 
 	return;
 }
@@ -567,7 +553,7 @@ static int GetPalertMac( const uint msec )
 /* Send out the MAC address request command */
 	while ( TransmitCommand( "mac" ) != NORMAL );
 /* Extract the MAC address from the raw response */
-	if ( (pos = ExtractResponse( MsgBuffer, MAC_STRING )) == NULL )
+	if ( (pos = ExtractResponse( RecvBuffer, MAC_STRING )) == NULL )
 		return ERROR;
 
 /* Parsing the MAC address with hex format into Display content buffer */
@@ -593,35 +579,34 @@ static int GetPalertMac( const uint msec )
 static int GetPalertNetworkSetting( const uint msec )
 {
 	char *pos;
-	BYTE  addr[EEPROM_NETWORK_SET_LENGTH];
 
 /* Send out the IP address request command */
 	while ( TransmitCommand( "ip" ) != NORMAL );
 /* Extract the IP address from the raw response */
-	if ( (pos = ExtractResponse( MsgBuffer, IPV4_STRING )) == NULL )
+	if ( (pos = ExtractResponse( RecvBuffer, IPV4_STRING )) == NULL )
 		return ERROR;
 /* Parsing the IP address to bytes */
-	sscanf(pos, "%hu.%hu.%hu.%hu", &addr[0], &addr[1], &addr[2], &addr[3]);
+	sscanf(pos, "%hu.%hu.%hu.%hu", (uchar *)&PreBuffer[0], (uchar *)&PreBuffer[1], (uchar *)&PreBuffer[2], (uchar *)&PreBuffer[3]);
 
 /* Send out the Mask request command */
 	while ( TransmitCommand( "mask" ) != NORMAL );
 /* Extract the Mask from the raw response */
-	if ( (pos = ExtractResponse( MsgBuffer, IPV4_STRING )) == NULL )
+	if ( (pos = ExtractResponse( RecvBuffer, IPV4_STRING )) == NULL )
 		return ERROR;
 /* Parsing the Mask to bytes */
-	sscanf(pos, "%hu.%hu.%hu.%hu", &addr[4], &addr[5], &addr[6], &addr[7]);
+	sscanf(pos, "%hu.%hu.%hu.%hu", (uchar *)&PreBuffer[4], (uchar *)&PreBuffer[5], (uchar *)&PreBuffer[6], (uchar *)&PreBuffer[7]);
 
 /* Send out the Gateway address request command */
 	while ( TransmitCommand( "gateway" ) != NORMAL );
 /* Extract the Gateway address from the raw response */
-	if ( (pos = ExtractResponse( MsgBuffer, IPV4_STRING )) == NULL )
+	if ( (pos = ExtractResponse( RecvBuffer, IPV4_STRING )) == NULL )
 		return ERROR;
 /* Parsing the Gateway address to bytes */
-	sscanf(pos, "%hu.%hu.%hu.%hu", &addr[8], &addr[9], &addr[10], &addr[11]);
+	sscanf(pos, "%hu.%hu.%hu.%hu", (uchar *)&PreBuffer[8], (uchar *)&PreBuffer[9], (uchar *)&PreBuffer[10], (uchar *)&PreBuffer[11]);
 
 /* */
 	EE_WriteEnable();
-	if ( EE_MultiWrite(EEPROM_NETWORK_SET_BLOCK, EEPROM_NETWORK_SET_ADDR, EEPROM_NETWORK_SET_LENGTH, (char *)addr) ) {
+	if ( EE_MultiWrite(EEPROM_NETWORK_SET_BLOCK, EEPROM_NETWORK_SET_ADDR, EEPROM_NETWORK_SET_LENGTH, PreBuffer) ) {
 		EE_WriteProtect();
 		return ERROR;
 	}
@@ -648,11 +633,10 @@ static int SetPalertNetwork( const uint msec )
 	uint  seq = 0;
 	uint  delay_msec = msec;
 	char *pos;
-	char  strbuf[32] = { 0 };
-	BYTE  addr[EEPROM_NETWORK_SET_LENGTH];
+	char *str_ptr = PreBuffer + EEPROM_NETWORK_SET_LENGTH + 1;
 
 /* Read from EEPROM block 2 where the saved network setting within */
-	if ( !EE_MultiRead(EEPROM_NETWORK_SET_BLOCK, EEPROM_NETWORK_SET_ADDR, EEPROM_NETWORK_SET_LENGTH, (char *)addr) ) {
+	if ( !EE_MultiRead(EEPROM_NETWORK_SET_BLOCK, EEPROM_NETWORK_SET_ADDR, EEPROM_NETWORK_SET_LENGTH, PreBuffer) ) {
 	/* Show 'U.PLUG.' on the 7-seg led */
 		Show5DigitLedSeg(1, 0xbe);
 		Show5DigitLedSeg(2, 0x67);
@@ -660,18 +644,18 @@ static int SetPalertNetwork( const uint msec )
 		Show5DigitLedSeg(4, 0x3e);
 		Show5DigitLedSeg(5, 0xde);
 	/* */
-		//while ( bEthernetLinkOk != 0x00 )
+		while ( bEthernetLinkOk != 0x00 )
 			Delay(1);
 	/* Show the fetched IP on the 7-seg led roller once */
 		sprintf(
-			MsgBuffer, "%u.%u.%u.%u-%u  %u.%u.%u.%u  ",
-			addr[0], addr[1], addr[2], addr[3],
-			ConvertMask( *(long *)(addr + 4) ),
-			addr[8], addr[9], addr[10], addr[11]
+			str_ptr, "%u.%u.%u.%u-%u  %u.%u.%u.%u  ",
+			(BYTE)PreBuffer[0], (BYTE)PreBuffer[1], (BYTE)PreBuffer[2], (BYTE)PreBuffer[3],
+			ConvertMask( *(long *)(PreBuffer + 4) ),
+			(BYTE)PreBuffer[8], (BYTE)PreBuffer[9], (BYTE)PreBuffer[10], (BYTE)PreBuffer[11]
 		);
-		EncodeAddrDisplayContent( MsgBuffer );
+		EncodeAddrDisplayContent( str_ptr );
 	/* */
-		//while ( bEthernetLinkOk == 0x00 ) {
+		while ( bEthernetLinkOk == 0x00 ) {
 		/* */
 			if ( ++delay_msec >= msec ) {
 				ShowContent5DigitsLedRoller( seq++ );
@@ -681,18 +665,17 @@ static int SetPalertNetwork( const uint msec )
 			if ( ReadInitPin() )
 				return NORMAL;
 			Delay(1000);
-		//}
+		}
 	/* Send out the IP address request command for following connection */
 		while ( TransmitCommand( "ip" ) != NORMAL );
-	/* Extract the IP address from the raw response */
-		if ( (pos = ExtractResponse( MsgBuffer, IPV4_STRING )) == NULL )
+	/* Extract the IP address from the raw response & connect to it */
+		if ( (pos = ExtractResponse( RecvBuffer, IPV4_STRING )) == NULL )
 			return ERROR;
-	/* */
 		if ( InitControlSocket( pos ) == ERROR )
 			return ERROR;
 	/* */
-		sprintf(strbuf, "ip %u.%u.%u.%u", addr[0], addr[1], addr[2], addr[3]);
-		while ( TransmitCommand( strbuf ) != NORMAL );
+		sprintf(str_ptr, "ip %u.%u.%u.%u", (BYTE)PreBuffer[0], (BYTE)PreBuffer[1], (BYTE)PreBuffer[2], (BYTE)PreBuffer[3]);
+		while ( TransmitCommand( str_ptr ) != NORMAL );
 	/* Show 'S. iP.' on the 7-seg led */
 		Show5DigitLedWithDot(1, 0x05);
 		Show5DigitLedSeg(2, 0x00);
@@ -703,16 +686,16 @@ static int SetPalertNetwork( const uint msec )
 	/* Send out the IP address request command for rechecking */
 		while ( TransmitCommand( "ip" ) != NORMAL );
 	/* Extract the IP address from the raw response */
-		if ( (pos = ExtractResponse( MsgBuffer, IPV4_STRING )) == NULL )
+		if ( (pos = ExtractResponse( RecvBuffer, IPV4_STRING )) == NULL )
 			return ERROR;
 	/* Parsing the IP address to bytes & compare it with storage data */
-		sscanf(pos, "%hu.%hu.%hu.%hu", (BYTE *)&strbuf[0], (BYTE *)&strbuf[1], (BYTE *)&strbuf[2], (BYTE *)&strbuf[3]);
-		if ( memcmp(&addr[0], &strbuf[0], 4) )
+		sscanf(pos, "%hu.%hu.%hu.%hu", (BYTE *)&str_ptr[0], (BYTE *)&str_ptr[1], (BYTE *)&str_ptr[2], (BYTE *)&str_ptr[3]);
+		if ( memcmp(&PreBuffer[0], &str_ptr[0], 4) )
 			return ERROR;
 
 	/* */
-		sprintf(strbuf, "mask %u.%u.%u.%u", addr[4], addr[5], addr[6], addr[7]);
-		while ( TransmitCommand( strbuf ) != NORMAL );
+		sprintf(str_ptr, "mask %u.%u.%u.%u", PreBuffer[4], PreBuffer[5], PreBuffer[6], PreBuffer[7]);
+		while ( TransmitCommand( str_ptr ) != NORMAL );
 	/* Show 'S.MASk.' on the 7-seg led */
 		Show5DigitLedWithDot(1, 0x05);
 		Show5DigitLedSeg(2, 0x76);
@@ -723,16 +706,16 @@ static int SetPalertNetwork( const uint msec )
 	/* Send out the Mask request command for rechecking */
 		while ( TransmitCommand( "mask" ) != NORMAL );
 	/* Extract the Mask from the raw response */
-		if ( (pos = ExtractResponse( MsgBuffer, IPV4_STRING )) == NULL )
+		if ( (pos = ExtractResponse( RecvBuffer, IPV4_STRING )) == NULL )
 			return ERROR;
 	/* Parsing the Mask to bytes & compare it with storage data */
-		sscanf(pos, "%hu.%hu.%hu.%hu", (BYTE *)&strbuf[0], (BYTE *)&strbuf[1], (BYTE *)&strbuf[2], (BYTE *)&strbuf[3]);
-		if ( memcmp(&addr[4], &strbuf[0], 4) )
+		sscanf(pos, "%hu.%hu.%hu.%hu", (BYTE *)&str_ptr[0], (BYTE *)&str_ptr[1], (BYTE *)&str_ptr[2], (BYTE *)&str_ptr[3]);
+		if ( memcmp(&PreBuffer[4], &str_ptr[0], 4) )
 			return ERROR;
 
 	/* */
-		sprintf(strbuf, "gateway %u.%u.%u.%u", addr[8], addr[9], addr[10], addr[11]);
-		while ( TransmitCommand( strbuf ) != NORMAL );
+		sprintf(str_ptr, "gateway %u.%u.%u.%u", PreBuffer[8], PreBuffer[9], PreBuffer[10], PreBuffer[11]);
+		while ( TransmitCommand( str_ptr ) != NORMAL );
 	/* Show 'S.GAtE.' on the 7-seg led */
 		Show5DigitLedWithDot(1, 0x05);
 		Show5DigitLedSeg(2, 0x5e);
@@ -743,11 +726,11 @@ static int SetPalertNetwork( const uint msec )
 	/* Send out the Gateway address request command */
 		while ( TransmitCommand( "gateway" ) != NORMAL );
 	/* Extract the Gateway address from the raw response */
-		if ( (pos = ExtractResponse( MsgBuffer, IPV4_STRING )) == NULL )
+		if ( (pos = ExtractResponse( RecvBuffer, IPV4_STRING )) == NULL )
 			return ERROR;
 	/* Parsing the Gateway address to bytes & compare it with storage data */
-		sscanf(pos, "%hu.%hu.%hu.%hu", (BYTE *)&strbuf[0], (BYTE *)&strbuf[1], (BYTE *)&strbuf[2], (BYTE *)&strbuf[3]);
-		if ( memcmp(&addr[8], &strbuf[0], 4) )
+		sscanf(pos, "%hu.%hu.%hu.%hu", (BYTE *)&str_ptr[0], (BYTE *)&str_ptr[1], (BYTE *)&str_ptr[2], (BYTE *)&str_ptr[3]);
+		if ( memcmp(&PreBuffer[8], &str_ptr[0], 4) )
 			return ERROR;
 	/* */
 		if ( InitControlSocket( NULL ) == ERROR )
@@ -777,18 +760,17 @@ static int CheckPalertDisk( const int mode, const uint msec )
  * It would be some problem when using seperated variables (for disk size) instead an array,
  * I think it might be caused by the near & far pointer difference.
  */
-	uchar dsize[3] = { 0, 0, 0 };
 	char *pos;
 
 /* Function switch between "reset" & "check", then end out the request command */
 	while ( TransmitCommand( mode == RESET ? "disksize 3 4" : "disksize" ) != NORMAL );
 /* Extract the DiskA size from the raw response */
-	if ( (pos = ExtractResponse( MsgBuffer, DABSIZE_STRING )) == NULL )
+	if ( (pos = ExtractResponse( RecvBuffer, DABSIZE_STRING )) == NULL )
 		return ERROR;
 /* Parsing the size with integer */
-	sscanf(pos, "%hu", &dsize[0]);
+	sscanf(pos, "%hu", (uchar *)&PreBuffer[0]);
 /* Show it on the 7-seg led */
-	Show5DigitLed(1, dsize[0]);
+	Show5DigitLed(1, PreBuffer[0]);
 	Show5DigitLedSeg(2, 1);
 /* Move the pointer to the next Disk size */
 	pos += DABSIZE_STRING + 1;
@@ -797,9 +779,9 @@ static int CheckPalertDisk( const int mode, const uint msec )
 	if ( (pos = ExtractResponse( pos, DABSIZE_STRING )) == NULL )
 		return ERROR;
 /* Parsing the size with integer */
-	sscanf(pos, "%hu", &dsize[1]);
+	sscanf(pos, "%hu", (uchar *)&PreBuffer[1]);
 /* Show it on the 7-seg led */
-	Show5DigitLed(3, dsize[1]);
+	Show5DigitLed(3, PreBuffer[1]);
 	Show5DigitLedSeg(4, 1);
 /* Move the pointer to the next Disk size */
 	pos += DABSIZE_STRING + 1;
@@ -808,14 +790,14 @@ static int CheckPalertDisk( const int mode, const uint msec )
 	if ( (pos = ExtractResponse( pos, RSVSIZE_STRING )) == NULL )
 		return ERROR;
 /* Parsing the size with integer */
-	sscanf(pos, "%hu", &dsize[2]);
+	sscanf(pos, "%hu", (uchar *)&PreBuffer[2]);
 /* Show it on the 7-seg led */
-	Show5DigitLed(5, dsize[2]);
+	Show5DigitLed(5, PreBuffer[2]);
 /* Display for "msec" msec. */
 	Delay(msec);
 
 /* Check the size */
-	if ( dsize[0] != DISKA_SIZE || dsize[1] != DISKB_SIZE || dsize[2] != RESERVE_SIZE )
+	if ( (uchar)PreBuffer[0] != DISKA_SIZE || (uchar)PreBuffer[1] != DISKB_SIZE || (uchar)PreBuffer[2] != RESERVE_SIZE )
 		return ERROR;
 
 	return NORMAL;
@@ -894,7 +876,7 @@ static int UploadPalertFirmware( const uint msec )
 static int AgentCommand( const char *comm, const uint msec )
 {
 	char *pos;
-	char  data[EEPROM_SET_TOTAL_LENGTH + 2];
+	char *data  = PreBuffer;
 	char *_data = data + 32;
 	uint  page;
 	uchar i = 0;
@@ -906,20 +888,20 @@ static int AgentCommand( const char *comm, const uint msec )
 	Show5DigitLedWithDot(4, 0x00);
 	Show5DigitLedSeg(5, 0x00);
 /* */
-	if ( ReadFileBlockZero( GetFileInfoByName_AB(DISKA, "block_0.ini"), (BYTE *)data, sizeof(data) ) == ERROR )
+	if ( ReadFileBlockZero( GetFileInfoByName_AB(DISKA, "block_0.ini"), (BYTE *)PreBuffer, PREBUF_SIZE ) == ERROR )
 		return ERROR;
 	Delay(250);
 /* Execute the remote agent */
 	while ( TransmitCommand( "runr" ) != NORMAL );
 /* Send the Block zero data to the agent */
 	do {
-		if ( TransmitDataByCommand( data, EEPROM_SET_TOTAL_LENGTH + 2 ) == NORMAL ) {
+		if ( TransmitDataByCommand( PreBuffer, EEPROM_SET_TOTAL_LENGTH + 2 ) == NORMAL ) {
 		/* Show the '-S-' message on the 7-seg led */
-			if ( MsgBuffer[0] == ACK || MsgBuffer[0] == 0 ) {
+			if ( RecvBuffer[0] == ACK || RecvBuffer[0] == 0 ) {
 				break;
 			}
 		/* If receiving "Not ack", retry three times */
-			else if ( MsgBuffer[0] == NAK ) {
+			else if ( RecvBuffer[0] == NAK ) {
 				if ( ++i < NETWORK_OPERATION_RETRY ) {
 					Delay(250);
 					continue;
@@ -955,7 +937,7 @@ static int AgentCommand( const char *comm, const uint msec )
 	Delay(250);
 
 /* Extract the remote palert serial from the raw response */
-	if ( (pos = ExtractResponse( MsgBuffer, PSERIAL_STRING )) == NULL )
+	if ( (pos = ExtractResponse( RecvBuffer, PSERIAL_STRING )) == NULL )
 		return ERROR;
 /* Show the serial on the 7-seg led */
 	Show5DigitLed(1, pos[0] - '0');
@@ -1036,7 +1018,7 @@ static int UploadFileData( const int disk, const FILE_DATA far *fileptr )
 	uint  block;
 	uint  blockall;
 	ulong addrindex = 0;
-	BYTE  outbuffer[260];
+	BYTE *out_ptr = (BYTE *)PreBuffer;
 
 /* Checking this opened file is file or not, and check the size of this file */
 	if ( fileptr == NULL || fileptr->mark != 0x7188 || fileptr->size <= 0 )
@@ -1050,7 +1032,7 @@ static int UploadFileData( const int disk, const FILE_DATA far *fileptr )
 	ShowProg5DigitsLed( 0, blockall );
 	Delay(150);
 /* Setting the output buffer to zero first */
-	memset(outbuffer, 0, 260);
+	memset(out_ptr, 0, 260);
 /*
  * Go through all blocks:
  * And compute the total block number, each block should be 256 bytes
@@ -1063,55 +1045,55 @@ static int UploadFileData( const int disk, const FILE_DATA far *fileptr )
 		 * and the last block should be sizelo & 00 (in decimal)
 		 */
 			tmp = fileptr->size & 0xff;
-			outbuffer[0] = block == (blockall - 1) ? tmp : 0;
-			outbuffer[1] = outbuffer[0] ? 0 : 1;
+			out_ptr[0] = block == (blockall - 1) ? tmp : 0;
+			out_ptr[1] = out_ptr[0] ? 0 : 1;
 		/* Just copy all file data in binary byte by byte, one block should consist 256 bytes */
-			memcpy(outbuffer + 2, AddFarPtrLong(fileptr->addr, addrindex), outbuffer[0] ? tmp : 256);
+			memcpy(out_ptr + 2, AddFarPtrLong(fileptr->addr, addrindex), out_ptr[0] ? tmp : 256);
 			addrindex += 256;
 		}
 	/* First block */
 		else {
 		/* The header(2 bytes) of the first block should be 29 & 00 (in decimal)*/
-			outbuffer[0] = 29;
-			/* outbuffer[1] = 0; */
+			out_ptr[0] = 29;
+			/* out_ptr[1] = 0; */
 		/* Following is name of the file and the length is limited under 12 bytes */
-			memcpy(&outbuffer[2], fileptr->fname, 12);
+			memcpy(&out_ptr[2], fileptr->fname, 12);
 		/* The file size part, the high part should be seperate into high & low again */
-			/* outbuffer[14] = 0; */
-			outbuffer[15] = fileptr->size & 0xff;
+			/* out_ptr[14] = 0; */
+			out_ptr[15] = fileptr->size & 0xff;
 			tmp = (fileptr->size >> 8) & 0xffff;
-			outbuffer[16] = tmp & 0xff;
-			outbuffer[17] = tmp >> 8;
+			out_ptr[16] = tmp & 0xff;
+			out_ptr[17] = tmp >> 8;
 		/* The date information of the file */
-			/* outbuffer[18] = 0; */
-			outbuffer[19] = fileptr->year;
-			/* outbuffer[20] = 0; */
-			outbuffer[21] = fileptr->month;
-			/* outbuffer[22] = 0; */
-			outbuffer[23] = fileptr->day;
-			/* outbuffer[24] = 0; */
-			outbuffer[25] = fileptr->hour;
-			/* outbuffer[26] = 0; */
-			outbuffer[27] = fileptr->minute;
-			/* outbuffer[28] = 0; */
-			outbuffer[29] = fileptr->sec;
+			/* out_ptr[18] = 0; */
+			out_ptr[19] = fileptr->year;
+			/* out_ptr[20] = 0; */
+			out_ptr[21] = fileptr->month;
+			/* out_ptr[22] = 0; */
+			out_ptr[23] = fileptr->day;
+			/* out_ptr[24] = 0; */
+			out_ptr[25] = fileptr->hour;
+			/* out_ptr[26] = 0; */
+			out_ptr[27] = fileptr->minute;
+			/* out_ptr[28] = 0; */
+			out_ptr[29] = fileptr->sec;
 		/* All other bytes are zero... */
 		}
 	/* CRC16 computing part, using build-in function */
 		CRC16_Reset();
-		CRC16_AddDataN(outbuffer, 258);
+		CRC16_AddDataN(out_ptr, 258);
 		tmp = CRC16_Read();
-		outbuffer[258] = tmp >> 8;
-		outbuffer[259] = tmp & 0xff;
+		out_ptr[258] = tmp >> 8;
+		out_ptr[259] = tmp & 0xff;
 	/* Sending by the command line method */
 		tmp = 0;
 		while ( 1 ) {
-			if ( TransmitDataByCommand( (char *)outbuffer, 260 ) == NORMAL ) {
-				if ( MsgBuffer[0] == ACK || MsgBuffer[0] == 0 ) {
+			if ( TransmitDataByCommand( (char *)out_ptr, 260 ) == NORMAL ) {
+				if ( RecvBuffer[0] == ACK || RecvBuffer[0] == 0 ) {
 					break;
 				}
 			/* If receiving "Not ack", retry three times */
-				else if ( MsgBuffer[0] == NAK ) {
+				else if ( RecvBuffer[0] == NAK ) {
 					if ( ++tmp < NETWORK_OPERATION_RETRY ) {
 						Delay(250);
 						continue;
@@ -1148,7 +1130,7 @@ static int CheckFirmwareVer( char *new_name, const uint msec )
 /* */
 	new_name[0] = '\0';
 	if ( FTPConnect( FTPHost, FTPPort, FTPUser, FTPPass ) == FTP_SUCCESS ) {
-		if ( FTPListDir( FTPPath, "plt*.exe", MsgBuffer, MSGBUF_SIZE ) == FTP_SUCCESS ) {
+		if ( FTPListDir( FTPPath, "plt*.exe", RecvBuffer, RECVBUF_SIZE ) == FTP_SUCCESS ) {
 		/* Here, we can access the FTP server, therefore the return should be normal at lease */
 			result = NORMAL;
 			if ( GetFileName_AB(DISKB, 0, new_name) < 0 ) {
@@ -1169,7 +1151,7 @@ static int CheckFirmwareVer( char *new_name, const uint msec )
 			}
 			Delay(msec);
 		/* Scan the list to find the firmware newer than we have */
-			for ( rname = strtok(MsgBuffer, "\r\n"); rname; rname = strtok(NULL, "\r\n") ) {
+			for ( rname = strtok(RecvBuffer, "\r\n"); rname; rname = strtok(NULL, "\r\n") ) {
 				if ( !strlen(new_name) || strncmp(rname, new_name, 8) > 0 ) {
 				/* We got a candidate, turn the return to larger than zero */
 					memcpy(new_name, rname, 12);
