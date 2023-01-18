@@ -20,9 +20,11 @@ extern "C" {
 /* Address to send to all hosts */
 #define INADDR_BROADCAST  0xffffffff
 /* The port used to listen the broadcast messages from palert */
-#define LISTEN_PORT   54321
+#define LISTEN_PORT       54321
+/* The port used to listen the broadcast messages from palert */
+#define CONTROL_BIND_PORT 12345
 /* The port used to send the control messages */
-#define CONTROL_PORT  23
+#define CONTROL_PORT      23
 /* */
 #define NETWORK_OPERATION_RETRY  3
 /* The size of the buffer used to received the data from broadcast */

@@ -220,15 +220,15 @@ static int InitControlSocket( const char *dotted )
 	/* Terminate the network interface first */
 		Nterm();
 	/* We should set the Mask to zero, let all the packet skip the routing table */
-		*(long *)PreBuffer = 0L;
-		SetMask((uchar *)PreBuffer);
+		_addr.sin_addr.s_addr = 0L;
+		SetMask((uchar *)&_addr.sin_addr.s_addr);
 	/* Initialization for network interface library */
 		if ( NetStart() < 0 )
 			return ERROR;
 	}
 	else {
-		GetMask((uchar *)PreBuffer);
-		if ( memcmp(OriginMask, PreBuffer, Iid_SZ) )
+		GetMask((uchar *)&_addr.sin_addr.s_addr);
+		if ( memcmp(OriginMask, &_addr.sin_addr.s_addr, Iid_SZ) )
 			SetMask(OriginMask);
 	}
 /* Wait for the network interface ready, it might be shorter */
@@ -255,11 +255,11 @@ static int InitControlSocket( const char *dotted )
 /* Set the socket to reuse the address */
 	if ( setsockopt(SockRecv, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0 )
 		return ERROR;
-/* Bind the receiving socket to the port number 54321 */
+/* Bind the receiving socket to the port number 54321 or 12345 */
 	memset(&_addr, 0, sizeof(struct sockaddr));
 	_addr.sin_family = AF_INET;
 	_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	_addr.sin_port = htons(dotted != NULL ? 12345 : LISTEN_PORT);
+	_addr.sin_port = htons(dotted != NULL ? CONTROL_BIND_PORT : LISTEN_PORT);
 	if ( bind(SockRecv, (struct sockaddr *)&_addr, sizeof(struct sockaddr)) < 0 )
 		return ERROR;
 /* Set the timeout of receiving socket to 0.25 sec. */
