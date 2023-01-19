@@ -68,7 +68,9 @@ static int ReadFileFTPInfo( const FILE_DATA far * );
 static int ReadFileBlockZero( const FILE_DATA far *, BYTE far *, size_t );
 
 static int ConvertMask( ulong );
-static int ResetProgram( void );
+
+static void FatalError( const int );
+static int  ResetProgram( void );
 
 #define LOOP_TRANSMIT_COMMAND(_COMM) \
 		while ( TransmitCommand( (_COMM) ) != NORMAL && (!ReadInitPin() || ResetProgram()) )
@@ -369,11 +371,11 @@ static void SwitchWorkflow( const uint msec )
 	while ( bEthernetLinkOk == 0x00 ) {
 	/* Detect the init. pin condition for switching to the updating firmware func. */
 		if ( ReadInitPin() && WorkflowFlag != WORKFLOW_0 ) {
-		/* Fetch the saved IP from EEPROM */
+		/* Fetch the saved IP information from EEPROM */
 			GetIp((uchar *)&RecvBuffer[0]);
 			GetMask((uchar *)&RecvBuffer[4]);
 			GetGateway((uchar *)&RecvBuffer[8]);
-			/* Show the fetched IP on the 7-seg led roller once */
+		/* Show the saved IP information on the 7-seg led roller once */
 			sprintf(
 				PreBuffer, "%u.%u.%u.%u-%u  %u.%u.%u.%u  ",
 				(uchar)RecvBuffer[0], (uchar)RecvBuffer[1], (uchar)RecvBuffer[2], (uchar)RecvBuffer[3],
@@ -475,7 +477,7 @@ static int TransmitCommand( const char *comm )
 	sprintf(CommBuffer, "%s\r", comm);
 /* Transmitting the command to others */
 	if ( sendto(SockSend, CommBuffer, strlen(CommBuffer), MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr)) <= 0 )
-		return ERROR;
+		FatalError(2000);
 	Delay(250);
 
 /* Flush the input buffer */
@@ -515,7 +517,7 @@ static int TransmitDataByCommand( const char *data, int data_length )
 		recvfrom(SockRecv, RecvBuffer, RECVBUF_SIZE, 0, (struct sockaddr *)&_addr, &fromlen);
 /* Sending the data bytes by command line method */
 	if ( sendto(SockSend, (char *)data, data_length, MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr)) <= 0 )
-		return ERROR;
+		FatalError(2000);
 
 /* Flush the input buffer */
 	memset(RecvBuffer, 0, RECVBUF_SIZE);
@@ -599,7 +601,7 @@ static int GetPalertMac( const uint msec )
 	char *pos;
 
 /* Send out the MAC address request command */
-	while ( TransmitCommand( "mac" ) != NORMAL );
+	LOOP_TRANSMIT_COMMAND( "mac" );
 /* Extract the MAC address from the raw response */
 	if ( (pos = ExtractResponse( RecvBuffer, MAC_STRING )) == NULL )
 		return ERROR;
@@ -630,7 +632,6 @@ static int GetPalertNetworkSetting( const uint msec )
 
 /* Send out the IP address request command */
 	LOOP_TRANSMIT_COMMAND( "ip" );
-	//while ( TransmitCommand( "ip" ) != NORMAL );
 /* Extract the IP address from the raw response */
 	if ( (pos = ExtractResponse( RecvBuffer, IPV4_STRING )) == NULL )
 		return ERROR;
@@ -639,7 +640,6 @@ static int GetPalertNetworkSetting( const uint msec )
 
 /* Send out the Mask request command */
 	LOOP_TRANSMIT_COMMAND( "mask" );
-	//while ( TransmitCommand( "mask" ) != NORMAL );
 /* Extract the Mask from the raw response */
 	if ( (pos = ExtractResponse( RecvBuffer, IPV4_STRING )) == NULL )
 		return ERROR;
@@ -648,7 +648,6 @@ static int GetPalertNetworkSetting( const uint msec )
 
 /* Send out the Gateway address request command */
 	LOOP_TRANSMIT_COMMAND( "gateway" );
-	//while ( TransmitCommand( "gateway" ) != NORMAL );
 /* Extract the Gateway address from the raw response */
 	if ( (pos = ExtractResponse( RecvBuffer, IPV4_STRING )) == NULL )
 		return ERROR;
@@ -718,17 +717,17 @@ static int SetPalertNetwork( const uint msec )
 			Delay(1);
 		}
 	/* Send out the IP address request command for following connection */
-		while ( TransmitCommand( "ip" ) != NORMAL );
+		LOOP_TRANSMIT_COMMAND( "ip" );
 	/* Extract the IP address from the raw response & connect to it */
 		if ( (pos = ExtractResponse( RecvBuffer, IPV4_STRING )) == NULL )
 			return ERROR;
 		if ( InitControlSocket( pos ) == ERROR )
 			return ERROR;
 	/* One more carriage return to flush the broadcast record */
-		while ( TransmitCommand( "" ) != NORMAL );
+		LOOP_TRANSMIT_COMMAND( "" );
 	/* */
 		sprintf(str_ptr, "ip %u.%u.%u.%u", (BYTE)PreBuffer[0], (BYTE)PreBuffer[1], (BYTE)PreBuffer[2], (BYTE)PreBuffer[3]);
-		while ( TransmitCommand( str_ptr ) != NORMAL );
+		LOOP_TRANSMIT_COMMAND( str_ptr );
 	/* Show 'S. iP.' on the 7-seg led */
 		Show5DigitLedWithDot(1, 0x05);
 		Show5DigitLedSeg(2, 0x00);
@@ -737,7 +736,7 @@ static int SetPalertNetwork( const uint msec )
 		Show5DigitLedSeg(5, 0x00);
 		Delay(msec);
 	/* Send out the IP address request command for rechecking */
-		while ( TransmitCommand( "ip" ) != NORMAL );
+		LOOP_TRANSMIT_COMMAND( "ip" );
 	/* Extract the IP address from the raw response */
 		if ( (pos = ExtractResponse( RecvBuffer, IPV4_STRING )) == NULL )
 			return ERROR;
@@ -748,7 +747,7 @@ static int SetPalertNetwork( const uint msec )
 
 	/* */
 		sprintf(str_ptr, "mask %u.%u.%u.%u", (BYTE)PreBuffer[4], (BYTE)PreBuffer[5], (BYTE)PreBuffer[6], (BYTE)PreBuffer[7]);
-		while ( TransmitCommand( str_ptr ) != NORMAL );
+		LOOP_TRANSMIT_COMMAND( str_ptr );
 	/* Show 'S.MASk.' on the 7-seg led */
 		Show5DigitLedWithDot(1, 0x05);
 		Show5DigitLedSeg(2, 0x76);
@@ -757,7 +756,7 @@ static int SetPalertNetwork( const uint msec )
 		Show5DigitLedSeg(5, 0xb7);
 		Delay(msec);
 	/* Send out the Mask request command for rechecking */
-		while ( TransmitCommand( "mask" ) != NORMAL );
+		LOOP_TRANSMIT_COMMAND( "mask" );
 	/* Extract the Mask from the raw response */
 		if ( (pos = ExtractResponse( RecvBuffer, IPV4_STRING )) == NULL )
 			return ERROR;
@@ -768,7 +767,7 @@ static int SetPalertNetwork( const uint msec )
 
 	/* */
 		sprintf(str_ptr, "gateway %u.%u.%u.%u", (BYTE)PreBuffer[8], (BYTE)PreBuffer[9], (BYTE)PreBuffer[10], (BYTE)PreBuffer[11]);
-		while ( TransmitCommand( str_ptr ) != NORMAL );
+		LOOP_TRANSMIT_COMMAND( str_ptr );
 	/* Show 'S.GAtE.' on the 7-seg led */
 		Show5DigitLedWithDot(1, 0x05);
 		Show5DigitLedSeg(2, 0x5e);
@@ -777,7 +776,7 @@ static int SetPalertNetwork( const uint msec )
 		Show5DigitLedWithDot(5, 0x0e);
 		Delay(msec);
 	/* Send out the Gateway address request command */
-		while ( TransmitCommand( "gateway" ) != NORMAL );
+		LOOP_TRANSMIT_COMMAND( "gateway" );
 	/* Extract the Gateway address from the raw response */
 		if ( (pos = ExtractResponse( RecvBuffer, IPV4_STRING )) == NULL )
 			return ERROR;
@@ -816,7 +815,7 @@ static int CheckPalertDisk( const int mode, const uint msec )
 	char *pos;
 
 /* Function switch between "reset" & "check", then end out the request command */
-	while ( TransmitCommand( mode == RESET ? "disksize 3 4" : "disksize" ) != NORMAL );
+	LOOP_TRANSMIT_COMMAND( mode == RESET ? "disksize 3 4" : "disksize" );
 /* Extract the DiskA size from the raw response */
 	if ( (pos = ExtractResponse( RecvBuffer, DABSIZE_STRING )) == NULL )
 		return ERROR;
@@ -876,7 +875,7 @@ static int UploadPalertFirmware( const uint msec )
 	Show5DigitLedSeg(5, 0xb7);
 	Delay(msec);
 /* Flushing the disk a */
-	while ( TransmitCommand( "del /y" ) != NORMAL );
+	LOOP_TRANSMIT_COMMAND( "del /y" );
 /* Show 'del. A' on the 7-seg led */
 	Show5DigitLed(1, 0x0d);
 	Show5DigitLed(2, 0x0e);
@@ -885,7 +884,7 @@ static int UploadPalertFirmware( const uint msec )
 	Show5DigitLed(5, 0x0a);
 	Delay(msec);
 /* Flushing the disk b */
-	while ( TransmitCommand( "delb /y" ) != NORMAL);
+	LOOP_TRANSMIT_COMMAND( "delb /y" );
 /* Show 'del. b' on the 7-seg led */
 	Show5DigitLed(1, 0x0d);
 	Show5DigitLed(2, 0x0e);
@@ -945,7 +944,7 @@ static int AgentCommand( const char *comm, const uint msec )
 		return ERROR;
 	Delay(250);
 /* Execute the remote agent */
-	while ( TransmitCommand( "runr" ) != NORMAL );
+	LOOP_TRANSMIT_COMMAND( "runr" );
 /* Send the Block zero data to the agent */
 	do {
 		if ( TransmitDataByCommand( PreBuffer, EEPROM_SET_TOTAL_LENGTH + 2 ) == NORMAL ) {
@@ -965,7 +964,7 @@ static int AgentCommand( const char *comm, const uint msec )
 		return ERROR;
 	} while ( 1 );
 /* Sending the command to remote agent */
-	while ( TransmitCommand( comm ) != NORMAL );
+	LOOP_TRANSMIT_COMMAND( comm );
 	if ( !strncmp(comm, "setdef", 6) ) {
 	/* Show 'S. def.' on the 7-seg led */
 		Show5DigitLedWithDot(1, 0x05);
@@ -1080,7 +1079,7 @@ static int UploadFileData( const int disk, const FILE_DATA far *fileptr )
 	if ( CRC16_MakeTable() )
 		return ERROR;
 /* Send out the uploading request command */
-	while ( TransmitCommand( disk == DISKA ? "load" : disk == DISKB ? "loadb" : "loadr" ) != NORMAL );
+	LOOP_TRANSMIT_COMMAND( disk == DISKA ? "load" : disk == DISKB ? "loadb" : "loadr" );
 /* Start to show the progress and waiting for 150 ms */
 	ShowProg5DigitsLed( 0, blockall );
 	Delay(150);
@@ -1154,7 +1153,7 @@ static int UploadFileData( const int disk, const FILE_DATA far *fileptr )
 				}
 			}
 		/* Sending the carrier return then return error */
-			while ( TransmitCommand( "" ) != NORMAL );
+			LOOP_TRANSMIT_COMMAND( "" );
 			return ERROR;
 		}
 	/* Show the progress on the 7-seg led */
@@ -1163,7 +1162,7 @@ static int UploadFileData( const int disk, const FILE_DATA far *fileptr )
 /* For finishing, last for 100 ms */
 	Delay(150);
 /* Sending the carrier return */
-	while ( TransmitCommand( "" ) != NORMAL );
+	LOOP_TRANSMIT_COMMAND( "" );
 
 	return NORMAL;
 }
@@ -1361,13 +1360,33 @@ static int ConvertMask( ulong mask )
 /**
  * @brief
  *
+ * @param msec
+ */
+static void FatalError( const int msec )
+{
+/* Show 'FAtAL.' on the 7-seg led */
+	Show5DigitLed(1, 0x0f);
+	Show5DigitLed(2, 0x0a);
+	Show5DigitLedSeg(3, 0x11);
+	Show5DigitLed(4, 0x0a);
+	Show5DigitLedSeg(5, 0x8e);
+/* Reset the network setting */
+	SetNetworkConfig( NETWORK_DEFAULT );
+	Delay(msec);
+/* Reset the system */
+	ResetProgram();
+
+	return;
+}
+
+/**
+ * @brief
+ *
  * @return int
  */
 static int ResetProgram( void )
 {
-	void (far *_reset)(void) = (void (far *)(void))0xFFFF0000L;  /* Program start address. */
-
-	_reset();
+	((void (far *)(void))0xFFFF0000L)();  /* Program start address. */
 
 	return 0;
 }
