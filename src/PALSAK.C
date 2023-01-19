@@ -68,6 +68,10 @@ static int ReadFileFTPInfo( const FILE_DATA far * );
 static int ReadFileBlockZero( const FILE_DATA far *, BYTE far *, size_t );
 
 static int ConvertMask( ulong );
+static int ResetProgram( void );
+
+#define LOOP_TRANSMIT_COMMAND(_COMM) \
+		while ( TransmitCommand( (_COMM) ) != NORMAL && (!ReadInitPin() || ResetProgram()) )
 
 /* Main function, entry */
 void main( void )
@@ -625,7 +629,8 @@ static int GetPalertNetworkSetting( const uint msec )
 	char *pos;
 
 /* Send out the IP address request command */
-	while ( TransmitCommand( "ip" ) != NORMAL );
+	LOOP_TRANSMIT_COMMAND( "ip" );
+	//while ( TransmitCommand( "ip" ) != NORMAL );
 /* Extract the IP address from the raw response */
 	if ( (pos = ExtractResponse( RecvBuffer, IPV4_STRING )) == NULL )
 		return ERROR;
@@ -633,7 +638,8 @@ static int GetPalertNetworkSetting( const uint msec )
 	sscanf(pos, "%hu.%hu.%hu.%hu", (uchar *)&PreBuffer[0], (uchar *)&PreBuffer[1], (uchar *)&PreBuffer[2], (uchar *)&PreBuffer[3]);
 
 /* Send out the Mask request command */
-	while ( TransmitCommand( "mask" ) != NORMAL );
+	LOOP_TRANSMIT_COMMAND( "mask" );
+	//while ( TransmitCommand( "mask" ) != NORMAL );
 /* Extract the Mask from the raw response */
 	if ( (pos = ExtractResponse( RecvBuffer, IPV4_STRING )) == NULL )
 		return ERROR;
@@ -641,7 +647,8 @@ static int GetPalertNetworkSetting( const uint msec )
 	sscanf(pos, "%hu.%hu.%hu.%hu", (uchar *)&PreBuffer[4], (uchar *)&PreBuffer[5], (uchar *)&PreBuffer[6], (uchar *)&PreBuffer[7]);
 
 /* Send out the Gateway address request command */
-	while ( TransmitCommand( "gateway" ) != NORMAL );
+	LOOP_TRANSMIT_COMMAND( "gateway" );
+	//while ( TransmitCommand( "gateway" ) != NORMAL );
 /* Extract the Gateway address from the raw response */
 	if ( (pos = ExtractResponse( RecvBuffer, IPV4_STRING )) == NULL )
 		return ERROR;
@@ -1349,4 +1356,18 @@ static int ConvertMask( ulong mask )
 	}
 
 	return result;
+}
+
+/**
+ * @brief
+ *
+ * @return int
+ */
+static int ResetProgram( void )
+{
+	void (far *_reset)(void) = (void (far *)(void))0xFFFF0000L;  /* Program start address. */
+
+	_reset();
+
+	return 0;
 }
