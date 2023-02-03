@@ -168,7 +168,7 @@ int NTPSend( void )
  * @param timezone
  * @return int
  */
-int NTPRecv( const int timezone )
+int NTPRecv( void )
 {
 	long offset_usec;
 	struct timeval tv1, tv2, tv3, tv4;
@@ -197,7 +197,7 @@ int NTPRecv( const int timezone )
 	/* Set the time directly or keep the adjustment */
 		if ( labs(offset_usec) >= 1000000 ) {
 			Adjustment = 0;
-			SysTimeStep( 0, offset_usec );
+			SysTimeStep( offset_usec );
 		}
 		else {
 			Adjustment = offset_usec;

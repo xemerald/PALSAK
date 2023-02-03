@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <time.h>
 #include <ctype.h>
 /* */
 #include "./include/u7186EX/7186e.h"
@@ -15,7 +14,7 @@ void MyTimerFun(void)
 {
 	struct timeval *tv;
 
-	tv = SysTimeStep( 500 );
+	tv = SysTimeStep( 50000 );
 	Print("\r\nNow Time is %ld.%.6ld", tv->tv_sec, tv->tv_usec);
 
 	return;
@@ -40,7 +39,7 @@ void main( void )
 	Print("\r\nthen Press 'q' to quit\r\n");
 
 	Getch();
-	InstallUserTimer1Function_us(5000, MyTimerFun);
+	InstallUserTimer1Function_us(500000, MyTimerFun);
 	//NTPConnect( "140.112.2.189", 123 );
 
 	while( 1 ) {

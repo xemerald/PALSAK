@@ -9,9 +9,8 @@ extern "C" {
 /*
  *
  */
-#include <time.h>
-
 #include "./include/u7186EX/7186e.h"
+#include "./include/u7186EX/Tcpip32.h"
 
 /*
  *
@@ -22,7 +21,7 @@ void SysTimeToHWTime( const int );
 
 int NTPConnect( const char *, const uint );
 int NTPSend( void );
-int NTPRecv( const int );
+int NTPRecv( void );
 
 
 #ifdef __cplusplus
