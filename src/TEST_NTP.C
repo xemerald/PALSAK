@@ -52,7 +52,7 @@ void main( void )
 			NTPRecv();
 		}
 		inc++;
-		inc %= 16000;
+		inc %= 160;
 	}
 
 	StopUserTimer1Fun();
