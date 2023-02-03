@@ -161,7 +161,6 @@ int NTPConnect( const char *host, const uint port )
 int NTPSend( void )
 {
 	struct timeval tv1;
-	unsigned long long test;
 
 /* Send to the server */
 	memset(InternalBuffer, 0, 61);
@@ -171,8 +170,7 @@ int NTPSend( void )
 	_asm cli
 	tv1 = SoftSysTime;
 	_asm sti
-	test = tv1.tv_usec << 16;
-	Print("\r\nTesting %lld %lld %lld", tv1.tv_usec, frac2usec(test), USEC_TO_FRAC( tv1.tv_usec ));
+	Print("\r\nTesting %lld %lld %lld", tv1.tv_usec, frac2usec(0x5bf9573), USEC_TO_FRAC( tv1.tv_usec ));
 	*(ulong *)&InternalBuffer[40] = HTONS_FP( tv1.tv_sec + EpochDiff );
 	*(ulong *)&InternalBuffer[44] = HTONS_FP( USEC_TO_FRAC( tv1.tv_usec ) );
 /* Send to the server */
