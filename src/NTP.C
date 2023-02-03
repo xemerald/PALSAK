@@ -30,7 +30,7 @@
  */
 static time_t FetchHWTime( void );
 static void   SetHWTime( time_t );
-static ulong  _mktime( uint, uint, uint, uint, uint, uint );
+static time_t _mktime( uint, uint, uint, uint, uint, uint );
 
 /* */
 #define INTERNAL_BUF_SIZE  1024
