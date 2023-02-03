@@ -30,6 +30,7 @@
  */
 static time_t FetchHWTime( void );
 static void   SetHWTime( time_t );
+static ulong  _mktime( uint, uint, uint, uint, uint, uint );
 
 /* */
 #define INTERNAL_BUF_SIZE  1024
@@ -230,22 +231,15 @@ int NTPRecv( void )
  */
 static time_t FetchHWTime( void )
 {
-	struct tm brktime;
 	TIME_DATE timedate;
 
 /* */
 	GetTimeDate(&timedate);
-/* Time part */
-	brktime.tm_isdst = 0;
-	brktime.tm_hour  = timedate.hour;
-	brktime.tm_min   = timedate.minute;
-	brktime.tm_sec   = timedate.sec;
-/* Date part */
-	brktime.tm_year  = timedate.year - 1900;
-	brktime.tm_mon   = timedate.month - 1;
-	brktime.tm_mday  = timedate.day;
 
-	return timegm(&brktime);
+	return _mktime(
+		timedate.year, timedate.month, timedate.day,
+		timedate.hour, timedate.minute, timedate.sec
+	);
 }
 
 /**
@@ -271,4 +265,30 @@ static void SetHWTime( time_t val )
 	SetTimeDate(&timedate);
 
 	return;
+}
+
+/**
+ * @brief turn the broken time structure into calendar time(UTC)
+ *
+ * @param year
+ * @param mon
+ * @param day
+ * @param hour
+ * @param min
+ * @param sec
+ * @return ulong
+ */
+static ulong _mktime( uint year, uint mon, uint day, uint hour, uint min, uint sec )
+{
+	if ( 0 >= (int)(mon -= 2) ) {
+	/* Puts Feb last since it has leap day */
+		mon += 12;
+		year--;
+	}
+
+	return ((((ulong)(year/4 - year/100 + year/400 + 367*mon/12 + day) +
+				year*365 - 719499
+			)*24 + hour
+		)*60 + min
+	)*60 + sec;
 }
