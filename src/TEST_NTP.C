@@ -12,17 +12,7 @@
 
 void MyTimerFun(void)
 {
-	static long lasttime = 0;
-	struct timeval *tv;
-
-	tv = SysTimeStep( 500 );
-
-	if ( lasttime == 0 )
-		Print("\r\nNow Time is %ld.%.6ld", tv->tv_sec, tv->tv_usec);
-	else {
-		lasttime += 500;
-		lasttime %= 100000;
-	}
+	SysTimeStep( 500 );
 
 	return;
 }
@@ -30,6 +20,7 @@ void MyTimerFun(void)
 /* Main function, entry */
 void main( void )
 {
+	struct timeval tv;
 /* Initialization for u7186EX's general library */
 	InitLib();
 	Init5DigitLed();
@@ -47,11 +38,15 @@ void main( void )
 
 	Getch();
 	InstallUserTimer1Function_us(5000, MyTimerFun);
+
 	//NTPConnect( "140.112.2.189", 123 );
 
 	while( 1 ) {
 		if ( Kbhit() && Getch() == 'q' )
 			break;
+		SysTimeGet( &tv );
+		Print("\r\nNow time is %ld.%.6ld", tv.tv_sec, tv.tv_usec);
+		Delay(100);
 	}
 
 	StopUserTimer1Fun();

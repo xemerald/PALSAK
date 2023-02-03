@@ -100,6 +100,20 @@ struct timeval *SysTimeStep( const long usec )
 /**
  * @brief
  *
+ * @return struct timeval
+ */
+void SysTimeGet( struct timeval *sys_time )
+{
+	_asm cli
+	*sys_time = SoftSysTime
+	_asm sti
+
+	return;
+}
+
+/**
+ * @brief
+ *
  * @param timezone
  */
 void SysTimeToHWTime( const int timezone )
