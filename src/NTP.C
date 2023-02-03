@@ -243,7 +243,7 @@ static time_t FetchHWTime( void )
 /* Date part */
 	brktime.tm_year  = timedate.year - 1900;
 	brktime.tm_mon   = timedate.month - 1;
-	brktime.tm_day   = timedate.day;
+	brktime.tm_mday  = timedate.day;
 
 	return timegm(&brktime);
 }
@@ -262,7 +262,7 @@ static void SetHWTime( time_t val )
 	brktime = gmtime( &val );
 	timedate.year  = brktime->tm_year + 1900;
 	timedate.month = brktime->tm_mon + 1;
-	timedate.day   = brktime->tm_day;
+	timedate.day   = brktime->tm_mday;
 /* */
 	timedate.hour   = brktime->tm_hour;
 	timedate.minute = brktime->tm_min;
