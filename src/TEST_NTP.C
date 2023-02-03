@@ -12,7 +12,7 @@
 
 void MyTimerFun(void)
 {
-	SysTimeStep( 500 );
+	SysTimeStep( 5000 );
 
 	return;
 }
@@ -39,7 +39,7 @@ void main( void )
 	NTPConnect( "140.112.2.189", 123 );
 
 	Getch();
-	InstallUserTimer1Function_us(5000, MyTimerFun);
+	InstallUserTimer1Function_us(50000, MyTimerFun);
 
 	while( 1 ) {
 		if ( Kbhit() && Getch() == 'q' )
