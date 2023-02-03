@@ -170,7 +170,7 @@ int NTPSend( void )
 	_asm cli
 	tv1 = SoftSysTime;
 	_asm sti
-	Print("\r\nTesting %lld %llu %lld", tv1.tv_usec, frac2usec(0x5bf9573), FRAC_TO_USEC(0x5bf9573), USEC_TO_FRAC( tv1.tv_usec ));
+	Print("\r\nTesting %lld %llu %llu %lld", tv1.tv_usec, frac2usec(0x5bf9573), FRAC_TO_USEC(0x5bf9573), USEC_TO_FRAC( tv1.tv_usec ));
 	*(ulong *)&InternalBuffer[40] = HTONS_FP( tv1.tv_sec + EpochDiff );
 	*(ulong *)&InternalBuffer[44] = HTONS_FP( USEC_TO_FRAC( tv1.tv_usec ) );
 /* Send to the server */
