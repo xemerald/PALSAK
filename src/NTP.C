@@ -56,7 +56,7 @@ static long           Adjustment;
 struct timeval *SysTimeInit( const int timezone )
 {
 /* */
-	SoftSysTime.tv_sec  = FetchHWTime() - (timezone * 3600);
+	SoftSysTime.tv_sec  = FetchHWTime() - (time_t)(timezone * 3600);
 	SoftSysTime.tv_usec = 0L;
 	Adjustment = 0;
 
@@ -287,7 +287,6 @@ static time_t _mktime( uint year, uint mon, uint day, uint hour, uint min, uint 
 		mon += 12;
 		year--;
 	}
-	Print("\r\n%u %u %u %u %u %u", year, mon, day, hour, min, sec);
 
 	return ((((time_t)(year/4 - year/100 + year/400 + 367*mon/12 + day) +
 				year*365 - 719499
