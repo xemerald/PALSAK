@@ -27,6 +27,7 @@
 /*
  *
  */
+static long frac2usec (unsigned long);
 static time_t FetchHWTime( void );
 static void   SetHWTime( time_t );
 static time_t _mktime( uint, uint, uint, uint, uint, uint );
@@ -171,7 +172,7 @@ int NTPSend( void )
 	tv1 = SoftSysTime;
 	_asm sti
 	test = tv1.tv_usec << 16;
-	Print("\r\nTesting %lld %lld %lld", tv1.tv_usec, FRAC_TO_USEC(test), USEC_TO_FRAC( tv1.tv_usec ));
+	Print("\r\nTesting %lld %lld %lld", tv1.tv_usec, frac2usec(test), USEC_TO_FRAC( tv1.tv_usec ));
 	*(ulong *)&InternalBuffer[40] = HTONS_FP( tv1.tv_sec + EpochDiff );
 	*(ulong *)&InternalBuffer[44] = HTONS_FP( USEC_TO_FRAC( tv1.tv_usec ) );
 /* Send to the server */
@@ -301,4 +302,9 @@ static time_t _mktime( uint year, uint mon, uint day, uint hour, uint min, uint 
 			)*24 + hour
 		)*60 + min
 	)*60 + sec;
+}
+
+static long frac2usec (unsigned long frac)
+{
+	return (long) (((long long) frac * 1000000) >> 32);
 }
