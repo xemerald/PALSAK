@@ -167,7 +167,10 @@ int NTPSend( void )
 /* 00 001 011 - leap, ntp ver, client.  See RFC 1361. */
 	InternalBuffer[0] = (0 << 6) | (1 << 3) | 3;
 /* Get the local sent time - Originate Timestamp */
+	_asm cli
 	tv1 = SoftSysTime;
+	_asm sti
+	Print("\r\nTesting %lld %lld", tv1.tv_usec, USEC_TO_FRAC( tv1.tv_usec ));
 	*(ulong *)&InternalBuffer[40] = HTONS_FP( tv1.tv_sec + EpochDiff );
 	*(ulong *)&InternalBuffer[44] = HTONS_FP( USEC_TO_FRAC( tv1.tv_usec ) );
 /* Send to the server */
@@ -194,7 +197,9 @@ int NTPRecv( void )
 	}
 	else {
 	/* Get the local received timestamp */
+		_asm cli
 		tv4 = SoftSysTime;
+		_asm sti
 		tv4.tv_sec += EpochDiff;
 	/* Get the local transmitted timestamp */
 		tv1.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[24] );
