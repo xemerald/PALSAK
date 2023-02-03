@@ -289,7 +289,7 @@ static time_t _mktime( uint year, uint mon, uint day, uint hour, uint min, uint 
 	}
 
 	return ((((time_t)(year/4 - year/100 + year/400 + 367*mon/12 + day) +
-				year*365 - 719499
+				(long)year*365 - 719499
 			)*24 + hour
 		)*60 + min
 	)*60 + sec;
