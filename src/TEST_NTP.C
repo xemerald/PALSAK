@@ -46,13 +46,13 @@ void main( void )
 			break;
 		SysTimeGet( &tv );
 		Print("\r\nNow time is %ld.%.6ld", tv.tv_sec, tv.tv_usec);
-		Delay(100);
+		Delay0(100);
 		if ( inc == 0 ) {
 			NTPSend();
 			NTPRecv();
 		}
 		inc++;
-		inc %= 160;
+		inc %= 320;
 	}
 
 	StopUserTimer1Fun();
