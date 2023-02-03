@@ -219,7 +219,9 @@ int NTPRecv( void )
 			_asm sti
 		}
 		else {
+			_asm cli
 			Adjustment = offset_usec;
+			_asm sti
 		}
 	}
 
