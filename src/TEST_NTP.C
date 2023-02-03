@@ -12,7 +12,7 @@
 
 void MyTimerFun(void)
 {
-	SysTimeStep( 5000 );
+	SysTimeStep( 500 );
 
 	return;
 }
@@ -30,7 +30,7 @@ void main( void )
 		return;
 /* Wait for the network interface ready, it might be shoter */
 	YIELD();
-	Delay(5);
+	Delay2(5);
 /* */
 	SysTimeInit( 8 );
 
@@ -39,14 +39,14 @@ void main( void )
 	NTPConnect( "140.112.2.189", 123 );
 
 	Getch();
-	InstallUserTimer1Function_us(50000, MyTimerFun);
+	InstallUserTimer1Function_us(5000, MyTimerFun);
 
 	while( 1 ) {
 		if ( Kbhit() && Getch() == 'q' )
 			break;
 		SysTimeGet( &tv );
 		Print("\r\nNow time is %ld.%.6ld", tv.tv_sec, tv.tv_usec);
-		Delay0(100);
+		Delay2(100);
 		if ( inc == 0 ) {
 			NTPSend();
 			NTPRecv();

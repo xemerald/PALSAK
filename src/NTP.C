@@ -90,7 +90,7 @@ struct timeval *SysTimeStep( const long usec )
 		_usec += usec;
 	}
 /* */
-	if ( _usec && (SoftSysTime.tv_usec += _usec) >= 1000000 ) {
+	if ( _usec && labs(SoftSysTime.tv_usec += _usec) >= 1000000 ) {
 		SoftSysTime.tv_sec  += SoftSysTime.tv_usec / 1000000;
 		SoftSysTime.tv_usec %= 1000000;
 	}
