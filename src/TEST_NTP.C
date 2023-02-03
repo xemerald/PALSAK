@@ -12,10 +12,17 @@
 
 void MyTimerFun(void)
 {
+	static long lasttime = 0;
 	struct timeval *tv;
 
-	tv = SysTimeStep( 50000 );
-	Print("\r\nNow Time is %ld.%.6ld", tv->tv_sec, tv->tv_usec);
+	tv = SysTimeStep( 500 );
+
+	if ( lasttime == 0 )
+		Print("\r\nNow Time is %ld.%.6ld", tv->tv_sec, tv->tv_usec);
+	else {
+		lasttime += 500;
+		lasttime %= 100000;
+	}
 
 	return;
 }
@@ -39,7 +46,7 @@ void main( void )
 	Print("\r\nthen Press 'q' to quit\r\n");
 
 	Getch();
-	InstallUserTimer1Function_us(500000, MyTimerFun);
+	InstallUserTimer1Function_us(5000, MyTimerFun);
 	//NTPConnect( "140.112.2.189", 123 );
 
 	while( 1 ) {
