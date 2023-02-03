@@ -230,23 +230,22 @@ int NTPRecv( void )
  */
 static time_t FetchHWTime( void )
 {
-	struct time d_time;
-	struct date d_date;
-	TIME_DATE   timedate;
+	struct tm brktime;
+	TIME_DATE timedate;
 
 /* */
 	GetTimeDate(&timedate);
 /* Time part */
-	d_time.ti_hour = timedate.hour;
-	d_time.ti_hund = 0;
-	d_time.ti_min  = timedate.minute;
-	d_time.ti_sec  = timedate.sec;
+	brktime.tm_isdst = 0;
+	brktime.tm_hour  = timedate.hour;
+	brktime.tm_min   = timedate.minute;
+	brktime.tm_sec   = timedate.sec;
 /* Date part */
-	d_date.da_year = timedate.year;
-	d_date.da_mon  = timedate.month;
-	d_date.da_day  = timedate.day;
+	brktime.tm_year  = timedate.year - 1900;
+	brktime.tm_mon   = timedate.month - 1;
+	brktime.tm_day   = timedate.day;
 
-	return dostounix(&d_date, &d_time);
+	return timegm(&brktime);
 }
 
 /**
@@ -256,20 +255,18 @@ static time_t FetchHWTime( void )
  */
 static void SetHWTime( time_t val )
 {
-	struct time d_time;
-	struct date d_date;
-	TIME_DATE   timedate;
+	struct tm *brktime;
+	TIME_DATE timedate;
 
 /* */
-	unixtodos(val, &d_date, &d_time);
+	brktime = gmtime( &val );
+	timedate.year  = brktime.tm_year + 1900;
+	timedate.month = brktime.tm_mon + 1;
+	timedate.day   = brktime.tm_day;
 /* */
-	timedate.year   = d_date.da_year;
-	timedate.month  = d_date.da_mon;
-	timedate.day    = d_date.da_day;
-/* */
-	timedate.hour   = d_time.ti_hour;
-	timedate.minute = d_time.ti_min;
-	timedate.sec    = d_time.ti_sec;
+	timedate.hour   = brktime.tm_hour;
+	timedate.minute = brktime.tm_min;
+	timedate.sec    = brktime.tm_sec;
 /* */
 	SetTimeDate(&timedate);
 
