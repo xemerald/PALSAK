@@ -260,13 +260,13 @@ static void SetHWTime( time_t val )
 
 /* */
 	brktime = gmtime( &val );
-	timedate.year  = brktime.tm_year + 1900;
-	timedate.month = brktime.tm_mon + 1;
-	timedate.day   = brktime.tm_day;
+	timedate.year  = brktime->tm_year + 1900;
+	timedate.month = brktime->tm_mon + 1;
+	timedate.day   = brktime->tm_day;
 /* */
-	timedate.hour   = brktime.tm_hour;
-	timedate.minute = brktime.tm_min;
-	timedate.sec    = brktime.tm_sec;
+	timedate.hour   = brktime->tm_hour;
+	timedate.minute = brktime->tm_min;
+	timedate.sec    = brktime->tm_sec;
 /* */
 	SetTimeDate(&timedate);
 
