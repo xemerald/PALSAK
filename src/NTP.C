@@ -213,8 +213,10 @@ int NTPRecv( void )
 		Print("\r\nOffset is %ld", offset_usec);
 
 		if ( labs(offset_usec) >= 1000000 ) {
+			_asm cli
 			Adjustment = 0;
 			SysTimeStep( offset_usec );
+			_asm sti
 		}
 		else {
 			Adjustment = offset_usec;
@@ -285,6 +287,7 @@ static time_t _mktime( uint year, uint mon, uint day, uint hour, uint min, uint 
 		mon += 12;
 		year--;
 	}
+	Print("\r\n%u %u %u %u %u %u", year, mon, day, hour, min, sec);
 
 	return ((((time_t)(year/4 - year/100 + year/400 + 367*mon/12 + day) +
 				year*365 - 719499
