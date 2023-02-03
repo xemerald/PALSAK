@@ -278,7 +278,7 @@ static void SetHWTime( time_t val )
  * @param sec
  * @return ulong
  */
-static ulong _mktime( uint year, uint mon, uint day, uint hour, uint min, uint sec )
+static time_t _mktime( uint year, uint mon, uint day, uint hour, uint min, uint sec )
 {
 	if ( 0 >= (int)(mon -= 2) ) {
 	/* Puts Feb last since it has leap day */
@@ -286,7 +286,7 @@ static ulong _mktime( uint year, uint mon, uint day, uint hour, uint min, uint s
 		year--;
 	}
 
-	return ((((ulong)(year/4 - year/100 + year/400 + 367*mon/12 + day) +
+	return ((((time_t)(year/4 - year/100 + year/400 + 367*mon/12 + day) +
 				year*365 - 719499
 			)*24 + hour
 		)*60 + min
