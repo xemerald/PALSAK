@@ -105,7 +105,7 @@ struct timeval *SysTimeStep( const long usec )
 void SysTimeGet( struct timeval *sys_time )
 {
 	_asm cli
-	*sys_time = SoftSysTime
+	*sys_time = SoftSysTime;
 	_asm sti
 
 	return;
@@ -209,6 +209,8 @@ int NTPRecv( void )
 		offset_usec += ((tv2.tv_sec - tv1.tv_sec) + (tv3.tv_sec - tv4.tv_sec)) * 1000000;
 		offset_usec /= 2;
 	/* Set the time directly or keep the adjustment */
+		Print("\r\nOffset is %ld", offset_usec);
+
 		if ( labs(offset_usec) >= 1000000 ) {
 			Adjustment = 0;
 			SysTimeStep( offset_usec );
