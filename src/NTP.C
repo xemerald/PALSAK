@@ -189,7 +189,7 @@ int NTPRecv( void )
 {
 	long offset_usec;
 	struct timeval tv1, tv2, tv3, tv4;
-	unsigned long long test;
+	unsigned long test, test2;
 /* Read from the server */
 	if ( recv(MainSock, InternalBuffer, 60, 0) <= 0 ) {
 		return ERROR;
@@ -206,8 +206,11 @@ int NTPRecv( void )
 	/* Get the remote receive timestamp */
 		tv2.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[32] );
 		tv2.tv_usec = FRAC_TO_USEC( NTOHS_FP( *(ulong *)&InternalBuffer[36] ) );
-		test = ((unsigned long long)NTOHS_FP( *(ulong *)&InternalBuffer[36] ) * 1000000L);
-		//test >>= 16;
+		test = (NTOHS_FP( *(ulong *)&InternalBuffer[36] ) >> 16) & 0x0000ffff;
+		test2 = NTOHS_FP( *(ulong *)&InternalBuffer[36] ) & 0x0000ffff;
+		test = (test * 15625) >> 10;
+		test2 = (test2 * 15625) >> 26;
+		test += test2;
 	/* Get the remote transmit timestamp */
 		tv3.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[40] );
 		tv3.tv_usec = FRAC_TO_USEC( NTOHS_FP( *(ulong *)&InternalBuffer[44] ) );
