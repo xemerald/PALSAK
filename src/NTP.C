@@ -30,20 +30,21 @@ static ulong  frac2usec( ulong );
 static ulong  usec2frac( ulong );
 
 /* */
-#define INTERNAL_BUF_SIZE  1024
+#define INTERNAL_BUF_SIZE  128
 static char InternalBuffer[INTERNAL_BUF_SIZE];
 /*
  * Time returns the time since the Epoch (00:00:00 UTC, January 1, 1970),
  * measured in seconds. If t is non-NULL, the return value is also stored
  * in the memory pointed to by t .
  */
-static const ulong EpochDiff_Jan1970 = 86400UL * (365UL * 70 + 17);
+static const ulong EpochDiff_Jan1970 = 86400L * (365L * 70 + 17);
 /* */
 static volatile int MainSock = -1;
 static struct sockaddr_in TransmitAddr;
 /* */
 static struct timeval SoftSysTime;
 static struct timeval TimeResidual;
+static int            StepAdjustment;
 
 /**
  * @brief
@@ -54,9 +55,10 @@ void SysTimeInit( const int timezone )
 {
 /* */
 	SoftSysTime.tv_sec   = FetchHWTime() - (time_t)(timezone * 3600);
-	SoftSysTime.tv_usec  = 250000L;
+	SoftSysTime.tv_usec  = 100000L;
 	TimeResidual.tv_sec  = 0L;
 	TimeResidual.tv_usec = 0L;
+	StepAdjustment       = 0;
 
 	return;
 }
@@ -79,8 +81,7 @@ void SysTimeStep( const long usec )
 		TimeResidual.tv_usec = 0L;
 	}
 /* If the residual only in msecond or usecond, step or slew it! */
-	if ( 0 ) {
-	//if ( TimeResidual.tv_usec ) {
+	if ( TimeResidual.tv_usec ) {
 	/* */
 		adjs = labs(adjs);
 		if ( (adjs /= 2) == 0 )
@@ -97,7 +98,7 @@ void SysTimeStep( const long usec )
 	}
 /* Keep the clock step forward */
 	if ( adjs )
-		SoftSysTime.tv_usec += adjs;
+		SoftSysTime.tv_usec += adjs + StepAdjustment;
 /* */
 	if ( SoftSysTime.tv_usec >= ONE_EPOCH_USEC ) {
 		SoftSysTime.tv_sec++;
@@ -207,8 +208,13 @@ int NTPSend( void )
  */
 int NTPRecv( void )
 {
+	static long offset_avg = 0;
+	static char recv_times = 0;
+/* */
 	struct timeval offset;
 	struct timeval tv1, tv2, tv3, tv4;
+	long offset_prev;
+
 /* Read from the server */
 	if ( recv(MainSock, InternalBuffer, 60, 0) <= 0 ) {
 		return ERROR;
@@ -237,6 +243,37 @@ int NTPRecv( void )
 		_asm cli
 		TimeResidual = offset;
 		_asm sti
+	/* */
+		if ( recv_times ) {
+			offset_prev = offset_avg;
+			offset_avg  = offset_avg ?
+				(offset_avg * 9 + (offset.tv_usec + offset.tv_sec * ONE_EPOCH_USEC)) / 10 :
+				(offset.tv_usec + offset.tv_sec * ONE_EPOCH_USEC);
+		}
+	/* */
+		if ( recv_times > 10 ) {
+			if ( labs(offset_avg) > 1000 ) {
+				if ( StepAdjustment ) {
+					if ( (offset_prev - offset_avg) < 1000 ) {
+						StepAdjustment += StepAdjustment;
+					}
+				}
+				else {
+					if ( offset_avg < 0 )
+						StepAdjustment = -1;
+					else
+						StepAdjustment = 1;
+				}
+			}
+			else {
+				StepAdjustment = 0;
+			}
+		}
+		else {
+			recv_times++;
+		}
+		Print("\r\nStepAdjustment is %d", StepAdjustment);
+
 	}
 
 	return NORMAL;
@@ -263,20 +300,20 @@ static time_t FetchHWTime( void )
 /**
  * @brief Set the Hardware System Time
  *
- * @param val
+ * @param sec
  * @param usec
  * @param timer
  */
-static void SetHWTime( time_t val, ulong usec, const int timer )
+static void SetHWTime( time_t sec, ulong usec, const int timer )
 {
 	struct tm *brktime;
 	TIME_DATE timedate;
 
 /* */
-	++val;
-	usec = (ONE_EPOCH_USEC - usec) / 10;
+	++sec;
+	usec = (ONE_EPOCH_USEC - usec) / 100;
 /* */
-	brktime = gmtime( &val );
+	brktime = gmtime( &sec );
 	timedate.year  = brktime->tm_year + 1900;
 	timedate.month = brktime->tm_mon + 1;
 	timedate.day   = brktime->tm_mday;
@@ -287,13 +324,13 @@ static void SetHWTime( time_t val, ulong usec, const int timer )
 /* */
 	switch ( timer ) {
 	case 0:
-		Delay0_2(usec);
+		Delay0_1(usec);
 		break;
 	case 1:
-		Delay1_2(usec);
+		Delay1_1(usec);
 		break;
 	case 2:
-		Delay2_2(usec);
+		Delay2_1(usec);
 		break;
 	default:
 		break;

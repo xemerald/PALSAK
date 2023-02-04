@@ -21,7 +21,7 @@ void MyTimerFun(void)
 void main( void )
 {
 	struct timeval tv;
-	int    inc   = 0;
+	uint   inc   = 0;
 /* Initialization for u7186EX's general library */
 	InitLib();
 	Init5DigitLed();
@@ -47,13 +47,13 @@ void main( void )
 		SysTimeGet( &tv );
 		Print("\r\nNow time is %ld.%.6ld", tv.tv_sec, tv.tv_usec);
 		Delay2(100);
-		if ( inc == 0 ) {
+		if ( inc % 320 == 0 ) {
 			NTPSend();
 			NTPRecv();
 		}
-		if ( ++inc == 320 ) {
+		inc++;
+		if ( inc % 3000 == 0 ) {
 			SysTimeToHWTime( 8, 2 );
-			inc = 0;
 		}
 	}
 
