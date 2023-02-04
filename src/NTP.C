@@ -180,7 +180,6 @@ int NTPSend( void )
 	_asm sti
 	*(ulong *)&InternalBuffer[40] = HTONS_FP( tv1.tv_sec + EpochDiff_Jan1970 );
 	*(ulong *)&InternalBuffer[44] = HTONS_FP( usec2frac( tv1.tv_usec ) );
-	Print("\r\nSend %lu", tv1.tv_usec);
 /* Send to the server */
 	if ( send(MainSock, InternalBuffer, 48, 0) <= 0 )
 		return ERROR;
@@ -217,7 +216,6 @@ int NTPRecv( void )
 	/* Get the remote transmit timestamp */
 		tv3.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[40] );
 		tv3.tv_usec = frac2usec( NTOHS_FP( *(ulong *)&InternalBuffer[44] ) );
-		Print("\r\nTest %lu %lu %lu", tv1.tv_usec, tv2.tv_usec, tv3.tv_usec);
 	/* Calculate the time offset */
 		offset.tv_sec  = ((tv2.tv_sec - tv1.tv_sec) + (tv3.tv_sec - tv4.tv_sec)) / 2;
 		offset.tv_usec = ((tv2.tv_usec - tv1.tv_usec) + (tv3.tv_usec - tv4.tv_usec)) / 2;
