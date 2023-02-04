@@ -49,7 +49,7 @@ static struct timeval TimeResidual;
 void SysTimeInit( const int timezone )
 {
 /* */
-	SoftSysTime.tv_sec   = FetchHWTime() - (time_t)(timezone * 3600);
+	SoftSysTime.tv_sec   = FetchHWTime() - (time_t)(timezone * 3600) + 1;
 	SoftSysTime.tv_usec  = 250000L;
 	TimeResidual.tv_sec  = 0L;
 	TimeResidual.tv_usec = 0L;
@@ -260,8 +260,8 @@ static void SetHWTime( time_t val )
 	TIME_DATE timedate;
 
 /* */
+	++val;
 	brktime = gmtime( &val );
-	Print("\r\ndatetime is %d %d %d %d %d %d", brktime->tm_year, brktime->tm_mon, brktime->tm_mday, brktime->tm_hour, brktime->tm_min, brktime->tm_sec);
 	timedate.year  = brktime->tm_year + 1900;
 	timedate.month = brktime->tm_mon + 1;
 	timedate.day   = brktime->tm_mday;
