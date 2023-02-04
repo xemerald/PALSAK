@@ -18,7 +18,7 @@ extern "C" {
 void SysTimeInit( const int );
 void SysTimeStep( const long );
 void SysTimeGet( struct timeval * );
-void SysTimeToHWTime( const int );
+void SysTimeToHWTime( const int, const int );
 
 int NTPConnect( const char *, const uint );
 int NTPSend( void );

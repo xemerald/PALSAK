@@ -52,7 +52,7 @@ void main( void )
 			NTPRecv();
 		}
 		if ( ++inc == 320 ) {
-			SysTimeToHWTime( 8 );
+			SysTimeToHWTime( 8, 2 );
 			inc = 0;
 		}
 	}

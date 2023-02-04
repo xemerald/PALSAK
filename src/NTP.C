@@ -9,18 +9,22 @@
 #include "./include/u7186EX/Tcpip32.h"
 /* */
 #include "./include/PALSAK.h"
+#include "./include/NTP.h"
 
 /*
  * Byte order conversions
  */
 #define HTONS_FP(__X) (htonl((__X)))
 #define NTOHS_FP(__X) (ntohl((__X)))
-
+/*
+ *
+ */
+#define ONE_EPOCH_USEC 1000000L
 /*
  *
  */
 static time_t FetchHWTime( void );
-static void   SetHWTime( time_t );
+static void   SetHWTime( time_t, ulong, const int );
 static time_t _mktime( uint, uint, uint, uint, uint, uint );
 static ulong  frac2usec( ulong );
 static ulong  usec2frac( ulong );
@@ -44,12 +48,12 @@ static struct timeval TimeResidual;
 /**
  * @brief
  *
- * @return struct timeval*
+ * @param timezone
  */
 void SysTimeInit( const int timezone )
 {
 /* */
-	SoftSysTime.tv_sec   = FetchHWTime() - (time_t)(timezone * 3600) + 1;
+	SoftSysTime.tv_sec   = FetchHWTime() - (time_t)(timezone * 3600);
 	SoftSysTime.tv_usec  = 250000L;
 	TimeResidual.tv_sec  = 0L;
 	TimeResidual.tv_usec = 0L;
@@ -95,13 +99,13 @@ void SysTimeStep( const long usec )
 	if ( adjs )
 		SoftSysTime.tv_usec += adjs;
 /* */
-	if ( SoftSysTime.tv_usec >= 1000000 ) {
+	if ( SoftSysTime.tv_usec >= ONE_EPOCH_USEC ) {
 		SoftSysTime.tv_sec++;
-		SoftSysTime.tv_usec -= 1000000;
+		SoftSysTime.tv_usec -= ONE_EPOCH_USEC;
 	}
 	else if ( SoftSysTime.tv_usec < 0 ) {
 		SoftSysTime.tv_sec--;
-		SoftSysTime.tv_usec += 1000000;
+		SoftSysTime.tv_usec += ONE_EPOCH_USEC;
 	}
 
 	return;
@@ -110,7 +114,7 @@ void SysTimeStep( const long usec )
 /**
  * @brief
  *
- * @return struct timeval
+ * @param sys_time
  */
 void SysTimeGet( struct timeval *sys_time )
 {
@@ -125,11 +129,18 @@ void SysTimeGet( struct timeval *sys_time )
  * @brief
  *
  * @param timezone
+ * @param timer
  */
-void SysTimeToHWTime( const int timezone )
+void SysTimeToHWTime( const int timezone, const int timer )
 {
+	struct timeval now_time;
+
+	_asm cli
+	now_time = SoftSysTime;
+	_asm sti
+	now_time.tv_sec += timezone * 3600;
 /* */
-	SetHWTime( SoftSysTime.tv_sec + (timezone * 3600) );
+	SetHWTime( now_time.tv_sec, now_time.tv_usec, timer );
 
 	return;
 }
@@ -253,14 +264,18 @@ static time_t FetchHWTime( void )
  * @brief Set the Hardware System Time
  *
  * @param val
+ * @param usec
+ * @param timer
  */
-static void SetHWTime( time_t val )
+static void SetHWTime( time_t val, ulong usec, const int timer )
 {
 	struct tm *brktime;
 	TIME_DATE timedate;
 
 /* */
 	++val;
+	usec = (ONE_EPOCH_USEC - usec) / 10;
+/* */
 	brktime = gmtime( &val );
 	timedate.year  = brktime->tm_year + 1900;
 	timedate.month = brktime->tm_mon + 1;
@@ -270,6 +285,19 @@ static void SetHWTime( time_t val )
 	timedate.minute = brktime->tm_min;
 	timedate.sec    = brktime->tm_sec;
 /* */
+	switch ( timer ) {
+	case 0:
+		Delay0_2(usec);
+		break;
+	case 1:
+		Delay1_2(usec);
+		break;
+	case 2:
+		Delay2_2(usec);
+		break;
+	default:
+		break;
+	}
 	SetTimeDate(&timedate);
 
 	return;
