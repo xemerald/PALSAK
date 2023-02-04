@@ -101,7 +101,7 @@ void SysTimeStep( const long usec )
 	}
 	else if ( SoftSysTime.tv_usec < 0 ) {
 		SoftSysTime.tv_sec--;
-		SoftSysTime.tv_usec = -SoftSysTime.tv_usec;
+		SoftSysTime.tv_usec += 1000000;
 	}
 
 	return;
@@ -261,6 +261,7 @@ static void SetHWTime( time_t val )
 
 /* */
 	brktime = gmtime( &val );
+	Print("\r\ndatetime is %d %d %d %d %d %d", brktime->tm_year, brktime->tm_mon, brktime->tm_mday, brktime->tm_hour, brktime->tm_min, brktime->tm_sec);
 	timedate.year  = brktime->tm_year + 1900;
 	timedate.month = brktime->tm_mon + 1;
 	timedate.day   = brktime->tm_mday;

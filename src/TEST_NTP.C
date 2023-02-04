@@ -21,7 +21,7 @@ void MyTimerFun(void)
 void main( void )
 {
 	struct timeval tv;
-	int    inc = 0;
+	int    inc   = 0;
 /* Initialization for u7186EX's general library */
 	InitLib();
 	Init5DigitLed();
@@ -51,8 +51,10 @@ void main( void )
 			NTPSend();
 			NTPRecv();
 		}
-		inc++;
-		inc %= 320;
+		if ( ++inc == 320 ) {
+			SysTimeToHWTime( 8 );
+			inc = 0;
+		}
 	}
 
 	StopUserTimer1Fun();
