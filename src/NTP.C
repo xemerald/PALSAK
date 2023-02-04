@@ -33,27 +33,28 @@ static char InternalBuffer[INTERNAL_BUF_SIZE];
  * measured in seconds. If t is non-NULL, the return value is also stored
  * in the memory pointed to by t .
  */
-static const ulong EpochDiff = (ulong)86400 * (365 * 70 + 17);
+static const ulong EpochDiff_Jan1970 = 86400UL * (365UL * 70 + 17);
 /* */
 static volatile int MainSock = -1;
 static struct sockaddr_in TransmitAddr;
 /* */
 static struct timeval SoftSysTime;
-static long           Adjustment;
+static struct timeval TimeResidual;
 
 /**
  * @brief
  *
  * @return struct timeval*
  */
-struct timeval *SysTimeInit( const int timezone )
+void SysTimeInit( const int timezone )
 {
 /* */
-	SoftSysTime.tv_sec  = FetchHWTime() - (time_t)(timezone * 3600);
-	SoftSysTime.tv_usec = 0L;
-	Adjustment = 0;
+	SoftSysTime.tv_sec   = FetchHWTime() - (time_t)(timezone * 3600);
+	SoftSysTime.tv_usec  = 250000L;
+	TimeResidual.tv_sec  = 0L;
+	TimeResidual.tv_usec = 0L;
 
-	return &SoftSysTime;
+	return;
 }
 
 /**
@@ -62,33 +63,47 @@ struct timeval *SysTimeInit( const int timezone )
  * @param usec
  * @return struct timeval*
  */
-struct timeval *SysTimeStep( const long usec )
+void SysTimeStep( const long usec )
 {
-	long _usec = usec;
+	long adjs = usec;
 
-/* */
-	if ( Adjustment ) {
-	/* */
-		_usec = labs(_usec);
-		if ( (_usec /= 2) == 0 )
-			_usec = 1;
-	/* */
-		if ( Adjustment < 0 )
-			_usec = -_usec;
-	/* */
-		if ( labs(Adjustment) <= labs(_usec) )
-			_usec = Adjustment;
-	/* */
-		Adjustment -= _usec;
-		_usec += usec;
+/* If the residual is larger than one second, directly adjust it! */
+	if ( TimeResidual.tv_sec ) {
+		SoftSysTime.tv_sec  += TimeResidual.tv_sec;
+		SoftSysTime.tv_usec += TimeResidual.tv_usec;
+		TimeResidual.tv_sec  = 0L;
+		TimeResidual.tv_usec = 0L;
 	}
+/* If the residual only in msecond or usecond, step or slew it! */
+	if ( TimeResidual.tv_usec ) {
+	/* */
+		adjs = labs(adjs);
+		if ( (adjs /= 2) == 0 )
+			adjs = 1;
+	/* */
+		if ( TimeResidual.tv_usec < 0 )
+			adjs = -adjs;
+	/* */
+		if ( labs(TimeResidual.tv_usec) <= labs(adjs) )
+			adjs = TimeResidual.tv_usec;
+	/* */
+		TimeResidual.tv_usec -= adjs;
+		adjs += usec;
+	}
+/* Keep the clock step forward */
+	if ( adjs )
+		SoftSysTime.tv_usec += adjs;
 /* */
-	if ( _usec && labs(SoftSysTime.tv_usec += _usec) >= 1000000 ) {
-		SoftSysTime.tv_sec  += SoftSysTime.tv_usec / 1000000;
-		SoftSysTime.tv_usec %= 1000000;
+	if ( SoftSysTime.tv_usec >= 1000000 ) {
+		SoftSysTime.tv_sec++;
+		SoftSysTime.tv_usec -= 1000000;
+	}
+	else if ( SoftSysTime.tv_usec < 0 ) {
+		SoftSysTime.tv_sec--;
+		SoftSysTime.tv_usec = -SoftSysTime.tv_usec;
 	}
 
-	return &SoftSysTime;
+	return;
 }
 
 /**
@@ -163,8 +178,9 @@ int NTPSend( void )
 	_asm cli
 	tv1 = SoftSysTime;
 	_asm sti
-	*(ulong *)&InternalBuffer[40] = HTONS_FP( tv1.tv_sec + EpochDiff );
+	*(ulong *)&InternalBuffer[40] = HTONS_FP( tv1.tv_sec + EpochDiff_Jan1970 );
 	*(ulong *)&InternalBuffer[44] = HTONS_FP( usec2frac( tv1.tv_usec ) );
+	Print("\r\nSend %lu", tv1.tv_usec);
 /* Send to the server */
 	if ( send(MainSock, InternalBuffer, 48, 0) <= 0 )
 		return ERROR;
@@ -180,7 +196,7 @@ int NTPSend( void )
  */
 int NTPRecv( void )
 {
-	long offset_usec;
+	struct timeval offset;
 	struct timeval tv1, tv2, tv3, tv4;
 /* Read from the server */
 	if ( recv(MainSock, InternalBuffer, 60, 0) <= 0 ) {
@@ -191,7 +207,7 @@ int NTPRecv( void )
 		_asm cli
 		tv4 = SoftSysTime;
 		_asm sti
-		tv4.tv_sec += EpochDiff;
+		tv4.tv_sec += EpochDiff_Jan1970;
 	/* Get the local transmitted timestamp */
 		tv1.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[24] );
 		tv1.tv_usec = frac2usec( NTOHS_FP( *(ulong *)&InternalBuffer[28] ) );
@@ -201,25 +217,16 @@ int NTPRecv( void )
 	/* Get the remote transmit timestamp */
 		tv3.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[40] );
 		tv3.tv_usec = frac2usec( NTOHS_FP( *(ulong *)&InternalBuffer[44] ) );
-		Print("\r\nTest %lu", tv1.tv_usec, tv2.tv_usec, tv3.tv_usec);
+		Print("\r\nTest %lu %lu %lu", tv1.tv_usec, tv2.tv_usec, tv3.tv_usec);
 	/* Calculate the time offset */
-		offset_usec  = (tv2.tv_usec - tv1.tv_usec) + (tv3.tv_usec - tv4.tv_usec);
-		offset_usec += ((tv2.tv_sec - tv1.tv_sec) + (tv3.tv_sec - tv4.tv_sec)) * 1000000;
-		offset_usec /= 2;
+		offset.tv_sec  = ((tv2.tv_sec - tv1.tv_sec) + (tv3.tv_sec - tv4.tv_sec)) / 2;
+		offset.tv_usec = ((tv2.tv_usec - tv1.tv_usec) + (tv3.tv_usec - tv4.tv_usec)) / 2;
 	/* Set the time directly or keep the adjustment */
-		Print("\r\nOffset is %ld", offset_usec);
-
-		if ( labs(offset_usec) >= 1000000 ) {
-			_asm cli
-			Adjustment = 0;
-			SysTimeStep( offset_usec );
-			_asm sti
-		}
-		else {
-			_asm cli
-			Adjustment = offset_usec;
-			_asm sti
-		}
+		Print("\r\nOffset is %ld %ld", offset.tv_sec, offset.tv_usec);
+	/* Disable the ISR */
+		_asm cli
+		TimeResidual = offset;
+		_asm sti
 	}
 
 	return NORMAL;

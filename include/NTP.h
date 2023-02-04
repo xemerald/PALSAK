@@ -15,8 +15,8 @@ extern "C" {
 /*
  *
  */
-struct timeval *SysTimeInit( const int );
-struct timeval *SysTimeStep( const long );
+void SysTimeInit( const int );
+void SysTimeStep( const long );
 void SysTimeGet( struct timeval * );
 void SysTimeToHWTime( const int );
 
