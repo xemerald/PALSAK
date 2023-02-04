@@ -206,8 +206,8 @@ int NTPRecv( void )
 	/* Get the remote receive timestamp */
 		tv2.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[32] );
 		tv2.tv_usec = FRAC_TO_USEC( NTOHS_FP( *(ulong *)&InternalBuffer[36] ) );
-		test = (((*(ulong *)&InternalBuffer[36] * 125) >> 4) * 125) >> 6;
-		test >>= 16;
+		test = ((unsigned long long)NTOHS_FP( *(ulong *)&InternalBuffer[36] ) * 1000000L);
+		//test >>= 16;
 	/* Get the remote transmit timestamp */
 		tv3.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[40] );
 		tv3.tv_usec = FRAC_TO_USEC( NTOHS_FP( *(ulong *)&InternalBuffer[44] ) );
