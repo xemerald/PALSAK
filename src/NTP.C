@@ -170,7 +170,6 @@ int NTPSend( void )
 	_asm cli
 	tv1 = SoftSysTime;
 	_asm sti
-	Print("\r\nTesting %lld %llu %llu %lld", tv1.tv_usec, USEC_TO_FRAC( tv1.tv_usec ));
 	*(ulong *)&InternalBuffer[40] = HTONS_FP( tv1.tv_sec + EpochDiff );
 	*(ulong *)&InternalBuffer[44] = HTONS_FP( USEC_TO_FRAC( tv1.tv_usec ) );
 /* Send to the server */
@@ -211,7 +210,7 @@ int NTPRecv( void )
 	/* Get the remote transmit timestamp */
 		tv3.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[40] );
 		tv3.tv_usec = FRAC_TO_USEC( NTOHS_FP( *(ulong *)&InternalBuffer[44] ) );
-		Print("\r\nTest %lld", test);
+		Print("\r\nTest %llu", test);
 	/* Calculate the time offset */
 		offset_usec  = (tv2.tv_usec - tv1.tv_usec) + (tv3.tv_usec - tv4.tv_usec);
 		offset_usec += ((tv2.tv_sec - tv1.tv_sec) + (tv3.tv_sec - tv4.tv_sec)) * 1000000;
