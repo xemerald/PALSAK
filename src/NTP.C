@@ -213,7 +213,7 @@ int NTPRecv( void )
 /* */
 	struct timeval offset;
 	struct timeval tv1, tv2, tv3, tv4;
-	long offset_prev;
+	long offset_f;
 
 /* Read from the server */
 	if ( recv(MainSock, InternalBuffer, 60, 0) <= 0 ) {
@@ -245,35 +245,17 @@ int NTPRecv( void )
 		_asm sti
 	/* */
 		if ( recv_times ) {
-			offset_prev = offset_avg;
-			offset_avg  = offset_avg ?
-				(offset_avg * 9 + (offset.tv_usec + offset.tv_sec * ONE_EPOCH_USEC)) / 10 :
-				(offset.tv_usec + offset.tv_sec * ONE_EPOCH_USEC);
+			offset_f = offset.tv_usec + offset.tv_sec * ONE_EPOCH_USEC;
+			offset_avg = offset_avg ? (offset_avg * 9 + offset_f) / 10 : offset_f;
 		}
 	/* */
 		if ( recv_times > 10 ) {
-			if ( labs(offset_avg) > 1000 ) {
-				if ( StepAdjustment ) {
-					if ( (offset_prev - offset_avg) < 1000 ) {
-						StepAdjustment += StepAdjustment;
-					}
-				}
-				else {
-					if ( offset_avg < 0 )
-						StepAdjustment = -1;
-					else
-						StepAdjustment = 1;
-				}
-			}
-			else {
-				StepAdjustment = 0;
-			}
+
 		}
 		else {
 			recv_times++;
 		}
-		Print("\r\nStepAdjustment is %d", StepAdjustment);
-
+		Print("\r\noffset_avg is %ld", offset_avg);
 	}
 
 	return NORMAL;
