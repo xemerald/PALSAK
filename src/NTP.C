@@ -316,5 +316,5 @@ static ulong frac2usec( ulong frac )
  */
 static ulong usec2frac( ulong usec )
 {
-	return (((usec & 0x000fffff) << 12) / 15625) << 14;
+	return (((usec & 0x000fffff) << 12) / 15625 + 1) << 14;
 }
