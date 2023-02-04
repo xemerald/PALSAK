@@ -37,7 +37,7 @@ static char InternalBuffer[INTERNAL_BUF_SIZE];
  * measured in seconds. If t is non-NULL, the return value is also stored
  * in the memory pointed to by t .
  */
-static const ulong EpochDiff_Jan1970 = 86400L * (365L * 70 + 17);
+static const ulong EpochDiff_Jan1970 = 86400UL * (365UL * 70 + 17);
 /* */
 static volatile int MainSock = -1;
 static struct sockaddr_in TransmitAddr;
