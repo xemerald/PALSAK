@@ -305,16 +305,16 @@ static time_t _mktime( uint year, uint mon, uint day, uint hour, uint min, uint 
  */
 static ulong frac2usec( ulong frac )
 {
-	return ((((frac >> 16) & 0x0000ffff) * 15625) >> 10) + (((frac & 0x0000ffff) * 15625) >> 26);
+	return ((((frac >> 16) & 0x0000ffff) * 15625) >> 10) + (((frac & 0x0000ffff) * 15625) >> 26) + (frac & 0x1);
 }
 
 /**
  * @brief
  *
- * @param usec
+ * @param usec it must smaller than 1 minion.
  * @return ulong
  */
 static ulong usec2frac( ulong usec )
 {
-	return (((((usec >> 16) & 0x0000ffff) << 16) / 15625) << 26) + ((((usec & 0x0000ffff) << 16) / 15625) << 10);
+	return (((usec & 0x000fffff) << 12) / 15625) << 14;
 }
