@@ -11,14 +11,6 @@
 #include "./include/PALSAK.h"
 
 /*
- * Convert from fraction of a second to microsecond
- * return: microsecond.
- */
-#define FRAC_TO_USEC(__FRAC) \
-		((long)(((long long)(__FRAC) * 1000000) >> 32))
-#define USEC_TO_FRAC(__USEC) \
-		((long)(((unsigned long long)(__USEC) << 32) / 1000000))
-/*
  * Byte order conversions
  */
 #define HTONS_FP(__X) (htonl((__X)))
@@ -27,10 +19,11 @@
 /*
  *
  */
-static long frac2usec (unsigned long);
 static time_t FetchHWTime( void );
 static void   SetHWTime( time_t );
 static time_t _mktime( uint, uint, uint, uint, uint, uint );
+static ulong  frac2usec( ulong );
+static ulong  usec2frac( ulong );
 
 /* */
 #define INTERNAL_BUF_SIZE  1024
@@ -171,7 +164,7 @@ int NTPSend( void )
 	tv1 = SoftSysTime;
 	_asm sti
 	*(ulong *)&InternalBuffer[40] = HTONS_FP( tv1.tv_sec + EpochDiff );
-	*(ulong *)&InternalBuffer[44] = HTONS_FP( USEC_TO_FRAC( tv1.tv_usec ) );
+	*(ulong *)&InternalBuffer[44] = HTONS_FP( usec2frac( tv1.tv_usec ) );
 /* Send to the server */
 	if ( send(MainSock, InternalBuffer, 48, 0) <= 0 )
 		return ERROR;
@@ -189,7 +182,6 @@ int NTPRecv( void )
 {
 	long offset_usec;
 	struct timeval tv1, tv2, tv3, tv4;
-	unsigned long test, test2;
 /* Read from the server */
 	if ( recv(MainSock, InternalBuffer, 60, 0) <= 0 ) {
 		return ERROR;
@@ -202,19 +194,14 @@ int NTPRecv( void )
 		tv4.tv_sec += EpochDiff;
 	/* Get the local transmitted timestamp */
 		tv1.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[24] );
-		tv1.tv_usec = FRAC_TO_USEC( NTOHS_FP( *(ulong *)&InternalBuffer[28] ) );
+		tv1.tv_usec = frac2usec( NTOHS_FP( *(ulong *)&InternalBuffer[28] ) );
 	/* Get the remote receive timestamp */
 		tv2.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[32] );
-		tv2.tv_usec = FRAC_TO_USEC( NTOHS_FP( *(ulong *)&InternalBuffer[36] ) );
-		test = (NTOHS_FP( *(ulong *)&InternalBuffer[36] ) >> 16) & 0x0000ffff;
-		test2 = NTOHS_FP( *(ulong *)&InternalBuffer[36] ) & 0x0000ffff;
-		test = (test * 15625) >> 10;
-		test2 = (test2 * 15625) >> 26;
-		test += test2;
+		tv2.tv_usec = frac2usec( NTOHS_FP( *(ulong *)&InternalBuffer[36] ) );
 	/* Get the remote transmit timestamp */
 		tv3.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[40] );
-		tv3.tv_usec = FRAC_TO_USEC( NTOHS_FP( *(ulong *)&InternalBuffer[44] ) );
-		Print("\r\nTest %llu", test);
+		tv3.tv_usec = frac2usec( NTOHS_FP( *(ulong *)&InternalBuffer[44] ) );
+		Print("\r\nTest %lu", tv1.tv_usec, tv2.tv_usec, tv3.tv_usec);
 	/* Calculate the time offset */
 		offset_usec  = (tv2.tv_usec - tv1.tv_usec) + (tv3.tv_usec - tv4.tv_usec);
 		offset_usec += ((tv2.tv_sec - tv1.tv_sec) + (tv3.tv_sec - tv4.tv_sec)) * 1000000;
@@ -300,14 +287,27 @@ static time_t _mktime( uint year, uint mon, uint day, uint hour, uint min, uint 
 		year--;
 	}
 
-	return ((((time_t)(year/4 - year/100 + year/400 + 367*mon/12 + day) +
-				(long)year*365 - 719499
-			)*24 + hour
-		)*60 + min
-	)*60 + sec;
+	return ((((time_t)(year / 4 - year / 100 + year / 400 + 367 * mon / 12 + day) + (ulong)year * 365 - 719499) * 24 + hour) * 60 + min) * 60 + sec;
 }
 
-static long frac2usec (unsigned long frac)
+/**
+ * @brief Convert from fraction of a second to microsecond
+ *
+ * @param frac
+ * @return ulong: microsecond.
+ */
+static ulong frac2usec( ulong frac )
 {
-	return (long) (((long long) frac * 1000000) >> 32);
+	return ((((frac >> 16) & 0x0000ffff) * 15625) >> 10) + (((frac & 0x0000ffff) * 15625) >> 26);
+}
+
+/**
+ * @brief
+ *
+ * @param usec
+ * @return ulong
+ */
+static ulong usec2frac( ulong usec )
+{
+	return (((((usec >> 16) & 0x0000ffff) << 16) / 15625) << 26) + ((((usec & 0x0000ffff) << 16) / 15625) << 10);
 }
