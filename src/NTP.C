@@ -75,7 +75,8 @@ void SysTimeStep( const long usec )
 		TimeResidual.tv_usec = 0L;
 	}
 /* If the residual only in msecond or usecond, step or slew it! */
-	if ( TimeResidual.tv_usec ) {
+	if ( 0 ) {
+	//if ( TimeResidual.tv_usec ) {
 	/* */
 		adjs = labs(adjs);
 		if ( (adjs /= 2) == 0 )
