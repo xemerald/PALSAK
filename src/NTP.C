@@ -47,6 +47,8 @@ static struct sockaddr_in TransmitAddr;
 static struct timeval SoftSysTime;
 static struct timeval TimeResidual;
 static BYTE           WriteToRTC;
+static BYTE           CompensateReady;
+static long           CompensateUSec;
 static TIME_DATE      TimeDateSetting;
 
 
@@ -63,6 +65,8 @@ void SysTimeInit( const int timezone )
 	TimeResidual.tv_sec  = 0L;
 	TimeResidual.tv_usec = 0L;
 	WriteToRTC           = 0;
+	CompensateReady      = 0;
+	CompensateUSec       = 0L;
 
 	return;
 }
@@ -87,6 +91,14 @@ void SysTimeService( const long step_usec )
 			TimerClose();
 			WriteToRTC = 0;
 		}
+	}
+/* */
+	if ( CompensateReady ) {
+		if ( count_compensate >= ONE_EPOCH_USEC ) {
+			SoftSysTime.tv_usec += CompensateUSec;
+			count_compensate = 0;
+		}
+		count_compensate += step_usec;
 	}
 
 /* If the residual is larger than one second, directly adjust it! */
@@ -223,10 +235,10 @@ int NTPSend( void )
  */
 int NTPRecv( void )
 {
-	static long offset_avg = 0;
 	static char recv_times = 0;
+	static struct timeval last_recv;
 /* */
-	struct timeval offset, delta;
+	struct timeval offset;
 	struct timeval tv1, tv2, tv3, tv4;
 	long offset_f;
 
@@ -270,47 +282,32 @@ int NTPRecv( void )
 				offset.tv_usec += ONE_EPOCH_USEC;
 			}
 		}
-	/* Calculate the time offset */
-		delta.tv_sec  = (tv2.tv_sec - tv1.tv_sec) - (tv3.tv_sec - tv4.tv_sec);
-		delta.tv_usec = ((tv2.tv_usec - tv1.tv_usec) - (tv3.tv_usec - tv4.tv_usec)) / 2;
-		if ( delta.tv_sec & 0x1 ) {
-			if ( delta.tv_sec < 0 )
-				delta.tv_usec -= HALF_EPOCH_USEC;
-			else
-				delta.tv_usec += HALF_EPOCH_USEC;
-		}
-		delta.tv_sec /= 2;
-	/* Deal with the different sign condition */
-		if ( delta.tv_sec && (delta.tv_sec ^ delta.tv_usec) & 0x80000000 ) {
-			if ( delta.tv_sec < 0 ) {
-				delta.tv_sec++;
-				delta.tv_usec -= ONE_EPOCH_USEC;
-			}
-			else {
-				delta.tv_sec--;
-				delta.tv_usec += ONE_EPOCH_USEC;
-			}
-		}
+	/* Maybe also need to calculate the transmitting delta... */
 	/* Set the time directly or keep the adjustment */
 		Print("\r\nOffset is %ld %ld", offset.tv_sec, offset.tv_usec);
-		Print("\r\nDelta is %ld %ld", delta.tv_sec, delta.tv_usec);
 	/* Disable the ISR */
 		_asm cli
 		TimeResidual = offset;
 		_asm sti
 	/* */
-		if ( recv_times ) {
-			offset_f = offset.tv_usec + offset.tv_sec * ONE_EPOCH_USEC;
-			offset_avg = offset_avg ? (offset_avg * 9 + offset_f) / 10 : offset_f;
+		offset_f = offset.tv_usec + offset.tv_sec * ONE_EPOCH_USEC;
+		if ( labs(offset_f) < HALF_EPOCH_USEC && !CompensateReady ) {
+			CompensateUSec = CompensateUSec ? (CompensateUSec * 9 + offset_f) / 10 : offset_f;
+			if ( recv_times++ > 10 ) {
+				offset_f = (tv4.tv_sec - last_recv.tv_sec) + (tv4.tv_usec - last_recv.tv_usec) / ONE_EPOCH_USEC;
+				CompensateUSec /= offset_f;
+				CompensateUSec += 1;
+				CompensateReady = 1;
+			}
+		}
+		else if ( labs(offset_f) > HALF_EPOCH_USEC ) {
+			CompensateReady = 0;
+			CompensateUSec  = 0L;
 		}
 	/* */
-		if ( recv_times > 10 ) {
-
-		}
-		else {
-			recv_times++;
-		}
-		Print("\r\noffset_avg is %ld", offset_avg);
+		Print("\r\noffset_avg is %ld", CompensateUSec);
+	/* */
+		last_recv = t4;
 	}
 
 	return NORMAL;
