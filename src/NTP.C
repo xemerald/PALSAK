@@ -19,12 +19,14 @@
 /*
  *
  */
-#define ONE_EPOCH_USEC 1000000L
+#define ONE_EPOCH_USEC  1000000L
+#define HALF_EPOCH_USEC  500000L
+#define WRITERTC_COUNTDOWN_CHANNEL  7
 /*
  *
  */
 static time_t FetchHWTime( void );
-static void   SetHWTime( time_t, ulong, const int );
+static void   SetHWTime( time_t, ulong );
 static time_t _mktime( uint, uint, uint, uint, uint, uint );
 static ulong  frac2usec( ulong );
 static ulong  usec2frac( ulong );
@@ -44,7 +46,9 @@ static struct sockaddr_in TransmitAddr;
 /* */
 static struct timeval SoftSysTime;
 static struct timeval TimeResidual;
-static int            StepAdjustment;
+static BYTE           WriteToRTC;
+static TIME_DATE      TimeDateSetting;
+
 
 /**
  * @brief
@@ -58,7 +62,7 @@ void SysTimeInit( const int timezone )
 	SoftSysTime.tv_usec  = 100000L;
 	TimeResidual.tv_sec  = 0L;
 	TimeResidual.tv_usec = 0L;
-	StepAdjustment       = 0;
+	WriteToRTC           = 0;
 
 	return;
 }
@@ -66,12 +70,24 @@ void SysTimeInit( const int timezone )
 /**
  * @brief
  *
- * @param usec
- * @return struct timeval*
+ * @param step_usec
  */
-void SysTimeStep( const long usec )
+void SysTimeService( const long step_usec )
 {
-	long adjs = usec;
+	static ulong count_compensate = 0;
+/* */
+	ulong tmp;
+	long  adjs = step_usec;
+
+/* */
+	if ( WriteToRTC ) {
+		CountDownTimerReadValue(WRITERTC_COUNTDOWN_CHANNEL, &tmp);
+		if ( tmp == 0 ) {
+			SetTimeDate(&TimeDateSetting);
+			TimerClose();
+			WriteToRTC = 0;
+		}
+	}
 
 /* If the residual is larger than one second, directly adjust it! */
 	if ( TimeResidual.tv_sec ) {
@@ -94,11 +110,11 @@ void SysTimeStep( const long usec )
 			adjs = TimeResidual.tv_usec;
 	/* */
 		TimeResidual.tv_usec -= adjs;
-		adjs += usec;
+		adjs += step_usec;
 	}
 /* Keep the clock step forward */
 	if ( adjs )
-		SoftSysTime.tv_usec += adjs + StepAdjustment;
+		SoftSysTime.tv_usec += adjs;
 /* */
 	if ( SoftSysTime.tv_usec >= ONE_EPOCH_USEC ) {
 		SoftSysTime.tv_sec++;
@@ -132,16 +148,15 @@ void SysTimeGet( struct timeval *sys_time )
  * @param timezone
  * @param timer
  */
-void SysTimeToHWTime( const int timezone, const int timer )
+void SysTimeToHWTime( const int timezone )
 {
 	struct timeval now_time;
 
 	_asm cli
 	now_time = SoftSysTime;
 	_asm sti
-	now_time.tv_sec += timezone * 3600;
 /* */
-	SetHWTime( now_time.tv_sec, now_time.tv_usec, timer );
+	SetHWTime( now_time.tv_sec + timezone * 3600, now_time.tv_usec );
 
 	return;
 }
@@ -235,8 +250,26 @@ int NTPRecv( void )
 		tv3.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[40] );
 		tv3.tv_usec = frac2usec( NTOHS_FP( *(ulong *)&InternalBuffer[44] ) );
 	/* Calculate the time offset */
-		offset.tv_sec  = ((tv2.tv_sec - tv1.tv_sec) + (tv3.tv_sec - tv4.tv_sec)) / 2;
+		offset.tv_sec  = (tv2.tv_sec - tv1.tv_sec) + (tv3.tv_sec - tv4.tv_sec);
 		offset.tv_usec = ((tv2.tv_usec - tv1.tv_usec) + (tv3.tv_usec - tv4.tv_usec)) / 2;
+		if ( offset.tv_sec & 0x1 ) {
+			if ( offset.tv_sec < 0 )
+				offset.tv_usec -= HALF_EPOCH_USEC;
+			else
+				offset.tv_usec += HALF_EPOCH_USEC;
+		}
+		offset.tv_sec /= 2;
+	/* Deal with the different sign condition */
+		if ( offset.tv_sec && (offset.tv_sec ^ offset.tv_usec) & 0x80000000 ) {
+			if ( offset.tv_sec < 0 ) {
+				offset.tv_sec++;
+				offset.tv_usec -= ONE_EPOCH_USEC;
+			}
+			else {
+				offset.tv_sec--;
+				offset.tv_usec += ONE_EPOCH_USEC;
+			}
+		}
 	/* Set the time directly or keep the adjustment */
 		Print("\r\nOffset is %ld %ld", offset.tv_sec, offset.tv_usec);
 	/* Disable the ISR */
@@ -286,38 +319,26 @@ static time_t FetchHWTime( void )
  * @param usec
  * @param timer
  */
-static void SetHWTime( time_t sec, ulong usec, const int timer )
+static void SetHWTime( time_t sec, ulong usec )
 {
 	struct tm *brktime;
-	TIME_DATE timedate;
 
 /* */
 	++sec;
-	usec = (ONE_EPOCH_USEC - usec) / 100;
+	usec = (ONE_EPOCH_USEC - usec) / 1000;
 /* */
 	brktime = gmtime( &sec );
-	timedate.year  = brktime->tm_year + 1900;
-	timedate.month = brktime->tm_mon + 1;
-	timedate.day   = brktime->tm_mday;
+	TimeDateSetting.year  = brktime->tm_year + 1900;
+	TimeDateSetting.month = brktime->tm_mon + 1;
+	TimeDateSetting.day   = brktime->tm_mday;
 /* */
-	timedate.hour   = brktime->tm_hour;
-	timedate.minute = brktime->tm_min;
-	timedate.sec    = brktime->tm_sec;
+	TimeDateSetting.hour   = brktime->tm_hour;
+	TimeDateSetting.minute = brktime->tm_min;
+	TimeDateSetting.sec    = brktime->tm_sec;
 /* */
-	switch ( timer ) {
-	case 0:
-		Delay0_1(usec);
-		break;
-	case 1:
-		Delay1_1(usec);
-		break;
-	case 2:
-		Delay2_1(usec);
-		break;
-	default:
-		break;
-	}
-	SetTimeDate(&timedate);
+	TimerOpen();
+	CountDownTimerStart(WRITERTC_COUNTDOWN_CHANNEL, usec);
+	WriteToRTC = 1;
 
 	return;
 }

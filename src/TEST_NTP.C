@@ -12,7 +12,7 @@
 
 void MyTimerFun(void)
 {
-	SysTimeStep( 500 );
+	SysTimeService( 500 );
 
 	return;
 }
@@ -53,7 +53,7 @@ void main( void )
 		}
 		inc++;
 		if ( inc % 3000 == 0 ) {
-			SysTimeToHWTime( 8, 2 );
+			SysTimeToHWTime( 8 );
 		}
 	}
 
