@@ -307,7 +307,7 @@ int NTPRecv( void )
 	/* */
 		Print("\r\noffset_avg is %ld", CompensateUSec);
 	/* */
-		last_recv = t4;
+		last_recv = tv4;
 	}
 
 	return NORMAL;
