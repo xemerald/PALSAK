@@ -28,8 +28,8 @@
 static time_t FetchHWTime( void );
 static void   SetHWTime( time_t, ulong );
 static time_t _mktime( uint, uint, uint, uint, uint, uint );
-static ulong  frac2usec( ulong );
-static ulong  usec2frac( ulong );
+static ulong  frac2usec( const ulong );
+static ulong  usec2frac( const ulong );
 
 /* */
 #define INTERNAL_BUF_SIZE  128
@@ -226,7 +226,7 @@ int NTPRecv( void )
 	static long offset_avg = 0;
 	static char recv_times = 0;
 /* */
-	struct timeval offset;
+	struct timeval offset, delta;
 	struct timeval tv1, tv2, tv3, tv4;
 	long offset_f;
 
@@ -270,8 +270,30 @@ int NTPRecv( void )
 				offset.tv_usec += ONE_EPOCH_USEC;
 			}
 		}
+	/* Calculate the time offset */
+		delta.tv_sec  = (tv2.tv_sec - tv1.tv_sec) - (tv3.tv_sec - tv4.tv_sec);
+		delta.tv_usec = ((tv2.tv_usec - tv1.tv_usec) - (tv3.tv_usec - tv4.tv_usec)) / 2;
+		if ( delta.tv_sec & 0x1 ) {
+			if ( delta.tv_sec < 0 )
+				delta.tv_usec -= HALF_EPOCH_USEC;
+			else
+				delta.tv_usec += HALF_EPOCH_USEC;
+		}
+		delta.tv_sec /= 2;
+	/* Deal with the different sign condition */
+		if ( delta.tv_sec && (delta.tv_sec ^ delta.tv_usec) & 0x80000000 ) {
+			if ( delta.tv_sec < 0 ) {
+				delta.tv_sec++;
+				delta.tv_usec -= ONE_EPOCH_USEC;
+			}
+			else {
+				delta.tv_sec--;
+				delta.tv_usec += ONE_EPOCH_USEC;
+			}
+		}
 	/* Set the time directly or keep the adjustment */
 		Print("\r\nOffset is %ld %ld", offset.tv_sec, offset.tv_usec);
+		Print("\r\nDelta is %ld %ld", delta.tv_sec, delta.tv_usec);
 	/* Disable the ISR */
 		_asm cli
 		TimeResidual = offset;
@@ -317,7 +339,6 @@ static time_t FetchHWTime( void )
  *
  * @param sec
  * @param usec
- * @param timer
  */
 static void SetHWTime( time_t sec, ulong usec )
 {
@@ -371,7 +392,7 @@ static time_t _mktime( uint year, uint mon, uint day, uint hour, uint min, uint 
  * @param frac
  * @return ulong: microsecond.
  */
-static ulong frac2usec( ulong frac )
+static ulong frac2usec( const ulong frac )
 {
 	return ((((frac >> 16) & 0x0000ffff) * 15625) >> 10) + (((frac & 0x0000ffff) * 15625) >> 26) + (frac & 0x1);
 }
@@ -382,7 +403,7 @@ static ulong frac2usec( ulong frac )
  * @param usec it must smaller than 1 minion.
  * @return ulong
  */
-static ulong usec2frac( ulong usec )
+static ulong usec2frac( const ulong usec )
 {
 	return (((usec & 0x000fffff) << 12) / 15625 + 1) << 14;
 }
