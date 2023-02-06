@@ -235,7 +235,7 @@ int NTPProcess( uint interval_exp )
 	*(ulong *)&InternalBuffer[40] = HTONS_FP( tv1.tv_sec + EpochDiff_Jan1970 );
 	*(ulong *)&InternalBuffer[44] = HTONS_FP( usec2frac( tv1.tv_usec ) );
 /* Check the processing interval */
-	if ( (tv1.tv_sec - last_proc.tv_sec) < (long)interval_exp )
+	if ( (uint)(tv1.tv_sec - last_proc.tv_sec) < interval_exp )
 		return NORMAL;
 /* Send to the server */
 	if ( send(MainSock, InternalBuffer, 48, 0) <= 0 )
