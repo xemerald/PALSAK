@@ -21,6 +21,7 @@
  */
 #define ONE_EPOCH_USEC  1000000L
 #define HALF_EPOCH_USEC  500000L
+#define COMPENSATE_ONE_STEP  128
 /*
  *
  */
@@ -34,7 +35,7 @@ static void   SetHWTime( time_t, ulong );
 static time_t _mktime( uint, uint, uint, uint, uint, uint );
 static ulong  frac2usec( const ulong );
 static ulong  usec2frac( const ulong );
-static long get_compensate_avg( long [] );
+static long   get_compensate_avg( long [] );
 
 /* */
 #define INTERNAL_BUF_SIZE  128
@@ -55,7 +56,6 @@ static BYTE           WriteToRTC;
 static BYTE           CompensateReady;
 static long           CompensateUSec;
 static TIME_DATE      TimeDateSetting;
-
 
 /**
  * @brief
@@ -83,19 +83,28 @@ void SysTimeInit( const int timezone )
  */
 void SysTimeService( const long step_usec )
 {
-	static ulong count_compensate = 0;
+	static long remain_compensate = 0L;
+	static ulong count_one_second = 0L;
 /* */
-	ulong tmp;
-	long  adjs = step_usec;
+	long tmp;
+	long adjs = step_usec;
 
 /* */
 	if ( WriteToRTC ) {
-		CountDownTimerReadValue(WRITERTC_COUNTDOWN_CHANNEL, &tmp);
-		if ( tmp == 0 ) {
+		CountDownTimerReadValue(WRITERTC_COUNTDOWN_CHANNEL, (ulong *)&tmp);
+		if ( *(ulong *)&tmp == 0 ) {
 			SetTimeDate(&TimeDateSetting);
 			TimerClose();
 			WriteToRTC = 0;
 		}
+	}
+/* */
+	if ( CompensateReady ) {
+		if ( count_one_second >= ONE_EPOCH_USEC ) {
+			remain_compensate += CompensateUSec;
+			count_one_second = 0L;
+		}
+		count_one_second += step_usec;
 	}
 /* If the residual is larger than one second, directly adjust it! */
 	if ( TimeResidual.tv_sec ) {
@@ -121,12 +130,16 @@ void SysTimeService( const long step_usec )
 		adjs += step_usec;
 	}
 /* */
-	if ( CompensateReady ) {
-		if ( count_compensate >= ONE_EPOCH_USEC ) {
-			adjs += CompensateUSec;
-			count_compensate = 0;
+	if ( remain_compensate ) {
+		if ( labs(remain_compensate) < COMPENSATE_ONE_STEP ) {
+			adjs += remain_compensate;
+			remain_compensate = 0L;
 		}
-		count_compensate += step_usec;
+		else {
+			tmp = remain_compensate < 0 ? -COMPENSATE_ONE_STEP : COMPENSATE_ONE_STEP;
+			adjs += tmp;
+			remain_compensate -= tmp;
+		}
 	}
 /* Keep the clock step forward */
 	if ( adjs )
