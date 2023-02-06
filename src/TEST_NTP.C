@@ -33,24 +33,20 @@ void main( void )
 	Delay2(5);
 /* */
 	SysTimeInit( 8 );
+	InstallUserTimer1Function_us(5000, MyTimerFun);
 
 	Print("\r\nPress any key to start timer");
 	Print("\r\nthen Press 'q' to quit\r\n");
 	NTPConnect( "140.112.2.189", 123 );
 
 	Getch();
-	InstallUserTimer1Function_us(5000, MyTimerFun);
-
 	while( 1 ) {
 		if ( Kbhit() && Getch() == 'q' )
 			break;
 		SysTimeGet( &tv );
 		Print("\r\nNow time is %ld.%.6ld", tv.tv_sec, tv.tv_usec);
 		Delay2(100);
-		if ( inc % 320 == 0 ) {
-			NTPSend();
-			NTPRecv();
-		}
+		NTPProcess( 5 );
 		inc++;
 		if ( inc % 3000 == 0 ) {
 			SysTimeToHWTime( 8 );

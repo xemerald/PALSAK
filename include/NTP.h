@@ -21,8 +21,7 @@ void SysTimeGet( struct timeval * );
 void SysTimeToHWTime( const int );
 
 int NTPConnect( const char *, const uint );
-int NTPSend( void );
-int NTPRecv( void );
+int NTPProcess( uint );
 
 
 #ifdef __cplusplus

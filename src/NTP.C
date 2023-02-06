@@ -21,6 +21,10 @@
  */
 #define ONE_EPOCH_USEC  1000000L
 #define HALF_EPOCH_USEC  500000L
+/*
+ *
+ */
+#define COMPENSATE_CANDIDATE_NUM  5
 #define WRITERTC_COUNTDOWN_CHANNEL  7
 /*
  *
@@ -30,6 +34,7 @@ static void   SetHWTime( time_t, ulong );
 static time_t _mktime( uint, uint, uint, uint, uint, uint );
 static ulong  frac2usec( const ulong );
 static ulong  usec2frac( const ulong );
+static long get_compensate_avg( long [] );
 
 /* */
 #define INTERNAL_BUF_SIZE  128
@@ -92,15 +97,6 @@ void SysTimeService( const long step_usec )
 			WriteToRTC = 0;
 		}
 	}
-/* */
-	if ( CompensateReady ) {
-		if ( count_compensate >= ONE_EPOCH_USEC ) {
-			SoftSysTime.tv_usec += CompensateUSec;
-			count_compensate = 0;
-		}
-		count_compensate += step_usec;
-	}
-
 /* If the residual is larger than one second, directly adjust it! */
 	if ( TimeResidual.tv_sec ) {
 		SoftSysTime.tv_sec  += TimeResidual.tv_sec;
@@ -123,6 +119,14 @@ void SysTimeService( const long step_usec )
 	/* */
 		TimeResidual.tv_usec -= adjs;
 		adjs += step_usec;
+	}
+/* */
+	if ( CompensateReady ) {
+		if ( count_compensate >= ONE_EPOCH_USEC ) {
+			adjs += CompensateUSec;
+			count_compensate = 0;
+		}
+		count_compensate += step_usec;
 	}
 /* Keep the clock step forward */
 	if ( adjs )
@@ -185,6 +189,8 @@ int NTPConnect( const char *host, const uint port )
 /* Create the UDP socket */
 	if ( (MainSock = socket(PF_INET, SOCK_DGRAM, 0)) < 0 )
 		return ERROR;
+/* Set the timeout of receiving socket to 0.5 sec. */
+	SOCKET_RXTOUT(MainSock, 500);
 
 /* Addressing for master socket */
 	memset(&TransmitAddr, 0, sizeof(TransmitAddr));
@@ -202,14 +208,22 @@ int NTPConnect( const char *host, const uint port )
 }
 
 /**
- * @brief
+ * @brief Synchronize the time.  See RFC 1361.
  *
  * @return int
  */
-int NTPSend( void )
+int NTPProcess( uint interval_exp )
 {
-	struct timeval tv1;
+	static long compensate[COMPENSATE_CANDIDATE_NUM];
+	static uchar ind_compensate = 0;
+	static struct timeval last_proc = { 0, 0 };
+/* */
+	struct timeval offset;
+	struct timeval tv1, tv2, tv3, tv4;
+	long offset_f;
 
+/* */
+	interval_exp = 1 << interval_exp;
 /* Send to the server */
 	memset(InternalBuffer, 0, 61);
 /* 00 001 011 - leap, ntp ver, client.  See RFC 1361. */
@@ -220,95 +234,83 @@ int NTPSend( void )
 	_asm sti
 	*(ulong *)&InternalBuffer[40] = HTONS_FP( tv1.tv_sec + EpochDiff_Jan1970 );
 	*(ulong *)&InternalBuffer[44] = HTONS_FP( usec2frac( tv1.tv_usec ) );
+/* Check the processing interval */
+	if ( (tv1.tv_sec - last_proc.tv_sec) < (long)interval_exp )
+		return NORMAL;
 /* Send to the server */
 	if ( send(MainSock, InternalBuffer, 48, 0) <= 0 )
 		return ERROR;
-
-	return NORMAL;
-}
-
-/**
- * @brief Synchronize the time.  See RFC 1361.
- *
- * @param timezone
- * @return int
- */
-int NTPRecv( void )
-{
-	static char recv_times = 0;
-	static struct timeval last_recv;
-/* */
-	struct timeval offset;
-	struct timeval tv1, tv2, tv3, tv4;
-	long offset_f;
-
 /* Read from the server */
-	if ( recv(MainSock, InternalBuffer, 60, 0) <= 0 ) {
+	if ( recv(MainSock, InternalBuffer, 60, 0) <= 0 )
 		return ERROR;
+
+/* Get the local received timestamp */
+	_asm cli
+	tv4 = SoftSysTime;
+	_asm sti
+	tv4.tv_sec += EpochDiff_Jan1970;
+/* Get the local transmitted timestamp */
+	tv1.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[24] );
+	tv1.tv_usec = frac2usec( NTOHS_FP( *(ulong *)&InternalBuffer[28] ) );
+/* Get the remote receive timestamp */
+	tv2.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[32] );
+	tv2.tv_usec = frac2usec( NTOHS_FP( *(ulong *)&InternalBuffer[36] ) );
+/* Get the remote transmit timestamp */
+	tv3.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[40] );
+	tv3.tv_usec = frac2usec( NTOHS_FP( *(ulong *)&InternalBuffer[44] ) );
+/* Calculate the time offset */
+	offset.tv_sec  = (tv2.tv_sec - tv1.tv_sec) + (tv3.tv_sec - tv4.tv_sec);
+	offset.tv_usec = ((tv2.tv_usec - tv1.tv_usec) + (tv3.tv_usec - tv4.tv_usec)) / 2;
+	if ( offset.tv_sec & 0x1 ) {
+		if ( offset.tv_sec < 0 )
+			offset.tv_usec -= HALF_EPOCH_USEC;
+		else
+			offset.tv_usec += HALF_EPOCH_USEC;
 	}
-	else {
-	/* Get the local received timestamp */
-		_asm cli
-		tv4 = SoftSysTime;
-		_asm sti
-		tv4.tv_sec += EpochDiff_Jan1970;
-	/* Get the local transmitted timestamp */
-		tv1.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[24] );
-		tv1.tv_usec = frac2usec( NTOHS_FP( *(ulong *)&InternalBuffer[28] ) );
-	/* Get the remote receive timestamp */
-		tv2.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[32] );
-		tv2.tv_usec = frac2usec( NTOHS_FP( *(ulong *)&InternalBuffer[36] ) );
-	/* Get the remote transmit timestamp */
-		tv3.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[40] );
-		tv3.tv_usec = frac2usec( NTOHS_FP( *(ulong *)&InternalBuffer[44] ) );
-	/* Calculate the time offset */
-		offset.tv_sec  = (tv2.tv_sec - tv1.tv_sec) + (tv3.tv_sec - tv4.tv_sec);
-		offset.tv_usec = ((tv2.tv_usec - tv1.tv_usec) + (tv3.tv_usec - tv4.tv_usec)) / 2;
-		if ( offset.tv_sec & 0x1 ) {
-			if ( offset.tv_sec < 0 )
-				offset.tv_usec -= HALF_EPOCH_USEC;
-			else
-				offset.tv_usec += HALF_EPOCH_USEC;
+	offset.tv_sec /= 2;
+/* Deal with the different sign condition */
+	if ( offset.tv_sec && (offset.tv_sec ^ offset.tv_usec) & 0x80000000 ) {
+		if ( offset.tv_sec < 0 ) {
+			offset.tv_sec++;
+			offset.tv_usec -= ONE_EPOCH_USEC;
 		}
-		offset.tv_sec /= 2;
-	/* Deal with the different sign condition */
-		if ( offset.tv_sec && (offset.tv_sec ^ offset.tv_usec) & 0x80000000 ) {
-			if ( offset.tv_sec < 0 ) {
-				offset.tv_sec++;
-				offset.tv_usec -= ONE_EPOCH_USEC;
+		else {
+			offset.tv_sec--;
+			offset.tv_usec += ONE_EPOCH_USEC;
+		}
+	}
+/* Maybe also need to calculate the transmitting delta... */
+/* Set the time directly or keep the adjustment */
+	Print("\r\nOffset is %ld %ld", offset.tv_sec, offset.tv_usec);
+/* Disable the ISR */
+	_asm cli
+	TimeResidual = offset;
+	_asm sti
+/* */
+	if ( last_proc.tv_sec != 0 ) {
+	/* */
+		compensate[ind_compensate++] = (offset.tv_usec + offset.tv_sec * ONE_EPOCH_USEC) / interval_exp;
+		if ( ind_compensate >= COMPENSATE_CANDIDATE_NUM ) {
+			ind_compensate  = 0;
+			offset_f = get_compensate_avg( compensate );
+			if ( CompensateReady && labs(offset_f) > (labs(CompensateUSec) * 2) ) {
+				CompensateReady = 0;
+				CompensateUSec  = 0L;
+			}
+			else if ( CompensateReady ) {
+				CompensateUSec += offset_f;
 			}
 			else {
-				offset.tv_sec--;
-				offset.tv_usec += ONE_EPOCH_USEC;
-			}
-		}
-	/* Maybe also need to calculate the transmitting delta... */
-	/* Set the time directly or keep the adjustment */
-		Print("\r\nOffset is %ld %ld", offset.tv_sec, offset.tv_usec);
-	/* Disable the ISR */
-		_asm cli
-		TimeResidual = offset;
-		_asm sti
-	/* */
-		offset_f = offset.tv_usec + offset.tv_sec * ONE_EPOCH_USEC;
-		if ( labs(offset_f) < HALF_EPOCH_USEC && !CompensateReady ) {
-			CompensateUSec = CompensateUSec ? (CompensateUSec * 9 + offset_f) / 10 : offset_f;
-			if ( recv_times++ > 10 ) {
-				offset_f = (tv4.tv_sec - last_recv.tv_sec) + (tv4.tv_usec - last_recv.tv_usec) / ONE_EPOCH_USEC;
-				CompensateUSec /= offset_f;
-				CompensateUSec += 1;
+				CompensateUSec  = offset_f;
 				CompensateReady = 1;
 			}
 		}
-		else if ( labs(offset_f) > HALF_EPOCH_USEC ) {
-			CompensateReady = 0;
-			CompensateUSec  = 0L;
-		}
 	/* */
-		Print("\r\noffset_avg is %ld", CompensateUSec);
-	/* */
-		last_recv = tv4;
 	}
+/* */
+	Print("\r\noffset_avg is %ld", CompensateUSec);
+/* */
+	last_proc = tv4;
 
 	return NORMAL;
 }
@@ -403,4 +405,42 @@ static ulong frac2usec( const ulong frac )
 static ulong usec2frac( const ulong usec )
 {
 	return (((usec & 0x000fffff) << 12) / 15625 + 1) << 14;
+}
+
+/**
+ * @brief Get the compensate average
+ *
+ * @param compensate
+ * @return long
+ */
+static long get_compensate_avg( long compensate[] )
+{
+	int  i;
+	int  i_st, i_nd;
+	long result;
+	long _max;
+
+/* */
+	for ( i = 0, result = 0; i < COMPENSATE_CANDIDATE_NUM; i++ )
+		result += compensate[i];
+	result /= COMPENSATE_CANDIDATE_NUM;
+/* */
+	for ( i = 1, i_st = 0, i_nd = 1; i < COMPENSATE_CANDIDATE_NUM; i++ ) {
+		_max = labs(compensate[i] - result);
+		if ( _max > labs(compensate[i_st] - result) ) {
+			i_nd = i_st;
+			i_st = i;
+		}
+		else if ( _max > labs(compensate[i_nd] - result) ) {
+			i_nd = i;
+		}
+	}
+/* */
+	for ( i = 0, result = 0; i < COMPENSATE_CANDIDATE_NUM; i++ ) {
+		if ( i != i_st && i != i_nd )
+			result += compensate[i];
+	}
+	result /= COMPENSATE_CANDIDATE_NUM - 2;
+
+	return result;
 }
