@@ -8,8 +8,7 @@
 #include "./include/u7186EX/7186e.h"
 #include "./include/u7186EX/Tcpip32.h"
 /* */
-#include "./include/PALSAK.h"
-#include "./include/NTP.h"
+#include "./include/SYSTIME.h"
 
 /*
  * Byte order conversions
@@ -21,7 +20,6 @@
  */
 #define ONE_EPOCH_USEC  1000000L
 #define HALF_EPOCH_USEC  500000L
-#define COMPENSATE_ONE_STEP  128
 /*
  *
  */
@@ -38,7 +36,7 @@ static ulong  usec2frac( const ulong );
 static long   get_compensate_avg( long [] );
 
 /* */
-#define INTERNAL_BUF_SIZE  128
+#define INTERNAL_BUF_SIZE  64
 static char InternalBuffer[INTERNAL_BUF_SIZE];
 /*
  * Time returns the time since the Epoch (00:00:00 UTC, January 1, 1970),
@@ -48,13 +46,14 @@ static char InternalBuffer[INTERNAL_BUF_SIZE];
 static const ulong EpochDiff_Jan1970 = 86400UL * (365UL * 70 + 17);
 /* */
 static volatile int MainSock = -1;
-static struct sockaddr_in TransmitAddr;
 /* */
 static struct timeval SoftSysTime;
 static struct timeval TimeResidual;
 static BYTE           WriteToRTC;
 static BYTE           CompensateReady;
 static long           CompensateUSec;
+static long           TimeStepUSec;
+static long           EpochStepTimes;
 static TIME_DATE      TimeDateSetting;
 
 /**
@@ -62,16 +61,18 @@ static TIME_DATE      TimeDateSetting;
  *
  * @param timezone
  */
-void SysTimeInit( const int timezone )
+void SysTimeInit( const int timezone, const long step_usec )
 {
 /* */
-	SoftSysTime.tv_sec   = FetchHWTime() - (time_t)(timezone * 3600);
-	SoftSysTime.tv_usec  = 100000L;
+	SoftSysTime.tv_sec   = FetchHWTime() - ((long)timezone * 3600);
+	SoftSysTime.tv_usec  = 250000L;
 	TimeResidual.tv_sec  = 0L;
 	TimeResidual.tv_usec = 0L;
 	WriteToRTC           = 0;
 	CompensateReady      = 0;
 	CompensateUSec       = 0L;
+	TimeStepUSec         = step_usec;
+	EpochStepTimes       = ONE_EPOCH_USEC / labs(TimeStepUSec);
 
 	return;
 }
@@ -79,20 +80,19 @@ void SysTimeInit( const int timezone )
 /**
  * @brief
  *
- * @param step_usec
  */
-void SysTimeService( const long step_usec )
+void SysTimeService( void )
 {
+	static long real_timestep     = 0L;
 	static long remain_compensate = 0L;
-	static ulong count_one_second = 0L;
+	static ulong count_one_epoch  = 0L;
 /* */
-	long tmp;
-	long adjs = step_usec;
+	long adjs;
 
 /* */
 	if ( WriteToRTC ) {
-		CountDownTimerReadValue(WRITERTC_COUNTDOWN_CHANNEL, (ulong *)&tmp);
-		if ( *(ulong *)&tmp == 0 ) {
+		CountDownTimerReadValue(WRITERTC_COUNTDOWN_CHANNEL, (ulong *)&adjs);
+		if ( *(ulong *)&adjs == 0 ) {
 			SetTimeDate(&TimeDateSetting);
 			TimerClose();
 			WriteToRTC = 0;
@@ -100,12 +100,17 @@ void SysTimeService( const long step_usec )
 	}
 /* */
 	if ( CompensateReady ) {
-		if ( count_one_second >= ONE_EPOCH_USEC ) {
-			remain_compensate += CompensateUSec;
-			count_one_second = 0L;
+		if ( (count_one_epoch += TimeStepUSec) >= ONE_EPOCH_USEC ) {
+			adjs               = CompensateUSec / EpochStepTimes;
+			real_timestep      = TimeStepUSec + adjs;
+			remain_compensate += CompensateUSec - EpochStepTimes * adjs;
+			count_one_epoch    = 0L;
 		}
-		count_one_second += step_usec;
 	}
+	else if ( real_timestep != TimeStepUSec ) {
+		real_timestep = TimeStepUSec;
+	}
+
 /* If the residual is larger than one second, directly adjust it! */
 	if ( TimeResidual.tv_sec ) {
 		SoftSysTime.tv_sec  += TimeResidual.tv_sec;
@@ -116,41 +121,40 @@ void SysTimeService( const long step_usec )
 /* If the residual only in msecond or usecond, step or slew it! */
 	if ( TimeResidual.tv_usec ) {
 	/* */
-		adjs = labs(adjs);
-		if ( (adjs /= 2) == 0 )
+		if ( (adjs = labs(TimeStepUSec) / 2) == 0 )
 			adjs = 1;
 	/* */
-		if ( TimeResidual.tv_usec < 0 )
+		if ( labs(TimeResidual.tv_usec) <= adjs )
+			adjs = TimeResidual.tv_usec;
+		else if ( TimeResidual.tv_usec < 0 )
 			adjs = -adjs;
 	/* */
-		if ( labs(TimeResidual.tv_usec) <= labs(adjs) )
-			adjs = TimeResidual.tv_usec;
-	/* */
 		TimeResidual.tv_usec -= adjs;
-		adjs += step_usec;
+	}
+	else {
+		adjs = 0;
 	}
 /* */
 	if ( remain_compensate ) {
-		if ( labs(remain_compensate) < COMPENSATE_ONE_STEP ) {
-			adjs += remain_compensate;
-			remain_compensate = 0L;
+		if ( remain_compensate < 0 ) {
+			--adjs;
+			++remain_compensate;
 		}
 		else {
-			tmp = remain_compensate < 0 ? -COMPENSATE_ONE_STEP : COMPENSATE_ONE_STEP;
-			adjs += tmp;
-			remain_compensate -= tmp;
+			++adjs;
+			--remain_compensate;
 		}
 	}
 /* Keep the clock step forward */
-	if ( adjs )
+	if ( (adjs += real_timestep) )
 		SoftSysTime.tv_usec += adjs;
 /* */
 	if ( SoftSysTime.tv_usec >= ONE_EPOCH_USEC ) {
-		SoftSysTime.tv_sec++;
+		++SoftSysTime.tv_sec;
 		SoftSysTime.tv_usec -= ONE_EPOCH_USEC;
 	}
 	else if ( SoftSysTime.tv_usec < 0 ) {
-		SoftSysTime.tv_sec--;
+		--SoftSysTime.tv_sec;
 		SoftSysTime.tv_usec += ONE_EPOCH_USEC;
 	}
 
@@ -185,7 +189,7 @@ void SysTimeToHWTime( const int timezone )
 	now_time = SoftSysTime;
 	_asm sti
 /* */
-	SetHWTime( now_time.tv_sec + timezone * 3600, now_time.tv_usec );
+	SetHWTime( now_time.tv_sec + ((long)timezone * 3600), now_time.tv_usec );
 
 	return;
 }
@@ -199,25 +203,27 @@ void SysTimeToHWTime( const int timezone )
  */
 int NTPConnect( const char *host, const uint port )
 {
+	struct sockaddr_in _addr;
+
 /* Create the UDP socket */
 	if ( (MainSock = socket(PF_INET, SOCK_DGRAM, 0)) < 0 )
-		return ERROR;
+		return SYSTIME_ERROR;
 /* Set the timeout of receiving socket to 0.5 sec. */
 	SOCKET_RXTOUT(MainSock, 500);
 
 /* Addressing for master socket */
-	memset(&TransmitAddr, 0, sizeof(TransmitAddr));
-	TransmitAddr.sin_family = AF_INET;
-	TransmitAddr.sin_addr.s_addr = inet_addr((char *)host);
-	TransmitAddr.sin_port = htons(port);
+	memset(&_addr, 0, sizeof(_addr));
+	_addr.sin_family = AF_INET;
+	_addr.sin_addr.s_addr = inet_addr((char *)host);
+	_addr.sin_port = htons(port);
 /* Initialize the connection */
-	if ( connect(MainSock, (struct sockaddr*)&TransmitAddr, sizeof(TransmitAddr)) < 0 ) {
+	if ( connect(MainSock, (struct sockaddr*)&_addr, sizeof(_addr)) < 0 ) {
 	/* Close the opened socket */
 		closesocket(MainSock);
-		return ERROR;
+		return SYSTIME_ERROR;
 	}
 
-	return NORMAL;
+	return SYSTIME_SUCCESS;
 }
 
 /**
@@ -227,15 +233,15 @@ int NTPConnect( const char *host, const uint port )
  */
 int NTPProcess( uint interval_exp )
 {
-	static long compensate[COMPENSATE_CANDIDATE_NUM];
+	static long  last_proc = 0L;
+	static long  compensate[COMPENSATE_CANDIDATE_NUM];
 	static uchar ind_compensate = 0;
-	static struct timeval last_proc = { 0, 0 };
 /* */
 	struct timeval offset;
 	struct timeval tv1, tv2, tv3, tv4;
 	long offset_f;
 
-/* */
+/* Adjust the interval exponent to real seconds. */
 	interval_exp = 1 << interval_exp;
 /* Send to the server */
 	memset(InternalBuffer, 0, 61);
@@ -245,23 +251,22 @@ int NTPProcess( uint interval_exp )
 	_asm cli
 	tv1 = SoftSysTime;
 	_asm sti
-	*(ulong *)&InternalBuffer[40] = HTONS_FP( tv1.tv_sec += EpochDiff_Jan1970 );
+	*(ulong *)&InternalBuffer[40] = HTONS_FP( tv1.tv_sec + EpochDiff_Jan1970 );
 	*(ulong *)&InternalBuffer[44] = HTONS_FP( usec2frac( tv1.tv_usec ) );
 /* Check the processing interval */
-	if ( (uint)(tv1.tv_sec - last_proc.tv_sec) < interval_exp )
-		return NORMAL;
+	if ( (uint)(tv1.tv_sec - last_proc) < interval_exp )
+		return SYSTIME_SUCCESS;
 /* Send to the server */
 	if ( send(MainSock, InternalBuffer, 48, 0) <= 0 )
-		return ERROR;
+		return SYSTIME_ERROR;
 /* Read from the server */
 	if ( recv(MainSock, InternalBuffer, 60, 0) <= 0 )
-		return ERROR;
+		return SYSTIME_ERROR;
 
 /* Get the local received timestamp */
 	_asm cli
 	tv4 = SoftSysTime;
 	_asm sti
-	tv4.tv_sec += EpochDiff_Jan1970;
 /* Get the local transmitted timestamp */
 	tv1.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[24] );
 	tv1.tv_usec = frac2usec( NTOHS_FP( *(ulong *)&InternalBuffer[28] ) );
@@ -272,7 +277,7 @@ int NTPProcess( uint interval_exp )
 	tv3.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[40] );
 	tv3.tv_usec = frac2usec( NTOHS_FP( *(ulong *)&InternalBuffer[44] ) );
 /* Calculate the time offset */
-	offset.tv_sec  = (tv2.tv_sec - tv1.tv_sec) + (tv3.tv_sec - tv4.tv_sec);
+	offset.tv_sec  = (tv2.tv_sec - tv1.tv_sec) + (tv3.tv_sec - (tv4.tv_sec + EpochDiff_Jan1970));
 	offset.tv_usec = ((tv2.tv_usec - tv1.tv_usec) + (tv3.tv_usec - tv4.tv_usec)) / 2;
 	if ( offset.tv_sec & 0x1 ) {
 		if ( offset.tv_sec < 0 )
@@ -284,52 +289,75 @@ int NTPProcess( uint interval_exp )
 /* Deal with the different sign condition */
 	if ( offset.tv_sec && (offset.tv_sec ^ offset.tv_usec) & 0x80000000 ) {
 		if ( offset.tv_sec < 0 ) {
-			offset.tv_sec++;
+			++offset.tv_sec;
 			offset.tv_usec -= ONE_EPOCH_USEC;
 		}
 		else {
-			offset.tv_sec--;
+			--offset.tv_sec;
 			offset.tv_usec += ONE_EPOCH_USEC;
 		}
 	}
 /* Maybe also need to calculate the transmitting delta... */
 /* Set the time directly or keep the adjustment */
-	Print("\r\nOffset is %ld %ld", offset.tv_sec, offset.tv_usec);
+	Print("\r\nThis offset is %ld %ld", offset.tv_sec, offset.tv_usec);
 /* Disable the ISR */
 	_asm cli
 	TimeResidual = offset;
 	_asm sti
 /* */
-	if ( last_proc.tv_sec != 0 ) {
+	if ( last_proc ) {
 	/* */
 		compensate[ind_compensate++] = (offset.tv_usec + offset.tv_sec * ONE_EPOCH_USEC) / interval_exp;
 		if ( ind_compensate >= COMPENSATE_CANDIDATE_NUM ) {
-			ind_compensate  = 0;
 			offset_f = get_compensate_avg( compensate );
-			if ( CompensateReady && labs(offset_f) > (labs(CompensateUSec) * 2) ) {
+		/* */
+			if ( CompensateReady && (labs(offset_f) > (labs(CompensateUSec) * 2) && labs(CompensateUSec) > 9) ) {
 				CompensateReady = 0;
 				CompensateUSec  = 0L;
+				last_proc       = 0L;
 			}
 			else if ( CompensateReady ) {
+				_asm cli
 				CompensateUSec += offset_f;
+				_asm sti
 			}
 			else {
 				CompensateUSec  = offset_f;
 				CompensateReady = 1;
 			}
+		/* */
+			ind_compensate = 0;
 		}
-	/* */
 	}
 /* */
-	Print("\r\noffset_avg is %ld", CompensateUSec);
+	else {
+		last_proc = tv4.tv_sec;
+	}
 /* */
-	last_proc = tv4;
+	Print("\r\nCompensate is %ld usec.", CompensateUSec);
 
-	return NORMAL;
+	return SYSTIME_SUCCESS;
 }
 
 /**
- * @brief Get the Hardware System Time (unix timestamp)
+ * @brief
+ *
+ */
+void NTPClose( void )
+{
+/* */
+	if ( MainSock >= 0 ) {
+		closesocket(MainSock);
+		MainSock = -1;
+	}
+/* */
+	YIELD();
+
+	return;
+}
+
+/**
+ * @brief Get the Hardware system time in unix timestamp base
  *
  * @return time_t
  */
@@ -347,7 +375,7 @@ static time_t FetchHWTime( void )
 }
 
 /**
- * @brief Set the Hardware System Time
+ * @brief Set the Hardware system time
  *
  * @param sec
  * @param usec
@@ -377,7 +405,7 @@ static void SetHWTime( time_t sec, ulong usec )
 }
 
 /**
- * @brief turn the broken time structure into calendar time(UTC)
+ * @brief Turn the broken time structure into calendar time(UTC)
  *
  * @param year
  * @param mon
@@ -392,7 +420,7 @@ static time_t _mktime( uint year, uint mon, uint day, uint hour, uint min, uint 
 	if ( 0 >= (int)(mon -= 2) ) {
 	/* Puts Feb last since it has leap day */
 		mon += 12;
-		year--;
+		--year;
 	}
 
 	return ((((time_t)(year / 4 - year / 100 + year / 400 + 367 * mon / 12 + day) + (ulong)year * 365 - 719499) * 24 + hour) * 60 + min) * 60 + sec;
@@ -410,7 +438,7 @@ static ulong frac2usec( const ulong frac )
 }
 
 /**
- * @brief
+ * @brief Convert from microsecond to fraction of a second
  *
  * @param usec it must smaller than 1 minion.
  * @return ulong

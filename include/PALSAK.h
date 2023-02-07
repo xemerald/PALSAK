@@ -45,14 +45,16 @@ extern "C" {
 #define STRATEGY_SET_NET     0x08
 #define STRATEGY_SET_EEP     0x10
 #define STRATEGY_CHK_EEP     0x20
+#define STRATEGY_CHK_CN      0x40
 #define STRATEGY_UPD_FW      0x80
 /* Workflow combaination */
 #define WORKFLOW_0           STRATEGY_UPD_FW
 #define WORKFLOW_1           STRATEGY_CHK_MAC | STRATEGY_GET_NET
 #define WORKFLOW_2           STRATEGY_CHK_MAC | STRATEGY_GET_NET | STRATEGY_UPL_FW
 #define WORKFLOW_3           STRATEGY_CHK_MAC | STRATEGY_GET_NET | STRATEGY_SET_EEP
-#define WORKFLOW_4           STRATEGY_CHK_MAC | STRATEGY_SET_NET
-#define WORKFLOW_5           STRATEGY_CHK_MAC | STRATEGY_GET_NET | STRATEGY_CHK_EEP
+#define WORKFLOW_4           STRATEGY_CHK_CN
+#define WORKFLOW_5           STRATEGY_CHK_MAC | STRATEGY_SET_NET
+#define WORKFLOW_6           STRATEGY_CHK_MAC | STRATEGY_GET_NET | STRATEGY_CHK_EEP
 /* The checking result of func. */
 #define NORMAL   0
 #define ERROR   -1

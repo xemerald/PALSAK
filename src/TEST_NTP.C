@@ -7,12 +7,12 @@
 #include "./include/u7186EX/Tcpip32.h"
 /* */
 #include "./include/PALSAK.h"
-#include "./include/NTP.h"
+#include "./include/SYSTIME.h"
 
 
 void MyTimerFun(void)
 {
-	SysTimeService( 500 );
+	SysTimeService();
 
 	return;
 }
@@ -32,7 +32,7 @@ void main( void )
 	YIELD();
 	Delay2(5);
 /* */
-	SysTimeInit( 8 );
+	SysTimeInit( 8, 500 );
 	InstallUserTimer1Function_us(5000, MyTimerFun);
 
 	Print("\r\nPress any key to start timer");

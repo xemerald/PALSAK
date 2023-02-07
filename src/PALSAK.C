@@ -20,6 +20,7 @@
 #include "./include/FTP.h"
 #include "./include/FILE.h"
 #include "./include/LEDINFO.h"
+#include "./include/SYSTIME.h"
 
 /* Main socket */
 static volatile int SockRecv = -1;
@@ -55,6 +56,7 @@ static char *ExtractResponse( char *, const uint );
 static int GetPalertMac( const uint );
 static int GetPalertNetworkSetting( const uint );
 static int SetPalertNetwork( const uint );
+static int CheckServerConnect( void );
 static int CheckPalertDisk( const int, const uint );
 static int UploadPalertFirmware( const uint );
 static int AgentCommand( const char *, const uint );
@@ -68,7 +70,9 @@ static int ReadFileFTPInfo( const FILE_DATA far * );
 static int ReadFileBlockZero( const FILE_DATA far *, BYTE far *, size_t );
 
 static int ConvertMask( ulong );
+static int ConnectTCP( const char *, uint );
 
+static void TimerFunc( void );
 static void FatalError( const int );
 static int  ResetProgram( void );
 
@@ -91,7 +95,7 @@ void main( void )
 /* Wait until the network connection is on, each func will wait for around 5 sec.(0.312 * 16)*/
 	SwitchWorkflow( 312 );
 
-/* If it shows the UPD flag (Workflow 0), just return after finishing  */
+/* If it shows the UPD flag (Workflow 0), just return after finishing */
 	if ( WorkflowFlag & STRATEGY_UPD_FW ) {
 	/* */
 		if ( bUseDhcp && InitDHCP( 400 ) == ERROR )
@@ -105,6 +109,18 @@ void main( void )
 	/* Show the 'Good' on the 7-seg led */
 		SHOW_GOOD_5DIGITLED();
 		Delay(1000);
+		goto normal_return;
+	}
+
+/* If it shows the CHK_CN flag, just return after finishing */
+	if ( WorkflowFlag & STRATEGY_CHK_CN ) {
+	/* */
+		if ( ERROR )
+			goto err_return;
+	/* */
+		if ( CheckServerConnect() == ERROR )
+			goto err_return;
+
 		goto normal_return;
 	}
 
@@ -411,6 +427,10 @@ static void SwitchWorkflow( const uint msec )
 					SHOW_2DASH_5DIGITLED( 4 );
 					break;
 				case WORKFLOW_5:
+					WorkflowFlag = WORKFLOW_6;
+					SHOW_2DASH_5DIGITLED( 5 );
+					break;
+				case WORKFLOW_6:
 					WorkflowFlag = WORKFLOW_1;
 					SHOW_2DASH_5DIGITLED( 0 );
 					break;
@@ -792,6 +812,97 @@ static int SetPalertNetwork( const uint msec )
 	}
 
 	return ERROR;
+}
+
+/**
+ * @brief
+ *
+ * @return int
+ */
+static int CheckServerConnect( void )
+{
+	int sock = -1;
+
+/* Reading the config file for servers information */
+	if ( ReadFileBlockZero( GetFileInfoByName_AB(DISKA, "block_0.ini"), (BYTE *)PreBuffer, PREBUF_SIZE ) == ERROR )
+		return ERROR;
+/* */
+	if ( ReadFileFTPInfo( GetFileInfoByName_AB(DISKA, "ftp_info.ini") ) == ERROR )
+		return ERROR;
+
+/* NTP server connection test */
+	Show5DigitLedSeg(1, 0x00);
+	Show5DigitLedSeg(2, 0x15);
+	Show5DigitLedSeg(3, 0x11);
+	Show5DigitLedSeg(4, 0xe7);
+	Show5DigitLedSeg(5, 0x00);
+	SysTimeInit( 8 );
+	InstallUserTimer1Function_us(5000, TimerFunc);
+	Delay2(500);
+	sprintf(RecvBuffer, "%u.%u.%u.%u", (BYTE)PreBuffer[41], (BYTE)PreBuffer[43], (BYTE)PreBuffer[45], (BYTE)PreBuffer[47]);
+	if ( NTPConnect( RecvBuffer, 123 ) == ERROR || (NTPProcess( 1 ) == ERROR && NTPProcess( 1 ) == ERROR) ) {
+		SHOW_ERROR_5DIGITLED();
+	}
+	else {
+		SHOW_GOOD_5DIGITLED();
+		Delay2(1000);
+		SysTimeToHWTime( 8 );
+	}
+	Delay2(1000);
+/* */
+	StopUserTimer1Fun();
+	NTPClose();
+
+/* TCP server 0 connection test */
+	Show5DigitLedSeg(1, 0x00);
+	Show5DigitLedSeg(2, 0x15);
+	Show5DigitLed(3, 0x0c);
+	Show5DigitLedSeg(4, 0xe7);
+	Show5DigitLedWithDot(5, 0x00);
+	Delay2(500);
+	sprintf(RecvBuffer, "%u.%u.%u.%u", (BYTE)PreBuffer[28], (BYTE)PreBuffer[29], (BYTE)PreBuffer[30], (BYTE)PreBuffer[31] );
+	if ( (sock = ConnectTCP( RecvBuffer, 502 )) == ERROR ) {
+		SHOW_ERROR_5DIGITLED();
+	}
+	else {
+		SHOW_GOOD_5DIGITLED();
+	}
+	Delay2(500);
+	closesocket(sock);
+/* TCP server 1 connection test */
+	Show5DigitLedSeg(1, 0x00);
+	Show5DigitLedSeg(2, 0x15);
+	Show5DigitLed(3, 0x0c);
+	Show5DigitLedSeg(4, 0xe7);
+	Show5DigitLedWithDot(5, 0x01);
+	Delay2(500);
+	sprintf(RecvBuffer, "%u.%u.%u.%u", (BYTE)PreBuffer[32], (BYTE)PreBuffer[33], (BYTE)PreBuffer[34], (BYTE)PreBuffer[35] );
+	if ( (sock = ConnectTCP( RecvBuffer, 502 )) == ERROR ) {
+		SHOW_ERROR_5DIGITLED();
+	}
+	else {
+		SHOW_GOOD_5DIGITLED();
+	}
+	Delay2(500);
+	closesocket(sock);
+
+/* FW(FTP) server connection test */
+	Show5DigitLedSeg(1, 0x00);
+	Show5DigitLed(2, 0x0f);
+	Show5DigitLedSeg(3, 0x15);
+	Show5DigitLedSeg(4, 0xe7);
+	Show5DigitLedSeg(5, 0x00);
+	Delay2(500);
+	if ( CheckFirmwareVer( PreBuffer, 2000 ) == ERROR ) {
+		SHOW_ERROR_5DIGITLED();
+	}
+	else {
+		SHOW_GOOD_5DIGITLED();
+	}
+	Delay2(500);
+	FTPClose();
+
+	return NORMAL;
 }
 
 /*
@@ -1342,6 +1453,62 @@ static int ReadFileBlockZero( const FILE_DATA far *fileptr, BYTE far *dest, size
 /**
  * @brief
  *
+ * @param host
+ * @param port
+ * @return int
+ */
+static int ConnectTCP( const char *host, uint port )
+{
+	extern int errno;
+
+	int sock = -1;
+	struct sockaddr_in hostaddr;
+	ulong start_time;
+
+/* */
+	if ( (sock = socket(PF_INET, SOCK_STREAM, 0)) >= 0 ) {
+		YIELD();
+		memset(&hostaddr, 0, sizeof(struct sockaddr_in));
+		hostaddr.sin_family = AF_INET;
+		hostaddr.sin_addr.s_addr = inet_addr((char *)host);
+		hostaddr.sin_port = htons(port);
+		YIELD();
+	/* Set Non-blocking mode */
+		SOCKET_NOBLOCK(sock);
+	/* */
+		if ( connect(sock, (struct sockaddr *)&hostaddr, sizeof(hostaddr)) ) {
+			if ( errno == EINPROGRESS ) {
+				start_time = GetTimeTicks();
+				while ( !SOCKET_ISOPEN(sock) ) {
+					if ( (GetTimeTicks() - start_time) >= TCP_CONNECT_TIMEOUT ) {
+						SHOW_TIMEOUT_5DIGITLED();
+						Delay(500);
+						goto err_return;
+					}
+					YIELD();
+					Delay(1);
+				}
+			}
+			else {
+				goto err_return;
+			}
+		}
+	}
+/* Must >= 3ms to make sure the following TCP/IP function works. */
+	YIELD();
+	Delay(5);
+	return sock;
+
+/* Return for error */
+err_return:
+	closesocket(sock);
+	YIELD();
+	return ERROR;
+}
+
+/**
+ * @brief
+ *
  * @param mask
  * @return int
  */
@@ -1355,6 +1522,17 @@ static int ConvertMask( ulong mask )
 	}
 
 	return result;
+}
+
+/**
+ * @brief
+ *
+ */
+static void TimerFunc( void )
+{
+	SysTimeService( 500 );
+
+	return;
 }
 
 /**
