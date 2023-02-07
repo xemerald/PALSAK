@@ -56,6 +56,7 @@ static BYTE           CompensateReady;
 static long           CompensateUSec;
 static long           TimeStepUSec;
 static long           EpochStepTimes;
+static ulong          AbsHalfTimeStepUSec;
 static TIME_DATE      TimeDateSetting;
 
 /**
@@ -75,6 +76,9 @@ void SysTimeInit( const int timezone, const long step_usec )
 	CompensateUSec       = 0L;
 	TimeStepUSec         = step_usec;
 	EpochStepTimes       = ONE_EPOCH_USEC / labs(TimeStepUSec);
+/* The minimum of this number is 1 */
+	if ( (AbsHalfTimeStepUSec = labs(TimeStepUSec) / 2) == 0 )
+		AbsHalfTimeStepUSec = 1;
 /* Flush the internal buffer */
 	memset(InternalBuffer, 0, INTERNAL_BUF_SIZE);
 
@@ -125,8 +129,7 @@ void SysTimeService( void )
 /* If the residual only in msecond or usecond, step or slew it! */
 	if ( TimeResidual.tv_usec ) {
 	/* */
-		if ( (adjs = labs(TimeStepUSec) / 2) == 0 )
-			adjs = 1;
+		adjs = AbsHalfTimeStepUSec;
 	/* */
 		if ( labs(TimeResidual.tv_usec) <= adjs )
 			adjs = TimeResidual.tv_usec;
