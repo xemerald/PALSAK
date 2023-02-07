@@ -75,6 +75,8 @@ void SysTimeInit( const int timezone, const long step_usec )
 	CompensateUSec       = 0L;
 	TimeStepUSec         = step_usec;
 	EpochStepTimes       = ONE_EPOCH_USEC / labs(TimeStepUSec);
+/* Flush the internal buffer */
+	memset(InternalBuffer, 0, INTERNAL_BUF_SIZE);
 
 	return;
 }
@@ -245,19 +247,18 @@ int NTPProcess( uint interval_exp )
 
 /* Adjust the interval exponent to real seconds. */
 	interval_exp = 1 << interval_exp;
-/* Send to the server */
-	memset(InternalBuffer, 0, 61);
 /* 00 001 011 - leap, ntp ver, client.  See RFC 1361. */
 	InternalBuffer[0] = (0 << 6) | (1 << 3) | 3;
 /* Get the local sent time - Originate Timestamp */
 	_asm cli
 	tv1 = _SoftSysTime;
 	_asm sti
-	*(ulong *)&InternalBuffer[40] = HTONS_FP( tv1.tv_sec + EpochDiff_Jan1970 );
-	*(ulong *)&InternalBuffer[44] = HTONS_FP( usec2frac( tv1.tv_usec ) );
 /* Check the processing interval */
 	if ( (tv1.tv_sec - last_proc) < (long)interval_exp )
 		return SYSTIME_SUCCESS;
+/* */
+	*(ulong *)&InternalBuffer[40] = HTONS_FP( tv1.tv_sec + EpochDiff_Jan1970 );
+	*(ulong *)&InternalBuffer[44] = HTONS_FP( usec2frac( tv1.tv_usec ) );
 /* Send to the server */
 	if ( send(MainSock, InternalBuffer, 48, 0) <= 0 )
 		return SYSTIME_ERROR;
@@ -300,6 +301,8 @@ int NTPProcess( uint interval_exp )
 		}
 	}
 /* Maybe also need to calculate the transmitting delta... */
+/* Flush the internal buffer for next time usage */
+	memset(InternalBuffer, 0, INTERNAL_BUF_SIZE);
 /* Set the time directly or keep the adjustment */
 	Print("\r\nThis offset is %ld %ld", offset.tv_sec, offset.tv_usec);
 /* Disable the ISR */
