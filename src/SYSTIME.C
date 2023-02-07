@@ -254,7 +254,7 @@ int NTPProcess( uint interval_exp )
 	*(ulong *)&InternalBuffer[40] = HTONS_FP( tv1.tv_sec + EpochDiff_Jan1970 );
 	*(ulong *)&InternalBuffer[44] = HTONS_FP( usec2frac( tv1.tv_usec ) );
 /* Check the processing interval */
-	if ( (uint)(tv1.tv_sec - last_proc) < interval_exp )
+	if ( (tv1.tv_sec - last_proc) < (long)interval_exp )
 		return SYSTIME_SUCCESS;
 /* Send to the server */
 	if ( send(MainSock, InternalBuffer, 48, 0) <= 0 )
@@ -314,7 +314,8 @@ int NTPProcess( uint interval_exp )
 			if ( CompensateReady && (labs(offset_f) > (labs(CompensateUSec) * 2) && labs(CompensateUSec) > 9) ) {
 				CompensateReady = 0;
 				CompensateUSec  = 0L;
-				last_proc       = 0L;
+			/* */
+				tv4.tv_sec      = 0L;
 			}
 			else if ( CompensateReady ) {
 				_asm cli
@@ -330,11 +331,9 @@ int NTPProcess( uint interval_exp )
 		}
 	}
 /* */
-	else {
-		last_proc = tv4.tv_sec;
-	}
-/* */
 	Print("\r\nCompensate is %ld usec.", CompensateUSec);
+/* */
+	last_proc = tv4.tv_sec;
 
 	return SYSTIME_SUCCESS;
 }
