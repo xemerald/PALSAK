@@ -27,6 +27,10 @@ extern "C" {
 /*
  *
  */
+extern const struct timeval far *SoftSysTime;
+/*
+ *
+ */
 void SysTimeInit( const int, const long );
 void SysTimeService( void );
 void SysTimeGet( struct timeval * );

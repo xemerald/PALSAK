@@ -32,6 +32,8 @@ void main( void )
 	YIELD();
 	Delay2(5);
 /* */
+	Int1cFlag = 0;
+	Int9Flag = 0;
 	SysTimeInit( 8, 500 );
 	InstallUserTimer1Function_us(5000, MyTimerFun);
 

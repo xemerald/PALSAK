@@ -47,7 +47,9 @@ static const ulong EpochDiff_Jan1970 = 86400UL * (365UL * 70 + 17);
 /* */
 static volatile int MainSock = -1;
 /* */
-static struct timeval SoftSysTime;
+static struct timeval _SoftSysTime;
+const struct timeval far *SoftSysTime = &_SoftSysTime;
+/* */
 static struct timeval TimeResidual;
 static BYTE           WriteToRTC;
 static BYTE           CompensateReady;
@@ -64,8 +66,8 @@ static TIME_DATE      TimeDateSetting;
 void SysTimeInit( const int timezone, const long step_usec )
 {
 /* */
-	SoftSysTime.tv_sec   = FetchHWTime() - ((long)timezone * 3600);
-	SoftSysTime.tv_usec  = 250000L;
+	_SoftSysTime.tv_sec  = FetchHWTime() - ((long)timezone * 3600);
+	_SoftSysTime.tv_usec = 250000L;
 	TimeResidual.tv_sec  = 0L;
 	TimeResidual.tv_usec = 0L;
 	WriteToRTC           = 0;
@@ -83,7 +85,7 @@ void SysTimeInit( const int timezone, const long step_usec )
  */
 void SysTimeService( void )
 {
-	static long real_timestep     = 0L;
+	static long correct_timestep  = 0L;
 	static long remain_compensate = 0L;
 	static ulong count_one_epoch  = 0L;
 /* */
@@ -102,21 +104,21 @@ void SysTimeService( void )
 	if ( CompensateReady ) {
 		if ( (count_one_epoch += TimeStepUSec) >= ONE_EPOCH_USEC ) {
 			adjs               = CompensateUSec / EpochStepTimes;
-			real_timestep      = TimeStepUSec + adjs;
+			correct_timestep   = TimeStepUSec + adjs;
 			remain_compensate += CompensateUSec - EpochStepTimes * adjs;
 			count_one_epoch    = 0L;
 		}
 	}
-	else if ( real_timestep != TimeStepUSec ) {
-		real_timestep = TimeStepUSec;
+	else if ( correct_timestep != TimeStepUSec ) {
+		correct_timestep = TimeStepUSec;
 	}
 
 /* If the residual is larger than one second, directly adjust it! */
 	if ( TimeResidual.tv_sec ) {
-		SoftSysTime.tv_sec  += TimeResidual.tv_sec;
-		SoftSysTime.tv_usec += TimeResidual.tv_usec;
-		TimeResidual.tv_sec  = 0L;
-		TimeResidual.tv_usec = 0L;
+		_SoftSysTime.tv_sec  += TimeResidual.tv_sec;
+		_SoftSysTime.tv_usec += TimeResidual.tv_usec;
+		TimeResidual.tv_sec   = 0L;
+		TimeResidual.tv_usec  = 0L;
 	}
 /* If the residual only in msecond or usecond, step or slew it! */
 	if ( TimeResidual.tv_usec ) {
@@ -146,16 +148,16 @@ void SysTimeService( void )
 		}
 	}
 /* Keep the clock step forward */
-	if ( (adjs += real_timestep) )
-		SoftSysTime.tv_usec += adjs;
+	if ( (adjs += correct_timestep) )
+		_SoftSysTime.tv_usec += adjs;
 /* */
-	if ( SoftSysTime.tv_usec >= ONE_EPOCH_USEC ) {
-		++SoftSysTime.tv_sec;
-		SoftSysTime.tv_usec -= ONE_EPOCH_USEC;
+	if ( _SoftSysTime.tv_usec >= ONE_EPOCH_USEC ) {
+		++_SoftSysTime.tv_sec;
+		_SoftSysTime.tv_usec -= ONE_EPOCH_USEC;
 	}
-	else if ( SoftSysTime.tv_usec < 0 ) {
-		--SoftSysTime.tv_sec;
-		SoftSysTime.tv_usec += ONE_EPOCH_USEC;
+	else if ( _SoftSysTime.tv_usec < 0 ) {
+		--_SoftSysTime.tv_sec;
+		_SoftSysTime.tv_usec += ONE_EPOCH_USEC;
 	}
 
 	return;
@@ -166,10 +168,10 @@ void SysTimeService( void )
  *
  * @param sys_time
  */
-void SysTimeGet( struct timeval *sys_time )
+void SysTimeGet( struct timeval far *sys_time )
 {
 	_asm cli
-	*sys_time = SoftSysTime;
+	*sys_time = _SoftSysTime;
 	_asm sti
 
 	return;
@@ -186,7 +188,7 @@ void SysTimeToHWTime( const int timezone )
 	struct timeval now_time;
 
 	_asm cli
-	now_time = SoftSysTime;
+	now_time = _SoftSysTime;
 	_asm sti
 /* */
 	SetHWTime( now_time.tv_sec + ((long)timezone * 3600), now_time.tv_usec );
@@ -249,7 +251,7 @@ int NTPProcess( uint interval_exp )
 	InternalBuffer[0] = (0 << 6) | (1 << 3) | 3;
 /* Get the local sent time - Originate Timestamp */
 	_asm cli
-	tv1 = SoftSysTime;
+	tv1 = _SoftSysTime;
 	_asm sti
 	*(ulong *)&InternalBuffer[40] = HTONS_FP( tv1.tv_sec + EpochDiff_Jan1970 );
 	*(ulong *)&InternalBuffer[44] = HTONS_FP( usec2frac( tv1.tv_usec ) );
@@ -265,7 +267,7 @@ int NTPProcess( uint interval_exp )
 
 /* Get the local received timestamp */
 	_asm cli
-	tv4 = SoftSysTime;
+	tv4 = _SoftSysTime;
 	_asm sti
 /* Get the local transmitted timestamp */
 	tv1.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[24] );
@@ -309,13 +311,16 @@ int NTPProcess( uint interval_exp )
 	/* */
 		compensate[ind_compensate++] = (offset.tv_usec + offset.tv_sec * ONE_EPOCH_USEC) / interval_exp;
 		if ( ind_compensate >= COMPENSATE_CANDIDATE_NUM ) {
+		/* */
+			ind_compensate = 0;
 			offset_f = get_compensate_avg( compensate );
 		/* */
 			if ( CompensateReady && (labs(offset_f) > (labs(CompensateUSec) * 2) && labs(CompensateUSec) > 9) ) {
 				CompensateReady = 0;
 				CompensateUSec  = 0L;
+				last_proc       = 0L;
 			/* */
-				tv4.tv_sec      = 0L;
+				return SYSTIME_SUCCESS;
 			}
 			else if ( CompensateReady ) {
 				_asm cli
@@ -326,8 +331,6 @@ int NTPProcess( uint interval_exp )
 				CompensateUSec  = offset_f;
 				CompensateReady = 1;
 			}
-		/* */
-			ind_compensate = 0;
 		}
 	}
 /* */
