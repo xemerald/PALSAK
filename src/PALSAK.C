@@ -47,6 +47,7 @@ static void SetNetworkConfig( uint );
 static int  InitControlSocket( const char * );
 static int  InitDHCP( const uint );
 static void SwitchWorkflow( const uint );
+static int  SwitchDHCPorStatic( const uint );
 
 static int TransmitCommand( const char * );
 static int TransmitDataByCommand( const char *, int );
@@ -56,7 +57,7 @@ static char *ExtractResponse( char *, const uint );
 static int GetPalertMac( const uint );
 static int GetPalertNetworkSetting( const uint );
 static int SetPalertNetwork( const uint );
-static int CheckServerConnect( void );
+static int CheckServerConnect( const uint );
 static int CheckPalertDisk( const int, const uint );
 static int UploadPalertFirmware( const uint );
 static int AgentCommand( const char *, const uint );
@@ -115,10 +116,15 @@ void main( void )
 /* If it shows the CHK_CN flag, just return after finishing */
 	if ( WorkflowFlag & STRATEGY_CHK_CN ) {
 	/* */
-		if ( ERROR )
+		SetNetworkConfig( NETWORK_TEMPORARY );
+	/* */
+		if ( SwitchDHCPorStatic( 400 ) == ERROR )
 			goto err_return;
 	/* */
-		if ( CheckServerConnect() == ERROR )
+		if ( bUseDhcp && InitDHCP( 400 ) == ERROR )
+			goto err_return;
+	/* */
+		if ( CheckServerConnect( 1000 ) == ERROR )
 			goto err_return;
 
 		goto normal_return;
@@ -472,6 +478,71 @@ static void SwitchWorkflow( const uint msec )
 	return;
 }
 
+/**
+ * @brief
+ *
+ * @param msec
+ * @return int
+ */
+static int SwitchDHCPorStatic( const uint msec )
+{
+	uint seq = 0;
+	uint delay_msec = msec;
+
+/* Show 'U.PLUG.' on the 7-seg led */
+	Show5DigitLedSeg(1, 0xbe);
+	Show5DigitLedSeg(2, 0x67);
+	Show5DigitLedSeg(3, 0x0e);
+	Show5DigitLedSeg(4, 0x3e);
+	Show5DigitLedSeg(5, 0xde);
+/* */
+	while ( bEthernetLinkOk != 0x00 )
+		Delay(1);
+
+/* Fetch the saved IP information from EEPROM */
+	GetIp((uchar *)&RecvBuffer[0]);
+	GetMask((uchar *)&RecvBuffer[4]);
+	GetGateway((uchar *)&RecvBuffer[8]);
+/* Show the saved IP information on the 7-seg led roller once */
+	sprintf(
+		PreBuffer, "%u.%u.%u.%u-%u  %u.%u.%u.%u  ",
+		(uchar)RecvBuffer[0], (uchar)RecvBuffer[1], (uchar)RecvBuffer[2], (uchar)RecvBuffer[3],
+		ConvertMask( *(long *)&RecvBuffer[4] ),
+		(uchar)RecvBuffer[8], (uchar)RecvBuffer[9], (uchar)RecvBuffer[10], (uchar)RecvBuffer[11]
+	);
+	EncodeAddrDisplayContent( PreBuffer );
+/* */
+	while ( bEthernetLinkOk == 0x00 ) {
+	/* */
+		if ( ++delay_msec >= msec ) {
+			ShowContent5DigitsLedRoller( seq++ );
+			delay_msec = 0;
+		}
+	/* After display saved IP address over two times, turn on DHCP function */
+		if ( !bUseDhcp && seq > (ContentLength << 1) ) {
+			bUseDhcp = 1;
+		/* Set the 'dHCP.  ' message to roller buffer */
+			PreBuffer[0] = 0x3d;
+			PreBuffer[1] = 0x37;
+			PreBuffer[2] = 0x4e;
+			PreBuffer[3] = 0xe7;
+			PreBuffer[4] = 0x00;
+			PreBuffer[5] = 0x00;
+			SetDisplayContent( (BYTE *)PreBuffer, 6 );
+		}
+		Delay(1);
+	}
+
+/* Initialization for network interface library */
+	if ( !bUseDhcp ) {
+		Nterm();
+		if ( NetStart() < 0 )
+			return ERROR;
+	}
+
+	return NORMAL;
+}
+
 /*
  *  TransmitCommand() - Transmitting control command.
  *  argument:
@@ -817,9 +888,10 @@ static int SetPalertNetwork( const uint msec )
 /**
  * @brief
  *
+ * @param msec
  * @return int
  */
-static int CheckServerConnect( void )
+static int CheckServerConnect( const uint msec )
 {
 	int sock = -1;
 
@@ -836,9 +908,9 @@ static int CheckServerConnect( void )
 	Show5DigitLedSeg(3, 0x11);
 	Show5DigitLedSeg(4, 0xe7);
 	Show5DigitLedSeg(5, 0x00);
-	SysTimeInit( 8 );
+	SysTimeInit( 8, 500 );
 	InstallUserTimer1Function_us(5000, TimerFunc);
-	Delay2(500);
+	Delay2(msec);
 	sprintf(RecvBuffer, "%u.%u.%u.%u", (BYTE)PreBuffer[41], (BYTE)PreBuffer[43], (BYTE)PreBuffer[45], (BYTE)PreBuffer[47]);
 	if ( NTPConnect( RecvBuffer, 123 ) == ERROR || (NTPProcess( 1 ) == ERROR && NTPProcess( 1 ) == ERROR) ) {
 		SHOW_ERROR_5DIGITLED();
@@ -859,7 +931,7 @@ static int CheckServerConnect( void )
 	Show5DigitLed(3, 0x0c);
 	Show5DigitLedSeg(4, 0xe7);
 	Show5DigitLedWithDot(5, 0x00);
-	Delay2(500);
+	Delay2(msec);
 	sprintf(RecvBuffer, "%u.%u.%u.%u", (BYTE)PreBuffer[28], (BYTE)PreBuffer[29], (BYTE)PreBuffer[30], (BYTE)PreBuffer[31] );
 	if ( (sock = ConnectTCP( RecvBuffer, 502 )) == ERROR ) {
 		SHOW_ERROR_5DIGITLED();
@@ -867,7 +939,7 @@ static int CheckServerConnect( void )
 	else {
 		SHOW_GOOD_5DIGITLED();
 	}
-	Delay2(500);
+	Delay2(msec);
 	closesocket(sock);
 /* TCP server 1 connection test */
 	Show5DigitLedSeg(1, 0x00);
@@ -875,7 +947,7 @@ static int CheckServerConnect( void )
 	Show5DigitLed(3, 0x0c);
 	Show5DigitLedSeg(4, 0xe7);
 	Show5DigitLedWithDot(5, 0x01);
-	Delay2(500);
+	Delay2(msec);
 	sprintf(RecvBuffer, "%u.%u.%u.%u", (BYTE)PreBuffer[32], (BYTE)PreBuffer[33], (BYTE)PreBuffer[34], (BYTE)PreBuffer[35] );
 	if ( (sock = ConnectTCP( RecvBuffer, 502 )) == ERROR ) {
 		SHOW_ERROR_5DIGITLED();
@@ -883,7 +955,7 @@ static int CheckServerConnect( void )
 	else {
 		SHOW_GOOD_5DIGITLED();
 	}
-	Delay2(500);
+	Delay2(msec);
 	closesocket(sock);
 
 /* FW(FTP) server connection test */
@@ -892,14 +964,14 @@ static int CheckServerConnect( void )
 	Show5DigitLedSeg(3, 0x15);
 	Show5DigitLedSeg(4, 0xe7);
 	Show5DigitLedSeg(5, 0x00);
-	Delay2(500);
+	Delay2(msec);
 	if ( CheckFirmwareVer( PreBuffer, 2000 ) == ERROR ) {
 		SHOW_ERROR_5DIGITLED();
 	}
 	else {
 		SHOW_GOOD_5DIGITLED();
 	}
-	Delay2(500);
+	Delay2(msec);
 	FTPClose();
 
 	return NORMAL;
@@ -1530,7 +1602,7 @@ static int ConvertMask( ulong mask )
  */
 static void TimerFunc( void )
 {
-	SysTimeService( 500 );
+	SysTimeService();
 
 	return;
 }
