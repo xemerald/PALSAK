@@ -1250,7 +1250,7 @@ static int CheckFirmwareVer( char *new_name, const uint msec )
 	char *rname  = NULL;
 
 /* */
-	new_name[0] = '\0';
+	memset(new_name, 0, 13);
 	if ( FTPConnect( FTPHost, FTPPort, FTPUser, FTPPass ) == FTP_SUCCESS ) {
 		if ( FTPListDir( FTPPath, "plt*.exe", RecvBuffer, RECVBUF_SIZE ) == FTP_SUCCESS ) {
 		/* Here, we can access the FTP server, therefore the return should be normal at lease */
@@ -1276,6 +1276,7 @@ static int CheckFirmwareVer( char *new_name, const uint msec )
 	}
 /* If we got a candidate, then show it on the 7-seg led */
 	if ( result > 0 ) {
+		new_name[12] = '\0';
 		ShowAll5DigitLedSeg( 0x00, 0x11, 0x9d, 0x00, 0x00 );
 		Delay2(msec);
 	/* Show new version number on the 7-seg led */
