@@ -23,7 +23,7 @@
 /*
  *
  */
-#define MIN_INTERVAL_EXP  5
+#define MIN_INTERVAL_EXP  6
 #define MAX_INTERVAL_EXP  8
 /*
  *
@@ -260,7 +260,7 @@ int NTPProcess( void )
 
 /* Check the processing interval */
 	if ( !T_CountDownTimerIsTimeUp(&NTPProcessTimer) ) {
-		Print("\r\nPolling interval left %lu msec.", T_CountDownTimerGetTimeLeft(&NTPProcessTimer));
+		Print("\r\nNext polling left %lu msec.", T_CountDownTimerGetTimeLeft(&NTPProcessTimer));
 		return SYSTIME_SUCCESS;
 	}
 /* 00 001 011 - leap, ntp ver, client.  See RFC 1361. */
