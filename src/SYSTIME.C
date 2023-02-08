@@ -259,8 +259,10 @@ int NTPProcess( void )
 	long  offset_f;
 
 /* Check the processing interval */
-	if ( !T_CountDownTimerIsTimeUp(&NTPProcessTimer) )
+	if ( !T_CountDownTimerIsTimeUp(&NTPProcessTimer) ) {
+		Print("\r\nPolling interval left %lu msec.", T_CountDownTimerGetTimeLeft(&NTPProcessTimer));
 		return SYSTIME_SUCCESS;
+	}
 /* 00 001 011 - leap, ntp ver, client.  See RFC 1361. */
 	InternalBuffer[0] = (0 << 6) | (1 << 3) | 3;
 /* Get the local sent time - Originate Timestamp */
@@ -276,7 +278,6 @@ int NTPProcess( void )
 /* Read from the server */
 	if ( recv(MainSock, InternalBuffer, 60, 0) <= 0 )
 		return SYSTIME_ERROR;
-
 /* Get the local received timestamp */
 	_asm cli
 	tv4 = _SoftSysTime;
