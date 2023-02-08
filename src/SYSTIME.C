@@ -23,7 +23,7 @@
 /*
  *
  */
-#define MIN_INTERVAL_EXP  4
+#define MIN_INTERVAL_EXP  5
 #define MAX_INTERVAL_EXP  8
 /*
  *
@@ -315,7 +315,6 @@ int NTPProcess( void )
 /* Flush the internal buffer for next time usage */
 	memset(InternalBuffer, 0, INTERNAL_BUF_SIZE);
 /* Set the time directly or keep the adjustment */
-	Print("\r\nTime offset is %ld sec %ld usec.", offset.tv_sec, offset.tv_usec);
 /* Disable the ISR */
 	_asm cli
 	TimeResidual = offset;
@@ -323,14 +322,14 @@ int NTPProcess( void )
 /* */
 	if ( !first_time ) {
 	/* */
-		compensate[ind_compensate++] = (offset.tv_usec + offset.tv_sec * ONE_EPOCH_USEC) / (ulong)(1 << PollIntervalExp);
+		compensate[ind_compensate++] = (offset.tv_usec + offset.tv_sec * ONE_EPOCH_USEC) / (long)(1 << PollIntervalExp);
 		if ( ind_compensate >= COMPENSATE_CANDIDATE_NUM ) {
 		/* */
 			ind_compensate = 0;
 			offset_f = get_compensate_avg( compensate );
 		/* */
-			if ( CompensateReady && (labs(offset_f) > (labs(CompensateUSec) * 2) && labs(CompensateUSec) > 9) ) {
-				PollIntervalExp  = MIN_INTERVAL_EXP;
+			if ( CompensateReady && (labs(offset_f) > (labs(CompensateUSec) * 2) && labs(CompensateUSec) > 99) ) {
+				PollIntervalExp = MIN_INTERVAL_EXP;
 				CompensateReady = 0;
 				CompensateUSec  = 0L;
 				first_time      = 1;
@@ -339,7 +338,7 @@ int NTPProcess( void )
 				_asm cli
 				CompensateUSec += offset_f;
 				_asm sti
-				if ( labs(offset_f) <= (labs(CompensateUSec) / 10) || labs(CompensateUSec) < 100 )
+				if ( labs(offset_f) <= (labs(CompensateUSec) / 2) || labs(CompensateUSec) < 100 )
 					if ( PollIntervalExp < MAX_INTERVAL_EXP )
 						++PollIntervalExp;
 			}
@@ -352,9 +351,12 @@ int NTPProcess( void )
 	else {
 		first_time = 0;
 	}
+/* Debug information */
+	Print("\r\nTime offset is %ld sec %ld usec.", offset.tv_sec, offset.tv_usec);
 	Print("\r\nCompensate is %ld usec.", CompensateUSec);
+	Print("\r\nPolling interval is %u sec.", 1 << PollIntervalExp);
 /* */
-	T_CountDownTimerStart(&NTPProcessTimer, (ulong)(1 << PollIntervalExp) * 1000);
+	T_CountDownTimerStart(&NTPProcessTimer, (ulong)(1000 << PollIntervalExp));
 
 	return SYSTIME_SUCCESS;
 }
