@@ -445,11 +445,7 @@ static int ParseFTPResp( void )
 
 	if ( sscanf(InternalBuffer, "%d %*s", &result) == 1 ) {
 	/* Display "XXX" on the 7-seg led */
-		Show5DigitLedSeg(1, 0x00);
-		Show5DigitLed(2, InternalBuffer[0] - '0');
-		Show5DigitLed(3, InternalBuffer[1] - '0');
-		Show5DigitLedWithDot(4, InternalBuffer[2] - '0');
-		Show5DigitLedSeg(5, 0x00);
+		ShowAll5DigitLedSeg( 0x00, ShowData[InternalBuffer[0] - '0'], ShowData[InternalBuffer[1] - '0'], ShowData[InternalBuffer[2] - '0'] | 0x80, 0x00 );
 	/* Display for 250 msec. */
 		Delay(250);
 	}

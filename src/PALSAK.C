@@ -490,11 +490,7 @@ static int SwitchDHCPorStatic( const uint msec )
 	uint delay_msec = msec;
 
 /* Show 'U.PLUG.' on the 7-seg led */
-	Show5DigitLedSeg(1, 0xbe);
-	Show5DigitLedSeg(2, 0x67);
-	Show5DigitLedSeg(3, 0x0e);
-	Show5DigitLedSeg(4, 0x3e);
-	Show5DigitLedSeg(5, 0xde);
+	ShowAll5DigitLedSeg( 0xbe, 0x67, 0x0e, 0x3e, 0xde );
 /* */
 	while ( bEthernetLinkOk != 0x00 )
 		Delay(1);
@@ -634,11 +630,7 @@ static void ForceFlushSocket( int sock )
 	struct sockaddr_in _addr;
 
 /* Show 'FLUSH.' on the 7-seg led */
-	Show5DigitLed(1, 0x0f);
-	Show5DigitLedSeg(2, 0x0e);
-	Show5DigitLedSeg(3, 0x3e);
-	Show5DigitLed(4, 0x05);
-	Show5DigitLedSeg(5, 0xb7);
+	ShowAll5DigitLedSeg( ShowData[0x0f], 0x0e, 0x3e, ShowData[0x05], 0xb7 );
 /* Flush the receiving buffer from client, just in case */
 	for ( i = 0; i < NETWORK_OPERATION_RETRY; i++ )
 		while ( recvfrom(sock, RecvBuffer, RECVBUF_SIZE, MSG_OOB, (struct sockaddr *)&_addr, &fromlen) > 0 );
@@ -753,11 +745,7 @@ static int GetPalertNetworkSetting( const uint msec )
 	}
 	EE_WriteProtect();
 /* Show 'F. nEt.' on the 7-seg led */
-	Show5DigitLedWithDot(1, 0x0f);
-	Show5DigitLedSeg(2, 0x00);
-	Show5DigitLedSeg(3, 0x15);
-	Show5DigitLed(4, 0x0e);
-	Show5DigitLedSeg(5, 0x91);
+	ShowAll5DigitLedSeg( ShowData[0x0e] | 0x80, 0x00, 0x15, ShowData[0x0e], 0x91 );
 	Delay(msec);
 
 	return NORMAL;
@@ -779,11 +767,7 @@ static int SetPalertNetwork( const uint msec )
 /* Read from EEPROM block 2 where the saved network setting within */
 	if ( !EE_MultiRead(EEPROM_NETWORK_SET_BLOCK, EEPROM_NETWORK_TMP_ADDR, EEPROM_NETWORK_SET_LENGTH, PreBuffer) ) {
 	/* Show 'U.PLUG.' on the 7-seg led */
-		Show5DigitLedSeg(1, 0xbe);
-		Show5DigitLedSeg(2, 0x67);
-		Show5DigitLedSeg(3, 0x0e);
-		Show5DigitLedSeg(4, 0x3e);
-		Show5DigitLedSeg(5, 0xde);
+		ShowAll5DigitLedSeg( 0xbe, 0x67, 0x0e, 0x3e, 0xde );
 	/* */
 		while ( bEthernetLinkOk != 0x00 )
 			Delay(1);
@@ -820,11 +804,7 @@ static int SetPalertNetwork( const uint msec )
 		sprintf(str_ptr, "ip %u.%u.%u.%u", (BYTE)PreBuffer[0], (BYTE)PreBuffer[1], (BYTE)PreBuffer[2], (BYTE)PreBuffer[3]);
 		LOOP_TRANSMIT_COMMAND( str_ptr );
 	/* Show 'S. iP.' on the 7-seg led */
-		Show5DigitLedWithDot(1, 0x05);
-		Show5DigitLedSeg(2, 0x00);
-		Show5DigitLedSeg(3, 0x04);
-		Show5DigitLedSeg(4, 0xe7);
-		Show5DigitLedSeg(5, 0x00);
+		ShowAll5DigitLedSeg( ShowData[0x05] | 0x80, 0x00, 0x04, 0xe7, 0x00 );
 		Delay(msec);
 	/* Send out the IP address request command for rechecking */
 		LOOP_TRANSMIT_COMMAND( "ip" );
@@ -840,11 +820,7 @@ static int SetPalertNetwork( const uint msec )
 		sprintf(str_ptr, "mask %u.%u.%u.%u", (BYTE)PreBuffer[4], (BYTE)PreBuffer[5], (BYTE)PreBuffer[6], (BYTE)PreBuffer[7]);
 		LOOP_TRANSMIT_COMMAND( str_ptr );
 	/* Show 'S.MASk.' on the 7-seg led */
-		Show5DigitLedWithDot(1, 0x05);
-		Show5DigitLedSeg(2, 0x76);
-		Show5DigitLed(3, 0x0a);
-		Show5DigitLed(4, 0x05);
-		Show5DigitLedSeg(5, 0xb7);
+		ShowAll5DigitLedSeg( ShowData[0x05] | 0x80, 0x76, ShowData[0x0a], ShowData[0x05], 0xb7 );
 		Delay(msec);
 	/* Send out the Mask request command for rechecking */
 		LOOP_TRANSMIT_COMMAND( "mask" );
@@ -860,11 +836,7 @@ static int SetPalertNetwork( const uint msec )
 		sprintf(str_ptr, "gateway %u.%u.%u.%u", (BYTE)PreBuffer[8], (BYTE)PreBuffer[9], (BYTE)PreBuffer[10], (BYTE)PreBuffer[11]);
 		LOOP_TRANSMIT_COMMAND( str_ptr );
 	/* Show 'S.GAtE.' on the 7-seg led */
-		Show5DigitLedWithDot(1, 0x05);
-		Show5DigitLedSeg(2, 0x5e);
-		Show5DigitLed(3, 0x0a);
-		Show5DigitLedSeg(4, 0x11);
-		Show5DigitLedWithDot(5, 0x0e);
+		ShowAll5DigitLedSeg( ShowData[0x05] | 0x80, 0x5e, ShowData[0x0a], 0x11, ShowData[0x0e] | 0x80 );
 		Delay(msec);
 	/* Send out the Gateway address request command */
 		LOOP_TRANSMIT_COMMAND( "gateway" );
@@ -903,11 +875,7 @@ static int CheckServerConnect( const uint msec )
 		return ERROR;
 
 /* NTP server connection test */
-	Show5DigitLedSeg(1, 0x00);
-	Show5DigitLedSeg(2, 0x15);
-	Show5DigitLedSeg(3, 0x11);
-	Show5DigitLedSeg(4, 0xe7);
-	Show5DigitLedSeg(5, 0x00);
+	ShowAll5DigitLedSeg( 0x00, 0x15, 0x11, 0xe7, 0x00 );
 	SysTimeInit( 8, 500 );
 	InstallUserTimer1Function_us(5000, TimerFunc);
 	Delay2(msec);
@@ -926,11 +894,7 @@ static int CheckServerConnect( const uint msec )
 	NTPClose();
 
 /* TCP server 0 connection test */
-	Show5DigitLedSeg(1, 0x00);
-	Show5DigitLedSeg(2, 0x11);
-	Show5DigitLed(3, 0x0c);
-	Show5DigitLedSeg(4, 0xe7);
-	Show5DigitLedWithDot(5, 0x00);
+	ShowAll5DigitLedSeg( 0x00, 0x11, ShowData[0x0c], 0xe7, ShowData[0x00] | 0x80 );
 	Delay2(msec);
 	sprintf(RecvBuffer, "%u.%u.%u.%u", (BYTE)PreBuffer[28], (BYTE)PreBuffer[29], (BYTE)PreBuffer[30], (BYTE)PreBuffer[31] );
 	if ( (sock = ConnectTCP( RecvBuffer, 502 )) == ERROR ) {
@@ -942,11 +906,7 @@ static int CheckServerConnect( const uint msec )
 	Delay2(msec);
 	closesocket(sock);
 /* TCP server 1 connection test */
-	Show5DigitLedSeg(1, 0x00);
-	Show5DigitLedSeg(2, 0x11);
-	Show5DigitLed(3, 0x0c);
-	Show5DigitLedSeg(4, 0xe7);
-	Show5DigitLedWithDot(5, 0x01);
+	ShowAll5DigitLedSeg( 0x00, 0x11, ShowData[0x0c], 0xe7, ShowData[0x01] | 0x80 );
 	Delay2(msec);
 	sprintf(RecvBuffer, "%u.%u.%u.%u", (BYTE)PreBuffer[32], (BYTE)PreBuffer[33], (BYTE)PreBuffer[34], (BYTE)PreBuffer[35] );
 	if ( (sock = ConnectTCP( RecvBuffer, 502 )) == ERROR ) {
@@ -959,11 +919,7 @@ static int CheckServerConnect( const uint msec )
 	closesocket(sock);
 
 /* FW(FTP) server connection test */
-	Show5DigitLedSeg(1, 0x00);
-	Show5DigitLed(2, 0x0f);
-	Show5DigitLedSeg(3, 0x11);
-	Show5DigitLedSeg(4, 0xe7);
-	Show5DigitLedSeg(5, 0x00);
+	ShowAll5DigitLedSeg( 0x00, ShowData[0x0f], 0x11, 0xe7, 0x00 );
 	Delay2(msec);
 	if ( CheckFirmwareVer( PreBuffer, 2000 ) == ERROR ) {
 		SHOW_ERROR_5DIGITLED();
@@ -1004,9 +960,6 @@ static int CheckPalertDisk( const int mode, const uint msec )
 		return ERROR;
 /* Parsing the size with integer */
 	sscanf(pos, "%hu", (uchar *)&PreBuffer[0]);
-/* Show it on the 7-seg led */
-	Show5DigitLed(1, PreBuffer[0]);
-	Show5DigitLedSeg(2, 1);
 /* Move the pointer to the next Disk size */
 	pos += DABSIZE_STRING + 1;
 
@@ -1015,9 +968,6 @@ static int CheckPalertDisk( const int mode, const uint msec )
 		return ERROR;
 /* Parsing the size with integer */
 	sscanf(pos, "%hu", (uchar *)&PreBuffer[1]);
-/* Show it on the 7-seg led */
-	Show5DigitLed(3, PreBuffer[1]);
-	Show5DigitLedSeg(4, 1);
 /* Move the pointer to the next Disk size */
 	pos += DABSIZE_STRING + 1;
 
@@ -1027,7 +977,7 @@ static int CheckPalertDisk( const int mode, const uint msec )
 /* Parsing the size with integer */
 	sscanf(pos, "%hu", (uchar *)&PreBuffer[2]);
 /* Show it on the 7-seg led */
-	Show5DigitLed(5, PreBuffer[2]);
+	ShowAll5DigitLedSeg( ShowData[PreBuffer[0]], 0x01, ShowData[PreBuffer[1]], 0x01, ShowData[PreBuffer[2]] );
 /* Display for "msec" msec. */
 	Delay(msec);
 
@@ -1051,51 +1001,31 @@ static int CheckPalertDisk( const int mode, const uint msec )
 static int UploadPalertFirmware( const uint msec )
 {
 /* Show 'FLASH.' on the 7-seg led */
-	Show5DigitLed(1, 0x0f);
-	Show5DigitLedSeg(2, 0x0e);
-	Show5DigitLed(3, 0x0a);
-	Show5DigitLed(4, 0x05);
-	Show5DigitLedSeg(5, 0xb7);
+	ShowAll5DigitLedSeg( ShowData[0x0f], 0x0e, ShowData[0x0a], ShowData[0x05], 0xb7 );
 	Delay(msec);
 /* Flushing the disk a */
 	LOOP_TRANSMIT_COMMAND( "del /y" );
 /* Show 'del. A' on the 7-seg led */
-	Show5DigitLed(1, 0x0d);
-	Show5DigitLed(2, 0x0e);
-	Show5DigitLedSeg(3, 0x8e);
-	Show5DigitLedSeg(4, 0x00);
-	Show5DigitLed(5, 0x0a);
+	ShowAll5DigitLedSeg( ShowData[0x0d], ShowData[0x0e], 0x8e, 0x00, ShowData[0x0a] );
 	Delay(msec);
 /* Flushing the disk b */
 	LOOP_TRANSMIT_COMMAND( "delb /y" );
 /* Show 'del. b' on the 7-seg led */
-	Show5DigitLed(1, 0x0d);
-	Show5DigitLed(2, 0x0e);
-	Show5DigitLedSeg(3, 0x8e);
-	Show5DigitLedSeg(4, 0x00);
-	Show5DigitLed(5, 0x0b);
+	ShowAll5DigitLedSeg( ShowData[0x0d], ShowData[0x0e], 0x8e, 0x00, ShowData[0x0b] );
 	Delay(msec);
 
 /* Start to upload the firmware */
 	if ( UploadFileData( DISKA, GetFileInfoByNo_AB(DISKB, 0) ) )
 		return ERROR;
 /* Show 'Fin. F' on the 7-seg led */
-	Show5DigitLed(1, 0x0f);
-	Show5DigitLedSeg(2, 0x04);
-	Show5DigitLedSeg(3, 0x95);
-	Show5DigitLedSeg(4, 0x00);
-	Show5DigitLed(5, 0x0f);
+	ShowAll5DigitLedSeg( ShowData[0x0f], 0x04, 0x95, 0x00, ShowData[0x0f] );
 	Delay(msec);
 
 /* Start to upload the auto batch file */
 	if ( UploadFileData( DISKA, GetFileInfoByName_AB(DISKA, "autoexec.bat") ) )
 		return ERROR;
 /* Show 'Fin. b' on the 7-seg led */
-	Show5DigitLed(1, 0x0f);
-	Show5DigitLedSeg(2, 0x04);
-	Show5DigitLedSeg(3, 0x95);
-	Show5DigitLedSeg(4, 0x00);
-	Show5DigitLed(5, 0x0b);
+	ShowAll5DigitLedSeg( ShowData[0x0f], 0x04, 0x95, 0x00, ShowData[0x0b] );
 	Delay(msec);
 
 	return NORMAL;
@@ -1117,11 +1047,7 @@ static int AgentCommand( const char *comm, const uint msec )
 	uchar i = 0;
 
 /* Show 'F. b.0. ' on the 7-seg led */
-	Show5DigitLedWithDot(1, 0x0f);
-	Show5DigitLedSeg(2, 0x00);
-	Show5DigitLedWithDot(3, 0x0b);
-	Show5DigitLedWithDot(4, 0x00);
-	Show5DigitLedSeg(5, 0x00);
+	ShowAll5DigitLedSeg( ShowData[0x0f] | 0x80, 0x00, ShowData[0x0b] | 0x80, ShowData[0x00] | 0x80, 0x00 );
 /* */
 	if ( ReadFileBlockZero( GetFileInfoByName_AB(DISKA, "block_0.ini"), (BYTE *)PreBuffer, PREBUF_SIZE ) == ERROR )
 		return ERROR;
@@ -1148,26 +1074,15 @@ static int AgentCommand( const char *comm, const uint msec )
 	} while ( 1 );
 /* Sending the command to remote agent */
 	LOOP_TRANSMIT_COMMAND( comm );
-	if ( !strncmp(comm, "setdef", 6) ) {
+	if ( !strncmp(comm, "setdef", 6) )
 	/* Show 'S. def.' on the 7-seg led */
-		Show5DigitLedWithDot(1, 0x05);
-		Show5DigitLedSeg(2, 0x00);
-		Show5DigitLed(3, 0x0d);
-		Show5DigitLed(4, 0x0e);
-		Show5DigitLedWithDot(5, 0x0f);
-	}
-	else if ( !strncmp(comm, "check", 5) ) {
+		ShowAll5DigitLedSeg( ShowData[0x05] | 0x80, 0x00, ShowData[0x0d], ShowData[0x0e], ShowData[0x0f] | 0x80 );
+	else if ( !strncmp(comm, "check", 5) )
 	/* Show 'C. Con.' on the 7-seg led */
-		Show5DigitLedWithDot(1, 0x0c);
-		Show5DigitLedSeg(2, 0x00);
-		Show5DigitLed(3, 0x0c);
-		Show5DigitLedSeg(4, 0x1d);
-		Show5DigitLedSeg(5, 0x95);
-	}
-	else {
+		ShowAll5DigitLedSeg( ShowData[0x0c] | 0x80, 0x00, ShowData[0x0c], 0x1d, 0x95 );
+	else
 	/* Unknown command */
 		return ERROR;
-	}
 /* */
 	Delay(250);
 
@@ -1175,21 +1090,13 @@ static int AgentCommand( const char *comm, const uint msec )
 	if ( (pos = ExtractResponse( RecvBuffer, PSERIAL_STRING )) == NULL )
 		return ERROR;
 /* Show the serial on the 7-seg led */
-	Show5DigitLed(1, pos[0] - '0');
-	Show5DigitLed(2, pos[1] - '0');
-	Show5DigitLed(3, pos[2] - '0');
-	Show5DigitLed(4, pos[3] - '0');
-	Show5DigitLedWithDot(5, pos[4] - '0');
+	ShowAll5DigitLedSeg( ShowData[pos[0] - '0'], ShowData[pos[1] - '0'], ShowData[pos[2] - '0'], ShowData[pos[3] - '0'], ShowData[pos[4] - '0'] | 0x80 );
 	Delay(msec);
 /* Compare the applied serial & factory serial */
 	sscanf(pos, "%5s:%5s", data, _data);
 	if ( strncmp(data, _data, 5) ) {
 	/* Show 'S.diff.' on the 7-seg led */
-		Show5DigitLedWithDot(1, 0x05);
-		Show5DigitLed(2, 0x0d);
-		Show5DigitLedSeg(3, 0x04);
-		Show5DigitLed(4, 0x0f);
-		Show5DigitLedWithDot(5, 0x0f);
+		ShowAll5DigitLedSeg( ShowData[0x05] | 0x80, ShowData[0x0d], 0x04, ShowData[0x0f], ShowData[0x0f] | 0x80 );
 		Delay(msec);
 	}
 /* Move the pointer to the next data */
@@ -1203,11 +1110,7 @@ static int AgentCommand( const char *comm, const uint msec )
 		sscanf(pos, "%17s:%17s", data, _data);
 		if ( strncmp(data, _data, 17) ) {
 		/* Show 'CX.dif.' on the 7-seg led */
-			Show5DigitLed(1, 0x0c);
-			Show5DigitLedWithDot(2, i == 0 ? 0x01 : 0x00);
-			Show5DigitLed(3, 0x0d);
-			Show5DigitLedSeg(4, 0x04);
-			Show5DigitLedWithDot(5, 0x0f);
+			ShowAll5DigitLedSeg( ShowData[0x0c], ShowData[i == 0 ? 0x01 : 0x00] | 0x80, ShowData[0x0d], 0x04, ShowData[0x0f] | 0x80 );
 			Delay(msec);
 		/* Parse the value to bytes & rearrange for display */
 			sscanf(
@@ -1370,19 +1273,11 @@ static int CheckFirmwareVer( char *new_name, const uint msec )
 			result = NORMAL;
 			if ( GetFileName_AB(DISKB, 0, new_name) < 0 ) {
 			/* Show '00000' on the 7-seg led */
-				Show5DigitLed(1, 0);
-				Show5DigitLed(2, 0);
-				Show5DigitLed(3, 0);
-				Show5DigitLed(4, 0);
-				Show5DigitLed(5, 0);
+				ShowAll5DigitLedSeg( ShowData[0x00], ShowData[0x00], ShowData[0x00], ShowData[0x00], ShowData[0x00] );
 			}
 			else {
 			/* Show existed version number on the 7-seg led */
-				Show5DigitLed(1, new_name[3] - '0');
-				Show5DigitLed(2, new_name[4] - '0');
-				Show5DigitLed(3, new_name[5] - '0');
-				Show5DigitLed(4, new_name[6] - '0');
-				Show5DigitLed(5, new_name[7] - '0');
+				ShowAll5DigitLedSeg( ShowData[new_name[3] - '0'], ShowData[new_name[4] - '0'], ShowData[new_name[5] - '0'], ShowData[new_name[6] - '0'], ShowData[new_name[7] - '0'] );
 			}
 			Delay(msec);
 		/* Scan the list to find the firmware newer than we have */
@@ -1397,18 +1292,10 @@ static int CheckFirmwareVer( char *new_name, const uint msec )
 	}
 /* If we got a candidate, then show it on the 7-seg led */
 	if ( result > 0 ) {
-		Show5DigitLedSeg(1, 0x00);
-		Show5DigitLedSeg(2, 0x11);
-		Show5DigitLedSeg(3, 0x9d);
-		Show5DigitLedSeg(4, 0x00);
-		Show5DigitLedSeg(5, 0x00);
+		ShowAll5DigitLedSeg( 0x00, 0x11, 0x9d, 0x00, 0x00 );
 		Delay(msec);
 	/* Show new version number on the 7-seg led */
-		Show5DigitLed(1, new_name[3] - '0');
-		Show5DigitLed(2, new_name[4] - '0');
-		Show5DigitLed(3, new_name[5] - '0');
-		Show5DigitLed(4, new_name[6] - '0');
-		Show5DigitLed(5, new_name[7] - '0');
+		ShowAll5DigitLedSeg( ShowData[new_name[3] - '0'], ShowData[new_name[4] - '0'], ShowData[new_name[5] - '0'], ShowData[new_name[6] - '0'], ShowData[new_name[7] - '0'] );
 		Delay(msec);
 	/* */
 		result = NORMAL;
@@ -1615,11 +1502,7 @@ static void TimerFunc( void )
 static void FatalError( const int msec )
 {
 /* Show 'FAtAL.' on the 7-seg led */
-	Show5DigitLed(1, 0x0f);
-	Show5DigitLed(2, 0x0a);
-	Show5DigitLedSeg(3, 0x11);
-	Show5DigitLed(4, 0x0a);
-	Show5DigitLedSeg(5, 0x8e);
+	ShowAll5DigitLedSeg( ShowData[0x0f], ShowData[0x0a], 0x11, ShowData[0x0a], 0x8e );
 /* Reset the network setting */
 	SetNetworkConfig( NETWORK_DEFAULT );
 	Delay(msec);
