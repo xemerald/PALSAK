@@ -19,34 +19,19 @@ extern "C" {
 
 /* The macro to showing " - - " on the 7-seg led */
 #define SHOW_2DASH_5DIGITLED(SEQ) \
-		Show5DigitLedSeg(1, 0); \
-		Show5DigitLedSeg(2, SeqMark[(SEQ)]); \
-		Show5DigitLedSeg(3, 0); \
-		Show5DigitLedSeg(4, SeqMark[(SEQ)]); \
-		Show5DigitLedSeg(5, 0);
+		ShowAll5DigitLedSeg(0, SeqMark[(SEQ)], 0, SeqMark[(SEQ)], 0)
 
 /* Display "Good." on the 7-seg led */
 #define SHOW_GOOD_5DIGITLED() \
-		Show5DigitLedSeg(1, 0x5e); \
-		Show5DigitLedSeg(2, 0x1d); \
-		Show5DigitLedSeg(3, 0x1d); \
-		Show5DigitLed(4, 0x0d); \
-		Show5DigitLedSeg(5, 0x80);
+		ShowAll5DigitLedSeg(0x5e, 0x1d, 0x1d, ShowData[0x0d], 0x80)
 
 /* Display "Error." on the 7-seg led */
 #define SHOW_ERROR_5DIGITLED() \
-		Show5DigitLed(1, 0x0e); \
-		Show5DigitLedSeg(2, 0x05); \
-		Show5DigitLedSeg(3, 0x05); \
-		Show5DigitLedSeg(4, 0x1d); \
-		Show5DigitLedSeg(5, 0x85);
-/* */
+		ShowAll5DigitLedSeg(ShowData[0x0e], 0x05, 0x05, 0x1d, 0x85)
+
+/* Display "t.o." on the 7-seg led */
 #define SHOW_TIMEOUT_5DIGITLED() \
-		Show5DigitLedSeg(1, 0x00); \
-		Show5DigitLedSeg(2, 0x91); \
-		Show5DigitLedSeg(3, 0x9d); \
-		Show5DigitLedSeg(4, 0x00); \
-		Show5DigitLedSeg(5, 0x00);
+		ShowAll5DigitLedSeg(0x00, 0x91, 0x9d, 0x00, 0x00)
 
 /* Mark for seq. */
 extern const BYTE SeqMark[];
@@ -55,6 +40,7 @@ extern uint ContentLength;
 extern uint ContentPages;
 
 /* */
+void ShowAll5DigitLedSeg( BYTE, BYTE, BYTE, BYTE, BYTE );
 void ShowProg5DigitsLed( ulong, const ulong );
 void ShowContent5DigitsLedPage( uint );
 void ShowContent5DigitsLedRoller( uint );

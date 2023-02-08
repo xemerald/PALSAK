@@ -927,7 +927,7 @@ static int CheckServerConnect( const uint msec )
 
 /* TCP server 0 connection test */
 	Show5DigitLedSeg(1, 0x00);
-	Show5DigitLedSeg(2, 0x15);
+	Show5DigitLedSeg(2, 0x11);
 	Show5DigitLed(3, 0x0c);
 	Show5DigitLedSeg(4, 0xe7);
 	Show5DigitLedWithDot(5, 0x00);
@@ -943,7 +943,7 @@ static int CheckServerConnect( const uint msec )
 	closesocket(sock);
 /* TCP server 1 connection test */
 	Show5DigitLedSeg(1, 0x00);
-	Show5DigitLedSeg(2, 0x15);
+	Show5DigitLedSeg(2, 0x11);
 	Show5DigitLed(3, 0x0c);
 	Show5DigitLedSeg(4, 0xe7);
 	Show5DigitLedWithDot(5, 0x01);
@@ -961,7 +961,7 @@ static int CheckServerConnect( const uint msec )
 /* FW(FTP) server connection test */
 	Show5DigitLedSeg(1, 0x00);
 	Show5DigitLed(2, 0x0f);
-	Show5DigitLedSeg(3, 0x15);
+	Show5DigitLedSeg(3, 0x11);
 	Show5DigitLedSeg(4, 0xe7);
 	Show5DigitLedSeg(5, 0x00);
 	Delay2(msec);
@@ -1264,7 +1264,7 @@ static int UploadFileData( const int disk, const FILE_DATA far *fileptr )
 /* Send out the uploading request command */
 	LOOP_TRANSMIT_COMMAND( disk == DISKA ? "load" : disk == DISKB ? "loadb" : "loadr" );
 /* Start to show the progress and waiting for 150 ms */
-	ShowProg5DigitsLed( 0, blockall );
+	ShowProg5DigitsLed( 0, 0 );
 	Delay(150);
 /* Setting the output buffer to zero first */
 	memset(out_ptr, 0, 260);

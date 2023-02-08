@@ -27,6 +27,26 @@ uint ContentPages = 0;
 static BYTE DisplayContent[DISPLAY_CONTENT_MAX] = { 0x00 };
 
 /**
+ * @brief
+ *
+ * @param data_1
+ * @param data_2
+ * @param data_3
+ * @param data_4
+ * @param data_5
+ */
+void ShowAll5DigitLedSeg( BYTE data_1, BYTE data_2, BYTE data_3, BYTE data_4, BYTE data_5 )
+{
+	Show5DigitLedSeg(1, data_1);
+	Show5DigitLedSeg(2, data_2);
+	Show5DigitLedSeg(3, data_3);
+	Show5DigitLedSeg(4, data_4);
+	Show5DigitLedSeg(5, data_5);
+
+	return;
+}
+
+/**
  * @brief Showing the progressing percentage on the 7-seg led.
  *
  * @param nblock The accumulated blocks number.
