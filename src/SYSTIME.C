@@ -23,8 +23,12 @@
 /*
  *
  */
-#define COMPENSATE_CANDIDATE_NUM  5
-#define WRITERTC_COUNTDOWN_CHANNEL  7
+#define MIN_INTERVAL_EXP  4
+#define MAX_INTERVAL_EXP  8
+/*
+ *
+ */
+#define COMPENSATE_CANDIDATE_NUM 5
 /*
  *
  */
@@ -51,6 +55,7 @@ static struct timeval _SoftSysTime;
 const struct timeval far *SoftSysTime = &_SoftSysTime;
 /* */
 static struct timeval TimeResidual;
+static uchar          PollIntervalExp;
 static BYTE           WriteToRTC;
 static BYTE           CompensateReady;
 static long           CompensateUSec;
@@ -58,6 +63,9 @@ static long           TimeStepUSec;
 static long           EpochStepTimes;
 static ulong          AbsHalfStepUSec;
 static TIME_DATE      TimeDateSetting;
+/* */
+static COUNTDOWNTIMER WriteRTCTimer;
+static COUNTDOWNTIMER NTPProcessTimer;
 
 /**
  * @brief
@@ -71,6 +79,7 @@ void SysTimeInit( const int timezone, const long step_usec )
 	_SoftSysTime.tv_usec = 250000L;
 	TimeResidual.tv_sec  = 0L;
 	TimeResidual.tv_usec = 0L;
+	PollIntervalExp       = MIN_INTERVAL_EXP;
 	WriteToRTC           = 0;
 	CompensateReady      = 0;
 	CompensateUSec       = 0L;
@@ -99,10 +108,8 @@ void SysTimeService( void )
 
 /* */
 	if ( WriteToRTC ) {
-		CountDownTimerReadValue(WRITERTC_COUNTDOWN_CHANNEL, (ulong *)&adjs);
-		if ( *(ulong *)&adjs == 0 ) {
+		if ( T_CountDownTimerIsTimeUp(&WriteRTCTimer) ) {
 			SetTimeDate(&TimeDateSetting);
-			TimerClose();
 			WriteToRTC = 0;
 		}
 	}
@@ -238,27 +245,25 @@ int NTPConnect( const char *host, const uint port )
  *
  * @return int
  */
-int NTPProcess( uint interval_exp )
+int NTPProcess( void )
 {
-	static long  last_proc = 0L;
 	static long  compensate[COMPENSATE_CANDIDATE_NUM];
 	static uchar ind_compensate = 0;
+	static uchar first_time = 1;
 /* */
 	struct timeval offset;
 	struct timeval tv1, tv2, tv3, tv4;
-	long offset_f;
+	long  offset_f;
 
-/* Adjust the interval exponent to real seconds. */
-	interval_exp = 1 << interval_exp;
+/* Check the processing interval */
+	if ( !T_CountDownTimerIsTimeUp(&NTPProcessTimer) )
+		return SYSTIME_SUCCESS;
 /* 00 001 011 - leap, ntp ver, client.  See RFC 1361. */
 	InternalBuffer[0] = (0 << 6) | (1 << 3) | 3;
 /* Get the local sent time - Originate Timestamp */
 	_asm cli
 	tv1 = _SoftSysTime;
 	_asm sti
-/* Check the processing interval */
-	if ( (tv1.tv_sec - last_proc) < (long)interval_exp )
-		return SYSTIME_SUCCESS;
 /* */
 	*(ulong *)&InternalBuffer[40] = HTONS_FP( tv1.tv_sec + EpochDiff_Jan1970 );
 	*(ulong *)&InternalBuffer[44] = HTONS_FP( usec2frac( tv1.tv_usec ) );
@@ -312,25 +317,27 @@ int NTPProcess( uint interval_exp )
 	TimeResidual = offset;
 	_asm sti
 /* */
-	if ( last_proc ) {
+	if ( !first_time ) {
 	/* */
-		compensate[ind_compensate++] = (offset.tv_usec + offset.tv_sec * ONE_EPOCH_USEC) / interval_exp;
+		compensate[ind_compensate++] = (offset.tv_usec + offset.tv_sec * ONE_EPOCH_USEC) / (1 << PollIntervalExp);
 		if ( ind_compensate >= COMPENSATE_CANDIDATE_NUM ) {
 		/* */
 			ind_compensate = 0;
 			offset_f = get_compensate_avg( compensate );
 		/* */
 			if ( CompensateReady && (labs(offset_f) > (labs(CompensateUSec) * 2) && labs(CompensateUSec) > 9) ) {
+				PollIntervalExp  = MIN_INTERVAL_EXP;
 				CompensateReady = 0;
 				CompensateUSec  = 0L;
-				last_proc       = 0L;
-			/* */
-				return SYSTIME_SUCCESS;
+				first_time      = 1;
 			}
 			else if ( CompensateReady ) {
 				_asm cli
 				CompensateUSec += offset_f;
 				_asm sti
+				if ( labs(offset_f) <= (labs(CompensateUSec) / 10) || labs(CompensateUSec) < 100 )
+					if ( PollIntervalExp < MAX_INTERVAL_EXP )
+						++PollIntervalExp;
 			}
 			else {
 				CompensateUSec  = offset_f;
@@ -338,8 +345,11 @@ int NTPProcess( uint interval_exp )
 			}
 		}
 	}
+	else {
+		first_time = 0;
+	}
 /* */
-	last_proc = tv4.tv_sec;
+	T_CountDownTimerStart(&NTPProcessTimer, (ulong)(1 << PollIntervalExp) * 1000);
 
 	return SYSTIME_SUCCESS;
 }
@@ -402,8 +412,7 @@ static void SetHWTime( time_t sec, ulong usec )
 	TimeDateSetting.minute = brktime->tm_min;
 	TimeDateSetting.sec    = brktime->tm_sec;
 /* */
-	TimerOpen();
-	CountDownTimerStart(WRITERTC_COUNTDOWN_CHANNEL, usec);
+	T_CountDownTimerStart(&WriteRTCTimer, usec);
 	WriteToRTC = 1;
 
 	return;

@@ -48,7 +48,7 @@ void main( void )
 		SysTimeGet( &tv );
 		Print("\r\nNow time is %ld.%.6ld", tv.tv_sec, tv.tv_usec);
 		Delay2(100);
-		NTPProcess( 5 );
+		NTPProcess();
 		inc++;
 		if ( inc % 3000 == 0 ) {
 			SysTimeToHWTime( 8 );

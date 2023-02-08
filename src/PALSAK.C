@@ -859,7 +859,7 @@ static int CheckServerConnect( const uint msec )
 	Delay2(msec);
 /* NTP server connection test */
 	sprintf(RecvBuffer, "%u.%u.%u.%u", (BYTE)PreBuffer[41], (BYTE)PreBuffer[43], (BYTE)PreBuffer[45], (BYTE)PreBuffer[47]);
-	if ( NTPConnect( RecvBuffer, 123 ) == ERROR || (NTPProcess( 1 ) == ERROR && NTPProcess( 1 ) == ERROR) ) {
+	if ( NTPConnect( RecvBuffer, 123 ) == ERROR || (NTPProcess() == ERROR && NTPProcess() == ERROR) ) {
 		SHOW_ERROR_5DIGITLED();
 	}
 	else {
