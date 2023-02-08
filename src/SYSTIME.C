@@ -323,7 +323,7 @@ int NTPProcess( void )
 /* */
 	if ( !first_time ) {
 	/* */
-		compensate[ind_compensate++] = (offset.tv_usec + offset.tv_sec * ONE_EPOCH_USEC) / (long)(1 << PollIntervalExp);
+		compensate[ind_compensate++] = (offset.tv_usec + offset.tv_sec * ONE_EPOCH_USEC) / (1 << (ulong)PollIntervalExp);
 		if ( ind_compensate >= COMPENSATE_CANDIDATE_NUM ) {
 		/* */
 			ind_compensate = 0;
@@ -355,9 +355,9 @@ int NTPProcess( void )
 /* Debug information */
 	Print("\r\nTime offset is %ld sec %ld usec.", offset.tv_sec, offset.tv_usec);
 	Print("\r\nCompensate is %ld usec.", CompensateUSec);
-	Print("\r\nPolling interval is %u sec.", 1 << PollIntervalExp);
+	Print("\r\nPolling interval is %u(%u) sec.", 1 << PollIntervalExp, 1000 << (ulong)PollIntervalExp);
 /* */
-	T_CountDownTimerStart(&NTPProcessTimer, (ulong)(1000 << PollIntervalExp));
+	T_CountDownTimerStart(&NTPProcessTimer, 1000 << (ulong)PollIntervalExp);
 
 	return SYSTIME_SUCCESS;
 }
