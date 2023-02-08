@@ -85,6 +85,9 @@ void SysTimeInit( const int timezone, const long step_usec )
 	CompensateUSec       = 0L;
 	TimeStepUSec         = step_usec;
 	EpochStepTimes       = ONE_EPOCH_USEC / labs(TimeStepUSec);
+/* */
+	T_CountDownTimerStart(&WriteRTCTimer, 0);
+	T_CountDownTimerStart(&NTPProcessTimer, 0);
 /* The minimum of this number is 1 */
 	if ( (AbsHalfStepUSec = labs(TimeStepUSec) / 2) == 0 )
 		AbsHalfStepUSec = 1;
@@ -256,7 +259,7 @@ int NTPProcess( void )
 	long  offset_f;
 
 /* Check the processing interval */
-	if ( !T_CountDownTimerIsTimeUp(&NTPProcessTimer) && !first_time )
+	if ( !T_CountDownTimerIsTimeUp(&NTPProcessTimer) )
 		return SYSTIME_SUCCESS;
 /* 00 001 011 - leap, ntp ver, client.  See RFC 1361. */
 	InternalBuffer[0] = (0 << 6) | (1 << 3) | 3;
@@ -312,6 +315,7 @@ int NTPProcess( void )
 /* Flush the internal buffer for next time usage */
 	memset(InternalBuffer, 0, INTERNAL_BUF_SIZE);
 /* Set the time directly or keep the adjustment */
+	Print("\r\nTime offset is %ld sec %ld usec.", offset.tv_sec, offset.tv_usec);
 /* Disable the ISR */
 	_asm cli
 	TimeResidual = offset;
@@ -348,6 +352,7 @@ int NTPProcess( void )
 	else {
 		first_time = 0;
 	}
+	Print("\r\nCompensate is %ld usec.", CompensateUSec);
 /* */
 	T_CountDownTimerStart(&NTPProcessTimer, (ulong)(1 << PollIntervalExp) * 1000);
 
