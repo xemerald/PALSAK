@@ -79,7 +79,7 @@ void SysTimeInit( const int timezone, const long step_usec )
 	_SoftSysTime.tv_usec = 250000L;
 	TimeResidual.tv_sec  = 0L;
 	TimeResidual.tv_usec = 0L;
-	PollIntervalExp       = MIN_INTERVAL_EXP;
+	PollIntervalExp      = MIN_INTERVAL_EXP;
 	WriteToRTC           = 0;
 	CompensateReady      = 0;
 	CompensateUSec       = 0L;
@@ -256,7 +256,7 @@ int NTPProcess( void )
 	long  offset_f;
 
 /* Check the processing interval */
-	if ( !T_CountDownTimerIsTimeUp(&NTPProcessTimer) )
+	if ( !T_CountDownTimerIsTimeUp(&NTPProcessTimer) && !first_time )
 		return SYSTIME_SUCCESS;
 /* 00 001 011 - leap, ntp ver, client.  See RFC 1361. */
 	InternalBuffer[0] = (0 << 6) | (1 << 3) | 3;
@@ -319,7 +319,7 @@ int NTPProcess( void )
 /* */
 	if ( !first_time ) {
 	/* */
-		compensate[ind_compensate++] = (offset.tv_usec + offset.tv_sec * ONE_EPOCH_USEC) / (1 << PollIntervalExp);
+		compensate[ind_compensate++] = (offset.tv_usec + offset.tv_sec * ONE_EPOCH_USEC) / (ulong)(1 << PollIntervalExp);
 		if ( ind_compensate >= COMPENSATE_CANDIDATE_NUM ) {
 		/* */
 			ind_compensate = 0;
