@@ -728,7 +728,7 @@ static int GetPalertNetworkSetting( const uint msec )
 	}
 	EE_WriteProtect();
 /* Show 'F. nEt.' on the 7-seg led */
-	ShowAll5DigitLedSeg( ShowData[0x0e] | 0x80, 0x00, 0x15, ShowData[0x0e], 0x91 );
+	ShowAll5DigitLedSeg( ShowData[0x0f] | 0x80, 0x00, 0x15, ShowData[0x0e], 0x91 );
 	Delay2(msec);
 
 	return NORMAL;
@@ -1035,7 +1035,7 @@ static int AgentCommand( const char *comm, const uint msec )
 /* */
 	if ( ReadFileBlockZero( GetFileInfoByName_AB(DISKA, "block_0.ini"), (BYTE *)PreBuffer, PREBUF_SIZE ) == ERROR )
 		return ERROR;
-	Delay2(250);
+	Delay2(msec);
 /* Execute the remote agent */
 	LOOP_TRANSMIT_COMMAND( "runr" );
 /* Send the Block zero data to the agent */
@@ -1068,7 +1068,7 @@ static int AgentCommand( const char *comm, const uint msec )
 	/* Unknown command */
 		return ERROR;
 /* */
-	Delay2(250);
+	Delay2(msec);
 
 /* Extract the remote palert serial from the raw response */
 	if ( (pos = ExtractResponse( RecvBuffer, PSERIAL_STRING )) == NULL )
