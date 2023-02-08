@@ -45,10 +45,12 @@ void main( void )
 	while( 1 ) {
 		if ( Kbhit() && Getch() == 'q' )
 			break;
-		SysTimeGet( &tv );
-		Print("\r\nNow time is %ld.%.6ld", tv.tv_sec, tv.tv_usec);
 		Delay2(100);
 		NTPProcess();
+		if ( inc % 5 == 0 ) {
+			SysTimeGet( & tv );
+			Print("\r\nNow time is %ld.%.6ld", tv.tv_sec, tv.tv_usec);
+		}
 		inc++;
 		if ( inc % 3000 == 0 ) {
 			SysTimeToHWTime( 8 );

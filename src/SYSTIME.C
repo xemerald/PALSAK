@@ -23,7 +23,7 @@
 /*
  *
  */
-#define MIN_INTERVAL_EXP  6
+#define MIN_INTERVAL_EXP  5
 #define MAX_INTERVAL_EXP  8
 /*
  *
