@@ -1250,7 +1250,7 @@ static int CheckFirmwareVer( char *new_name, const uint msec )
 	char *rname  = NULL;
 
 /* */
-	memset(new_name, 0, 13);
+	new_name[0] = '\0';
 	if ( FTPConnect( FTPHost, FTPPort, FTPUser, FTPPass ) == FTP_SUCCESS ) {
 		if ( FTPListDir( FTPPath, "plt*.exe", RecvBuffer, RECVBUF_SIZE ) == FTP_SUCCESS ) {
 		/* Here, we can access the FTP server, therefore the return should be normal at lease */
