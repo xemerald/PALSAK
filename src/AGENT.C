@@ -61,11 +61,11 @@ void main( void )
 		return;
 /* Wait for the network interface ready, it might be shoter */
 	YIELD();
-	Delay(5);
+	Delay2(5);
 /* Initialization for network interface library */
 	if ( InitBroadcastNetwork() < 0 ) {
 		SHOW_ERROR_5DIGITLED();
-		Delay(2000);
+		Delay2(2000);
 		return;
 	}
 /* */
@@ -105,7 +105,7 @@ void main( void )
 	EnrichSurveyResp();
 	BroadcastResp( RecvBuffer, 250 );
 	SHOW_GOOD_5DIGITLED();
-	Delay(2000);
+	Delay2(2000);
 
 normal_return:
 /* Close the sockets */
@@ -119,7 +119,7 @@ err_return:
 	strcat(RecvBuffer, "\rError\n");
 	BroadcastResp( RecvBuffer, 250 );
 	SHOW_ERROR_5DIGITLED();
-	Delay(2000);
+	Delay2(2000);
 	goto normal_return;
 }
 
@@ -138,7 +138,7 @@ static int InitBroadcastNetwork( void )
 	closesocket(SockRecv);
 /* Wait for the network interface ready, it might be shorter */
 	YIELD();
-	Delay(5);
+	Delay2(5);
 /* External variables for broadcast setting: Setup for accepting broadcast packet */
 	bAcceptBroadcast = 1;
 
@@ -203,7 +203,7 @@ static int RecvBlockZeroData( const uint msec )
 	/* Receiving the command from the master & show the "-O-" message */
 		if ( (ret = recvfrom(SockRecv, (char *)bufptr, remain, 0, (struct sockaddr *)&_addr, &fromlen)) <= 0 ) {
 			Show5DigitLed(3, 0x00);
-			Delay(msec);
+			Delay2(msec);
 		}
 		else {
 			CRC16_AddDataN(bufptr, ret);
@@ -245,11 +245,11 @@ static int RecvCommand( const uint msec )
 	/* Show the "-L-" message on the 7-seg led */
 		SHOW_2DASH_5DIGITLED( 0 );
 		Show5DigitLedSeg(3, 0x0e);
-		Delay(msec);
+		Delay2(msec);
 	/* Receiving the command from the master & show the "-O-" message */
 		if ( (ret = recvfrom(SockRecv, bufptr, remain, 0, (struct sockaddr *)&_addr, &fromlen)) <= 0 ) {
 			Show5DigitLed(3, 0x00);
-			Delay(msec);
+			Delay2(msec);
 		}
 		else {
 			bufptr += ret;
@@ -295,7 +295,7 @@ static int BroadcastResp( char *resp, const uint msec )
 {
 /* Broadcasting the command to others */
 	sendto(SockSend, resp, strlen(resp), 0, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
-	Delay(msec);
+	Delay2(msec);
 
 	return NORMAL;
 }

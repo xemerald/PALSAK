@@ -96,7 +96,7 @@ int FTPConnect( const char *host, const uint port, const char *user, const char 
 			else if ( errno == ETIMEDOUT ) {
 				if ( (GetTimeTicks() - sendtime) > timeout ) {
 					SHOW_TIMEOUT_5DIGITLED();
-					Delay(500);
+					Delay2(500);
 					goto err_return;
 				}
 			}
@@ -110,7 +110,7 @@ int FTPConnect( const char *host, const uint port, const char *user, const char 
 err_return:
 	SAFE_CLOSE_SOCKET( MainSock );
 	YIELD();
-	Delay(1);
+	Delay2(1);
 
 	return FTP_ERROR;
 }
@@ -194,7 +194,7 @@ int FTPListDir( const char *path, const char *pattern, char *buf, const int bufl
 		else if ( errno == ETIMEDOUT ) {
 			if ( (GetTimeTicks() - sendtime) > TCP_CONNECT_TIMEOUT ) {
 				SHOW_TIMEOUT_5DIGITLED();
-				Delay(500);
+				Delay2(500);
 				goto err_return;
 			}
 		}
@@ -207,7 +207,7 @@ int FTPListDir( const char *path, const char *pattern, char *buf, const int bufl
 err_return:
 	SAFE_CLOSE_SOCKET( PasvSock );
 	YIELD();
-	Delay(1);
+	Delay2(1);
 
 	return FTP_ERROR;
 }
@@ -250,7 +250,7 @@ int FTPRetrFile( const char *path, const char *rfname, const char *lfname, uint 
 			memcpy(fdata.fname, lfname, (ret = strlen(lfname)) > sizeof(fdata.fname) ? sizeof(fdata.fname) : ret );
 			OS7_CloseWriteFile(disk, &fdata);
 			ShowProg5DigitsLed( data_in, data_in );
-			Delay(100);
+			Delay2(100);
 		/* */
 			closesocket(PasvSock);
 			PasvSock = -1;
@@ -294,7 +294,7 @@ int FTPRetrFile( const char *path, const char *rfname, const char *lfname, uint 
 				data_write = 0;
 				OS7_OpenWriteFile(disk);
 				ShowProg5DigitsLed( data_write, data_in );
-				Delay(100);
+				Delay2(100);
 				break;
 			case 226:
 			/* Resp: 226 Transfer complete. */
@@ -309,7 +309,7 @@ int FTPRetrFile( const char *path, const char *rfname, const char *lfname, uint 
 		else if ( errno == ETIMEDOUT ) {
 			if ( (GetTimeTicks() - sendtime) > TCP_CONNECT_TIMEOUT ) {
 				SHOW_TIMEOUT_5DIGITLED();
-				Delay(500);
+				Delay2(500);
 				goto err_return;
 			}
 		}
@@ -322,7 +322,7 @@ int FTPRetrFile( const char *path, const char *rfname, const char *lfname, uint 
 err_return:
 	SAFE_CLOSE_SOCKET( PasvSock );
 	YIELD();
-	Delay(1);
+	Delay2(1);
 
 	return FTP_ERROR;
 }
@@ -352,7 +352,7 @@ void FTPClose( void )
 /* */
 	SAFE_CLOSE_SOCKET( MainSock );
 	YIELD();
-	Delay(1);
+	Delay2(1);
 
 	return;
 }
@@ -387,11 +387,11 @@ static int ConnectTCP( const char *host, uint port )
 				while ( !SOCKET_ISOPEN(sock) ) {
 					if ( (GetTimeTicks() - start_time) >= TCP_CONNECT_TIMEOUT ) {
 						SHOW_TIMEOUT_5DIGITLED();
-						Delay(500);
+						Delay2(500);
 						goto err_return;
 					}
 					YIELD();
-					Delay(1);
+					Delay2(1);
 				}
 			}
 			else {
@@ -401,7 +401,7 @@ static int ConnectTCP( const char *host, uint port )
 	}
 /* Must >= 3ms to make sure the following TCP/IP function works. */
 	YIELD();
-	Delay(5);
+	Delay2(5);
 	return sock;
 
 /* Return for error */
@@ -447,7 +447,7 @@ static int ParseFTPResp( void )
 	/* Display "XXX" on the 7-seg led */
 		ShowAll5DigitLedSeg( 0x00, ShowData[InternalBuffer[0] - '0'], ShowData[InternalBuffer[1] - '0'], ShowData[InternalBuffer[2] - '0'] | 0x80, 0x00 );
 	/* Display for 250 msec. */
-		Delay(250);
+		Delay2(250);
 	}
 
 	return result;

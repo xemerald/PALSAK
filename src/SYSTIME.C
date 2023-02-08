@@ -307,7 +307,6 @@ int NTPProcess( uint interval_exp )
 /* Flush the internal buffer for next time usage */
 	memset(InternalBuffer, 0, INTERNAL_BUF_SIZE);
 /* Set the time directly or keep the adjustment */
-	//Print("\r\nThis offset is %ld %ld", offset.tv_sec, offset.tv_usec);
 /* Disable the ISR */
 	_asm cli
 	TimeResidual = offset;
@@ -339,8 +338,6 @@ int NTPProcess( uint interval_exp )
 			}
 		}
 	}
-/* */
-	//Print("\r\nCompensate is %ld usec.", CompensateUSec);
 /* */
 	last_proc = tv4.tv_sec;
 
