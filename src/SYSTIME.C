@@ -355,9 +355,9 @@ int NTPProcess( void )
 /* Debug information */
 	Print("\r\nTime offset is %ld sec %ld usec.", offset.tv_sec, offset.tv_usec);
 	Print("\r\nCompensate is %ld usec.", CompensateUSec);
-	Print("\r\nPolling interval is %u(%u) sec.", 1 << PollIntervalExp, 1000 << (ulong)PollIntervalExp);
+	Print("\r\nPolling interval is %u sec.", 1 << PollIntervalExp);
 /* */
-	T_CountDownTimerStart(&NTPProcessTimer, (ulong)(1000UL << (ulong)PollIntervalExp));
+	T_CountDownTimerStart(&NTPProcessTimer, 1000UL << (ulong)PollIntervalExp);
 
 	return SYSTIME_SUCCESS;
 }
