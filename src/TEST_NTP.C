@@ -34,8 +34,8 @@ void main( void )
 /* */
 	Int1cFlag = 0;
 	Int9Flag = 0;
-	SysTimeInit( 8, 500 );
-	InstallUserTimer1Function_us(5000, MyTimerFun);
+	SysTimeInit( 8 );
+	SYSTIME_INSTALL_TICKTIMER_FUNC( MyTimerFun );
 
 	Print("\r\nPress any key to start timer");
 	Print("\r\nthen Press 'q' to quit\r\n");

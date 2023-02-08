@@ -18,20 +18,6 @@
 /*
  *
  */
-#define ONE_EPOCH_USEC  1000000L
-#define HALF_EPOCH_USEC  500000L
-/*
- *
- */
-#define MIN_INTERVAL_EXP  5
-#define MAX_INTERVAL_EXP  8
-/*
- *
- */
-#define COMPENSATE_CANDIDATE_NUM 5
-/*
- *
- */
 static time_t FetchHWTime( void );
 static void   SetHWTime( time_t, ulong );
 static time_t _mktime( uint, uint, uint, uint, uint, uint );
@@ -55,13 +41,10 @@ static struct timeval _SoftSysTime;
 const struct timeval far *SoftSysTime = &_SoftSysTime;
 /* */
 static struct timeval TimeResidual;
-static uchar          PollIntervalExp;
+static uchar          PollIntervalPower;
 static BYTE           WriteToRTC;
 static BYTE           CompensateReady;
 static long           CompensateUSec;
-static long           TimeStepUSec;
-static long           EpochStepTimes;
-static ulong          AbsHalfStepUSec;
 static TIME_DATE      TimeDateSetting;
 /* */
 static COUNTDOWNTIMER WriteRTCTimer;
@@ -72,25 +55,20 @@ static COUNTDOWNTIMER NTPProcessTimer;
  *
  * @param timezone
  */
-void SysTimeInit( const int timezone, const long step_usec )
+void SysTimeInit( const int timezone )
 {
 /* */
 	_SoftSysTime.tv_sec  = FetchHWTime() - ((long)timezone * 3600);
 	_SoftSysTime.tv_usec = 250000L;
 	TimeResidual.tv_sec  = 0L;
 	TimeResidual.tv_usec = 0L;
-	PollIntervalExp      = MIN_INTERVAL_EXP;
+	PollIntervalPower    = MIN_INTERVAL_POWER;
 	WriteToRTC           = 0;
 	CompensateReady      = 0;
 	CompensateUSec       = 0L;
-	TimeStepUSec         = step_usec;
-	EpochStepTimes       = ONE_EPOCH_USEC / labs(TimeStepUSec);
 /* */
 	T_CountDownTimerStart(&WriteRTCTimer, 0);
 	T_CountDownTimerStart(&NTPProcessTimer, 0);
-/* The minimum of this number is 1 */
-	if ( (AbsHalfStepUSec = labs(TimeStepUSec) / 2) == 0 )
-		AbsHalfStepUSec = 1;
 /* Flush the internal buffer */
 	memset(InternalBuffer, 0, INTERNAL_BUF_SIZE);
 
@@ -118,15 +96,15 @@ void SysTimeService( void )
 	}
 /* */
 	if ( CompensateReady ) {
-		if ( (count_one_epoch += TimeStepUSec) >= ONE_EPOCH_USEC ) {
-			adjs               = CompensateUSec / EpochStepTimes;
-			correct_timestep   = TimeStepUSec + adjs;
-			remain_compensate += CompensateUSec - EpochStepTimes * adjs;
+		if ( (count_one_epoch += ONE_CLOCK_STEP_USEC) >= ONE_EPOCH_USEC ) {
+			adjs               = CompensateUSec / STEP_TIMES_IN_EPOCH;
+			correct_timestep   = ONE_CLOCK_STEP_USEC + adjs;
+			remain_compensate += CompensateUSec - STEP_TIMES_IN_EPOCH * adjs;
 			count_one_epoch    = 0L;
 		}
 	}
-	else if ( correct_timestep != TimeStepUSec ) {
-		correct_timestep = TimeStepUSec;
+	else if ( correct_timestep != ONE_CLOCK_STEP_USEC ) {
+		correct_timestep = ONE_CLOCK_STEP_USEC;
 	}
 
 /* If the residual is larger than one second, directly adjust it! */
@@ -139,7 +117,7 @@ void SysTimeService( void )
 /* If the residual only in sub-second, step or slew it! */
 	if ( TimeResidual.tv_usec ) {
 	/* */
-		adjs = AbsHalfStepUSec;
+		adjs = ABS_HALF_CLOCK_STEP;
 	/* */
 		if ( labs(TimeResidual.tv_usec) <= adjs )
 			adjs = TimeResidual.tv_usec;
@@ -259,12 +237,14 @@ int NTPProcess( void )
 	long  offset_f;
 
 /* Check the processing interval */
-	if ( !T_CountDownTimerIsTimeUp(&NTPProcessTimer) ) {
-		Print("\r\nNext polling left %lu msec.", T_CountDownTimerGetTimeLeft(&NTPProcessTimer));
+	if ( !T_CountDownTimerIsTimeUp(&NTPProcessTimer) )
 		return SYSTIME_SUCCESS;
-	}
 /* 00 001 011 - leap, ntp ver, client.  See RFC 1361. */
 	InternalBuffer[0] = (0 << 6) | (1 << 3) | 3;
+/* Polling interval */
+	InternalBuffer[2] = (char)PollIntervalPower;
+/* Clock precision */
+	InternalBuffer[3] = L_CLOCK_PRECISION;
 /* Get the local sent time - Originate Timestamp */
 	_asm cli
 	tv1 = _SoftSysTime;
@@ -323,25 +303,25 @@ int NTPProcess( void )
 /* */
 	if ( !first_time ) {
 	/* */
-		compensate[ind_compensate++] = (offset.tv_usec + offset.tv_sec * ONE_EPOCH_USEC) / (1 << (ulong)PollIntervalExp);
+		compensate[ind_compensate++] = (offset.tv_usec + offset.tv_sec * ONE_EPOCH_USEC) / (long)(1 << (ulong)PollIntervalPower);
 		if ( ind_compensate >= COMPENSATE_CANDIDATE_NUM ) {
 		/* */
 			ind_compensate = 0;
 			offset_f = get_compensate_avg( compensate );
 		/* */
 			if ( CompensateReady && (labs(offset_f) > (labs(CompensateUSec) * 2) && labs(CompensateUSec) > 99) ) {
-				PollIntervalExp = MIN_INTERVAL_EXP;
-				CompensateReady = 0;
-				CompensateUSec  = 0L;
-				first_time      = 1;
+				PollIntervalPower = MIN_INTERVAL_POWER;
+				CompensateReady   = 0;
+				CompensateUSec    = 0L;
+				first_time        = 1;
 			}
 			else if ( CompensateReady ) {
 				_asm cli
 				CompensateUSec += offset_f;
 				_asm sti
 				if ( labs(offset_f) <= (labs(CompensateUSec) / 2) || labs(CompensateUSec) < 100 )
-					if ( PollIntervalExp < MAX_INTERVAL_EXP )
-						++PollIntervalExp;
+					if ( PollIntervalPower < MAX_INTERVAL_POWER )
+						++PollIntervalPower;
 			}
 			else {
 				CompensateUSec  = offset_f;
@@ -355,9 +335,9 @@ int NTPProcess( void )
 /* Debug information */
 	Print("\r\nTime offset is %ld sec %ld usec.", offset.tv_sec, offset.tv_usec);
 	Print("\r\nCompensate is %ld usec.", CompensateUSec);
-	Print("\r\nPolling interval is %u sec.", 1 << PollIntervalExp);
+	Print("\r\nPolling interval is %u sec.", 1 << PollIntervalPower);
 /* */
-	T_CountDownTimerStart(&NTPProcessTimer, 1000UL << (ulong)PollIntervalExp);
+	T_CountDownTimerStart(&NTPProcessTimer, 1000UL << (ulong)PollIntervalPower);
 
 	return SYSTIME_SUCCESS;
 }

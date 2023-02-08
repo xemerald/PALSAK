@@ -24,6 +24,21 @@ extern "C" {
 #define SYSTIME_SUCCESS   0
 #define SYSTIME_ERROR    -1
 #define SYSTIME_WARNING  -2
+/* */
+#define ONE_EPOCH_USEC       1000000L /* 1000000 usec = 1 sec */
+#define HALF_EPOCH_USEC      500000L  /* 500000 usec = 0.5 sec */
+#define ONE_CLOCK_STEP_USEC  500L     /* One step for clock in usec */
+#define ABS_HALF_CLOCK_STEP  250L     /* Half step for clock in usec & it should be always larger than 0 */
+#define STEP_TIMES_IN_EPOCH  2000L    /* ABS(ONE_EPOCH_USEC / CLOCK_STEP_USEC) */
+#define L_CLOCK_PRECISION    -7       /* Precision of the local clock, in seconds to the nearest power of two */
+/* */
+#define MIN_INTERVAL_POWER  5
+#define MAX_INTERVAL_POWER  9
+/* */
+#define COMPENSATE_CANDIDATE_NUM 5
+/* */
+#define SYSTIME_INSTALL_TICKTIMER_FUNC(__FUNC) \
+		InstallUserTimer1Function_us(ONE_CLOCK_STEP_USEC * 10, (__FUNC))
 /*
  *
  */
@@ -31,7 +46,7 @@ extern const struct timeval far *SoftSysTime;
 /*
  *
  */
-void SysTimeInit( const int, const long );
+void SysTimeInit( const int );
 void SysTimeService( void );
 void SysTimeGet( struct timeval * );
 void SysTimeToHWTime( const int );

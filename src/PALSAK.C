@@ -854,8 +854,8 @@ static int CheckServerConnect( const uint msec )
 /* Show 'ntP.' on the 7-seg led */
 	ShowAll5DigitLedSeg( 0x00, 0x15, 0x11, 0xe7, 0x00 );
 /* Start the system time service */
-	SysTimeInit( 8, 500 );
-	InstallUserTimer1Function_us(5000, TimerFunc);
+	SysTimeInit( 8 );
+	SYSTIME_INSTALL_TICKTIMER_FUNC( TimerFunc );
 	Delay2(msec);
 /* NTP server connection test */
 	sprintf(RecvBuffer, "%u.%u.%u.%u", (BYTE)PreBuffer[41], (BYTE)PreBuffer[43], (BYTE)PreBuffer[45], (BYTE)PreBuffer[47]);
