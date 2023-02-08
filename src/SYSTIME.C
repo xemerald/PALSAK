@@ -357,7 +357,7 @@ int NTPProcess( void )
 	Print("\r\nCompensate is %ld usec.", CompensateUSec);
 	Print("\r\nPolling interval is %u(%u) sec.", 1 << PollIntervalExp, 1000 << (ulong)PollIntervalExp);
 /* */
-	T_CountDownTimerStart(&NTPProcessTimer, 64000);
+	T_CountDownTimerStart(&NTPProcessTimer, (ulong)(1000UL << (ulong)PollIntervalExp));
 
 	return SYSTIME_SUCCESS;
 }
