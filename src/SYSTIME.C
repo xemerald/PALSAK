@@ -435,7 +435,7 @@ static ulong frac2usec( ulong frac )
 static ulong usec2frac( ulong usec )
 {
 	usec = (usec & 0x000fffff) << 12;
-	return (usec / 15625 + (usec % 15625 > 7812)) << 14;
+	return (usec / 15625 + (usec % 15625 > 5208)) << 14;
 }
 
 /**
