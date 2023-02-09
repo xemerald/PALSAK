@@ -268,6 +268,7 @@ int NTPProcess( void )
 	tv1 = _SoftSysTime;
 	_asm sti
 /* */
+	Print("\r\nOrigin tv1 %ld usec.", tv1.tv_usec);
 	*(ulong *)&InternalBuffer[40] = HTONS_FP( tv1.tv_sec + EpochDiff_Jan1970 );
 	*(ulong *)&InternalBuffer[44] = HTONS_FP( usec2frac( tv1.tv_usec ) );
 /* Send to the server */
@@ -290,7 +291,7 @@ int NTPProcess( void )
 	tv3.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[40] );
 	tv3.tv_usec = frac2usec( NTOHS_FP( *(ulong *)&InternalBuffer[44] ) );
 /* Debug information */
-	Print("\r\nTv2 %ld usec, Tv3 %ld usec.", tv2.tv_usec, tv3.tv_usec);
+	Print("\r\nTv1 %ld usec, Tv2 %ld usec, Tv3 %ld usec.", tv1.tv_usec, tv2.tv_usec, tv3.tv_usec);
 /* Calculate the time offset */
 	offset.tv_sec  = (tv2.tv_sec - tv1.tv_sec) + (tv3.tv_sec - (tv4.tv_sec + EpochDiff_Jan1970));
 	offset.tv_usec = ((tv2.tv_usec - tv1.tv_usec) + (tv3.tv_usec - tv4.tv_usec)) / 2;
@@ -331,7 +332,7 @@ int NTPProcess( void )
 			compensate[0] = compensate[1] / (long)(1 << (ulong)PollIntervalPower);
 			compensate[2] = labs(CompensateUSec);
 		/* */
-			if ( CompensateReady && (labs(compensate[0] - CompensateUSec) > compensate[2] && compensate[2] > 100) ) {
+			if ( CompensateReady && (labs(compensate[0] - CompensateUSec) > (compensate[2] * 2) && compensate[2] > 100) ) {
 				PollIntervalPower = MIN_INTERVAL_POWER;
 				CompensateReady   = 0;
 				CompensateUSec    = 0L;
@@ -422,7 +423,7 @@ static time_t _mktime( uint year, uint mon, uint day, uint hour, uint min, uint 
  */
 static ulong frac2usec( const ulong frac )
 {
-	return frac / ONE_USEC_FRAC + (frac % ONE_USEC_FRAC > HALF_USEC_FRAC);
+	return ((((frac >> 16) & 0x0000ffff) * 15625) >> 10) + (((frac & 0x0000ffff) * 15625) >> 26) + (frac % ONE_USEC_FRAC > HALF_USEC_FRAC);
 }
 
 /**
@@ -433,7 +434,7 @@ static ulong frac2usec( const ulong frac )
  */
 static ulong usec2frac( const ulong usec )
 {
-	return usec * ONE_USEC_FRAC;
+	return (((usec & 0x000fffff) << 12) / 15625 + 1) << 14;
 }
 
 /**
