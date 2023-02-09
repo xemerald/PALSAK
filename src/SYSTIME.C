@@ -78,15 +78,15 @@ void SysTimeInit( const int timezone )
  */
 void SysTimeService( void )
 {
-	static long correct_timestep  = 0L;
+	static long correct_timestep  = ONE_CLOCK_STEP_USEC;
 	static long remain_compensate = 0L;
 	static ulong count_one_epoch  = 0L;
 /* */
-	long adjs;
+	register long adjs;
 
 /* */
 	if ( WriteToRTC ) {
-		if ( (WriteRTCCountDown -= ONE_CLOCK_STEP_USEC) <= 0 ) {
+		if ( (WriteRTCCountDown -= correct_timestep) <= 0 ) {
 			SetTimeDate(&TimeDateSetting);
 			WriteToRTC = 0;
 		}
@@ -185,7 +185,7 @@ void SysTimeToHWTime( const int timezone )
 /* Add to the next second */
 	now_time.tv_sec += ((long)timezone * 3600) + 1;
 /* Turn the usec to the usec between next second */
-	now_time.tv_usec = ONE_EPOCH_USEC - now_time.tv_usec;
+	now_time.tv_usec = ONE_EPOCH_USEC - now_time.tv_usec - 1;
 /* */
 	brktime = gmtime( &now_time.tv_sec );
 	TimeDateSetting.year  = brktime->tm_year + 1900;
@@ -323,9 +323,9 @@ int NTPProcess( void )
 			i_compensate  = 0;
 			compensate[1] = get_compensate_avg( compensate );
 			compensate[0] = compensate[1] / (long)(1 << (ulong)PollIntervalPower);
-			compensate[2] = labs(CompensateUSec);
+			compensate[2] = labs(CompensateUSec) << 1;
 		/* */
-			if ( CompensateReady && (labs(compensate[0] - CompensateUSec) > (compensate[2] * 2) && compensate[2] > 100) ) {
+			if ( CompensateReady && (labs(compensate[0] - CompensateUSec) > compensate[2] && compensate[2] > 200) ) {
 				PollIntervalPower = MIN_INTERVAL_POWER;
 				CompensateReady   = 0;
 				CompensateUSec    = 0L;
@@ -340,12 +340,11 @@ int NTPProcess( void )
 				CompensateUSec += compensate[0];
 				_asm sti
 			/* */
-				compensate[0] = labs(compensate[0]);
-				if ( compensate[0] < COMPENSATE_CANDIDATE_NUM * 2 ) {
+				if ( labs(compensate[0]) < COMPENSATE_CANDIDATE_NUM * 2 ) {
 					if ( PollIntervalPower < MAX_INTERVAL_POWER )
 						++PollIntervalPower;
 				}
-				else if ( compensate[0] > COMPENSATE_CANDIDATE_NUM * 4 ) {
+				else if ( labs(compensate[0]) > COMPENSATE_CANDIDATE_NUM * 4 ) {
 					if ( PollIntervalPower > MIN_INTERVAL_POWER )
 						--PollIntervalPower;
 				}
@@ -438,7 +437,7 @@ static ulong usec2frac( const ulong usec )
  */
 static long get_compensate_avg( long compensate[] )
 {
-	int  i;
+	register int i;
 	int  i_st, i_nd;
 	long result;
 	long _max;
