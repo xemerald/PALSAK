@@ -74,7 +74,6 @@ static void ParseNetinfoToRoller( char *, const BYTE [], const BYTE [], const BY
 static int  ConvertMask( ulong );
 static int  ConnectTCP( const char *, uint );
 
-static void TimerFunc( void );
 static void FatalError( const int );
 static int  ResetProgram( void );
 
@@ -855,7 +854,7 @@ static int CheckServerConnect( const uint msec )
 	ShowAll5DigitLedSeg( 0x00, 0x15, 0x11, 0xe7, 0x00 );
 /* Start the system time service */
 	SysTimeInit( 8 );
-	SYSTIME_INSTALL_TICKTIMER_FUNC( TimerFunc );
+	SYSTIME_INSTALL_TICKTIMER_FUNC( SysTimeService );
 	Delay2(msec);
 /* NTP server connection test */
 	sprintf(RecvBuffer, "%u.%u.%u.%u", (BYTE)PreBuffer[41], (BYTE)PreBuffer[43], (BYTE)PreBuffer[45], (BYTE)PreBuffer[47]);
@@ -1486,17 +1485,6 @@ static int ConvertMask( ulong mask )
 	}
 
 	return result;
-}
-
-/**
- * @brief
- *
- */
-static void TimerFunc( void )
-{
-	SysTimeService();
-
-	return;
 }
 
 /**

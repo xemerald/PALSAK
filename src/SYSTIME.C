@@ -32,13 +32,15 @@ static volatile int MainSock = -1;
 static struct timeval _SoftSysTime;
 const struct timeval far *SoftSysTime = &_SoftSysTime;
 /* */
-static struct timeval TimeResidual;
-static uchar          PollIntervalPower;
-static BYTE           WriteToRTC;
-static BYTE           CompensateReady;
-static long           CompensateUSec;
-static long           WriteRTCCountDown;
-static TIME_DATE      TimeDateSetting;
+static uchar     PollIntervalPow;
+static BYTE      WriteToRTC;
+static BYTE      CompensateReady;
+static long      CompensateUSec;
+static int       RmCompensateUSec;
+static uint      CorrectTimeStep;
+static long      TimeResidualUsec;
+static long      WriteRTCCountDown;
+static TIME_DATE TimeDateSetting;
 /* */
 static COUNTDOWNTIMER NTPProcessTimer;
 
@@ -57,12 +59,13 @@ void SysTimeInit( const int timezone )
 	_SoftSysTime.tv_sec
 		= _mktime( timedate.year, timedate.month, timedate.day, timedate.hour, timedate.minute, timedate.sec ) - ((long)timezone * 3600);
 	_SoftSysTime.tv_usec = 250000L;
-	TimeResidual.tv_sec  = 0L;
-	TimeResidual.tv_usec = 0L;
-	PollIntervalPower    = MIN_INTERVAL_POWER;
+	PollIntervalPow      = MIN_INTERVAL_POW;
 	WriteToRTC           = 0;
 	CompensateReady      = 0;
 	CompensateUSec       = 0L;
+	RmCompensateUSec     = 0;
+	CorrectTimeStep      = (uint)ONE_CLOCK_STEP_USEC;
+	TimeResidualUsec     = 0L;
 	WriteRTCCountDown    = 0L;
 /* */
 	T_CountDownTimerStart(&NTPProcessTimer, 0);
@@ -78,50 +81,37 @@ void SysTimeInit( const int timezone )
  */
 void SysTimeService( void )
 {
-	static long correct_timestep  = ONE_CLOCK_STEP_USEC;
+	static long count_one_epoch   = ONE_EPOCH_USEC;
 	static long remain_compensate = 0L;
-	static ulong count_one_epoch  = 0L;
 /* */
 	register long adjs;
 
 /* */
 	if ( WriteToRTC ) {
-		if ( (WriteRTCCountDown -= correct_timestep) <= 0 ) {
+		if ( (WriteRTCCountDown -= CorrectTimeStep) <= 0 ) {
 			SetTimeDate(&TimeDateSetting);
 			WriteToRTC = 0;
 		}
 	}
 /* */
 	if ( CompensateReady ) {
-		if ( (count_one_epoch += ONE_CLOCK_STEP_USEC) >= ONE_EPOCH_USEC ) {
-			adjs               = CompensateUSec / STEP_TIMES_IN_EPOCH;
-			correct_timestep   = ONE_CLOCK_STEP_USEC + adjs;
-			remain_compensate += CompensateUSec - STEP_TIMES_IN_EPOCH * adjs;
-			count_one_epoch    = 0L;
+		if ( (count_one_epoch -= ONE_CLOCK_STEP_USEC) <= 0 ) {
+			remain_compensate += RmCompensateUSec;
+			count_one_epoch    = ONE_EPOCH_USEC;
 		}
 	}
-	else if ( correct_timestep != ONE_CLOCK_STEP_USEC ) {
-		correct_timestep = ONE_CLOCK_STEP_USEC;
-	}
 
-/* If the residual is larger than one second, directly adjust it! */
-	if ( TimeResidual.tv_sec ) {
-		_SoftSysTime.tv_sec  += TimeResidual.tv_sec;
-		_SoftSysTime.tv_usec += TimeResidual.tv_usec;
-		TimeResidual.tv_sec   = 0L;
-		TimeResidual.tv_usec  = 0L;
-	}
-/* If the residual only in sub-second, step or slew it! */
-	if ( TimeResidual.tv_usec ) {
+/* If there is some residual only in sub-second, step or slew it! */
+	if ( TimeResidualUsec ) {
 	/* */
 		adjs = ABS_HALF_CLOCK_STEP;
 	/* */
-		if ( labs(TimeResidual.tv_usec) <= adjs )
-			adjs = TimeResidual.tv_usec;
-		else if ( TimeResidual.tv_usec < 0 )
+		if ( labs(TimeResidualUsec) <= adjs )
+			adjs = TimeResidualUsec;
+		else if ( TimeResidualUsec < 0 )
 			adjs = -adjs;
 	/* */
-		TimeResidual.tv_usec -= adjs;
+		TimeResidualUsec -= adjs;
 	}
 	else {
 		adjs = 0;
@@ -138,7 +128,7 @@ void SysTimeService( void )
 		}
 	}
 /* Keep the clock step forward */
-	if ( (adjs += correct_timestep) )
+	if ( (adjs += CorrectTimeStep) )
 		_SoftSysTime.tv_usec += adjs;
 /* */
 	if ( _SoftSysTime.tv_usec >= ONE_EPOCH_USEC ) {
@@ -235,7 +225,7 @@ int NTPConnect( const char *host, const uint port )
 }
 
 /**
- * @brief Synchronize the time.  See RFC 1361.
+ * @brief Synchronize the time by modified SNTP protocol. Ref. RFC 1361.
  *
  * @return int
  */
@@ -251,10 +241,10 @@ int NTPProcess( void )
 /* Check the processing interval */
 	if ( !T_CountDownTimerIsTimeUp(&NTPProcessTimer) )
 		return SYSTIME_SUCCESS;
-/* 00 001 011 - leap, ntp ver, client.  See RFC 1361. */
+/* 00 001 011 - leap, ntp ver, client. Ref. RFC 1361. */
 	InternalBuffer[0] = (0 << 6) | (1 << 3) | 3;
 /* Polling interval */
-	InternalBuffer[2] = (char)PollIntervalPower;
+	InternalBuffer[2] = (char)PollIntervalPow;
 /* Clock precision */
 	InternalBuffer[3] = L_CLOCK_PRECISION;
 /* Get the local sent time - Originate Timestamp */
@@ -265,16 +255,19 @@ int NTPProcess( void )
 	*(ulong *)&InternalBuffer[44] = HTONS_FP( usec2frac( tv1.tv_usec ) );
 /* Send to the server */
 	if ( send(MainSock, InternalBuffer, 48, 0) <= 0 )
-		return SYSTIME_ERROR;
+		return SYSTIME_WARNING;
 /* Read from the server */
-	if ( recv(MainSock, InternalBuffer, 60, 0) <= 0 )
-		return SYSTIME_ERROR;
+	if ( recv(MainSock, InternalBuffer, INTERNAL_BUF_SIZE, 0) <= 0 )
+		return SYSTIME_WARNING;
 /* Get the local received timestamp */
 	_asm cli
 	tv4 = _SoftSysTime;
 	_asm sti
-/* Get the local transmitted timestamp */
+/* Checking & get the local transmitted timestamp */
 	Print("\r\nOrigin tv1 %ld usec.", tv1.tv_usec);
+/* Checking part */
+	//if ( (tv1.tv_usec = NTOHS_FP( *(ulong *)&InternalBuffer[28] )) & FRAC_RANDOM_FILL ^ FRAC_RANDOM_FILL )
+		//return SYSTIME_ERROR;
 	tv1.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[24] );
 	tv1.tv_usec = frac2usec( NTOHS_FP( *(ulong *)&InternalBuffer[28] ) );
 /* Get the remote receive timestamp */
@@ -309,11 +302,21 @@ int NTPProcess( void )
 /* Maybe also need to calculate the transmitting delta... */
 /* Flush the internal buffer for next time usage */
 	memset(InternalBuffer, 0, INTERNAL_BUF_SIZE);
-/* Set the time directly or keep the adjustment */
-/* Disable the ISR */
-	_asm cli
-	TimeResidual = offset;
-	_asm sti
+/* If the residual is larger than one second, directly adjust it! */
+	if ( offset.tv_sec ) {
+	/* Disable the ISR */
+		_asm cli
+		_SoftSysTime.tv_sec  += offset.tv_sec;
+		_SoftSysTime.tv_usec += offset.tv_usec;
+		_asm sti
+	}
+/* Otherwise keep the adjustment */
+	else {
+		_asm cli
+		TimeResidualUsec = offset.tv_usec;
+		_asm sti
+	}
+
 /* */
 	if ( !first_time ) {
 	/* */
@@ -322,31 +325,35 @@ int NTPProcess( void )
 		/* */
 			i_compensate  = 0;
 			compensate[1] = get_compensate_avg( compensate );
-			compensate[0] = compensate[1] / (long)(1 << (ulong)PollIntervalPower);
 			compensate[2] = labs(CompensateUSec) << 1;
 		/* */
+			if ( !(compensate[0] = compensate[1] / (long)(1 << (ulong)PollIntervalPow)) )
+				compensate[0] = compensate[1] / (long)(1 << (ulong)(PollIntervalPow - 1));
+		/* */
 			if ( CompensateReady && (labs(compensate[0] - CompensateUSec) > compensate[2] && compensate[2] > 200) ) {
-				PollIntervalPower = MIN_INTERVAL_POWER;
-				CompensateReady   = 0;
-				CompensateUSec    = 0L;
-				first_time        = 1;
+				PollIntervalPow  = MIN_INTERVAL_POW;
+				CompensateReady  = 0;
+				CompensateUSec   = 0L;
+				RmCompensateUSec = 0;
+				CorrectTimeStep  = (uint)ONE_CLOCK_STEP_USEC;
+				first_time       = 1;
 			}
 			else if ( CompensateReady ) {
+			/* Just in case & avoid the CorrectTimeStep whould be too large or being negative */
+				if ( labs(CompensateUSec += compensate[0]) >= ONE_EPOCH_USEC )
+					return SYSTIME_ERROR;
 			/* */
-				if ( !compensate[0] )
-					compensate[0] = compensate[1] / (long)(1 << (ulong)(PollIntervalPower - 1));
-			/* */
-				_asm cli
-				CompensateUSec += compensate[0];
-				_asm sti
+				compensate[3]    = CompensateUSec / STEP_TIMES_IN_EPOCH;
+				CorrectTimeStep  = (uint)(ONE_CLOCK_STEP_USEC + compensate[3]);
+				RmCompensateUSec = (int)(CompensateUSec - STEP_TIMES_IN_EPOCH * compensate[3]);
 			/* */
 				if ( labs(compensate[0]) < COMPENSATE_CANDIDATE_NUM * 2 ) {
-					if ( PollIntervalPower < MAX_INTERVAL_POWER )
-						++PollIntervalPower;
+					if ( PollIntervalPow < MAX_INTERVAL_POW )
+						++PollIntervalPow;
 				}
 				else if ( labs(compensate[0]) > COMPENSATE_CANDIDATE_NUM * 4 ) {
-					if ( PollIntervalPower > MIN_INTERVAL_POWER )
-						--PollIntervalPower;
+					if ( PollIntervalPow > MIN_INTERVAL_POW )
+						--PollIntervalPow;
 				}
 			}
 			else {
@@ -361,9 +368,9 @@ int NTPProcess( void )
 /* Debug information */
 	Print("\r\nTime offset is %ld sec %ld usec.", offset.tv_sec, offset.tv_usec);
 	Print("\r\nCompensate is %ld usec.", CompensateUSec);
-	Print("\r\nPolling interval is %u sec.", 1 << PollIntervalPower);
+	Print("\r\nPolling interval is %u sec.", 1 << PollIntervalPow);
 /* */
-	T_CountDownTimerStart(&NTPProcessTimer, 1000UL << (ulong)PollIntervalPower);
+	T_CountDownTimerStart(&NTPProcessTimer, 1000UL << (ulong)PollIntervalPow);
 
 	return SYSTIME_SUCCESS;
 }
@@ -426,7 +433,7 @@ static ulong frac2usec( const ulong frac )
  */
 static ulong usec2frac( const ulong usec )
 {
-	return ((((usec & 0x000fffff) << 12) + 7813) / 15625) << 14;
+	return (((((usec & 0x000fffff) << 12) + 7813) / 15625) << 14) | FRAC_RANDOM_FILL;
 }
 
 /**

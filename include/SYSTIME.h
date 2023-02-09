@@ -22,27 +22,27 @@ extern "C" {
 #include "./include/u7186EX/Tcpip32.h"
 /* The checking result of func. */
 #define SYSTIME_SUCCESS   0
-#define SYSTIME_ERROR    -1
-#define SYSTIME_WARNING  -2
+#define SYSTIME_WARNING  -1
+#define SYSTIME_ERROR    -2
 /* */
 #define ONE_EPOCH_USEC       1000000L /* 1000000 usec = 1 sec */
 #define HALF_EPOCH_USEC      500000L  /* 500000 usec = 0.5 sec */
 #define ONE_USEC_FRAC        4295L
 #define HALF_USEC_FRAC       2147L
+#define FRAC_RANDOM_FILL     0x00002827
 /*
- * Time returns the time since the Epoch (00:00:00 UTC, January 1, 1970),
- * measured in seconds. If t is non-NULL, the return value is also stored
- * in the memory pointed to by t .
+ * The time between the Unix Timestamp Base Epoch (00:00:00 UTC, January 1, 1970) &
+ * NTP Base Epoch (00:00:00 UTC, January 1, 1900) measured in seconds.
  */
 #define EPOCH_DIFF_JAN1970   2208988800UL
 /* */
-#define ONE_CLOCK_STEP_USEC  500L     /* One step for clock in usec */
+#define ONE_CLOCK_STEP_USEC  500L     /* One step for clock in usec & it should not larger than 50000 */
 #define ABS_HALF_CLOCK_STEP  250L     /* Half step for clock in usec & it should be always larger than 0 */
 #define STEP_TIMES_IN_EPOCH  2000L    /* ABS(ONE_EPOCH_USEC / CLOCK_STEP_USEC) */
 #define L_CLOCK_PRECISION    -10      /* Precision of the local clock, in seconds to the nearest power of two */
 /* */
-#define MIN_INTERVAL_POWER  5
-#define MAX_INTERVAL_POWER  9
+#define MIN_INTERVAL_POW     5
+#define MAX_INTERVAL_POW     9
 /* */
 #define COMPENSATE_CANDIDATE_NUM 5
 /* */

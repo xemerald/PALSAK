@@ -9,14 +9,6 @@
 #include "./include/PALSAK.h"
 #include "./include/SYSTIME.h"
 
-
-void MyTimerFun(void)
-{
-	SysTimeService();
-
-	return;
-}
-
 /* Main function, entry */
 void main( void )
 {
@@ -35,7 +27,7 @@ void main( void )
 	Int1cFlag = 0;
 	Int9Flag = 0;
 	SysTimeInit( 8 );
-	SYSTIME_INSTALL_TICKTIMER_FUNC( MyTimerFun );
+	SYSTIME_INSTALL_TICKTIMER_FUNC( SysTimeService );
 
 	Print("\r\nPress any key to start timer");
 	Print("\r\nthen Press 'q' to quit\r\n");
