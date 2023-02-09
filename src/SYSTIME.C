@@ -331,7 +331,7 @@ int NTPProcess( void )
 			compensate[0] = compensate[1] / (long)(1 << (ulong)PollIntervalPower);
 			compensate[2] = labs(CompensateUSec);
 		/* */
-			if ( CompensateReady && (labs(offset_f - CompensateUSec) > compensate[2] && compensate[2] > 100) ) {
+			if ( CompensateReady && (labs(compensate[0] - CompensateUSec) > compensate[2] && compensate[2] > 100) ) {
 				PollIntervalPower = MIN_INTERVAL_POWER;
 				CompensateReady   = 0;
 				CompensateUSec    = 0L;
