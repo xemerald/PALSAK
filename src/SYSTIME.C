@@ -43,9 +43,9 @@ static uchar          PollIntervalPower;
 static BYTE           WriteToRTC;
 static BYTE           CompensateReady;
 static long           CompensateUSec;
+static long           WriteRTCCountDown;
 static TIME_DATE      TimeDateSetting;
 /* */
-static COUNTDOWNTIMER WriteRTCTimer;
 static COUNTDOWNTIMER NTPProcessTimer;
 
 /**
@@ -69,8 +69,8 @@ void SysTimeInit( const int timezone )
 	WriteToRTC           = 0;
 	CompensateReady      = 0;
 	CompensateUSec       = 0L;
+	WriteRTCCountDown    = 0L;
 /* */
-	T_CountDownTimerStart(&WriteRTCTimer, 0);
 	T_CountDownTimerStart(&NTPProcessTimer, 0);
 /* Flush the internal buffer */
 	memset(InternalBuffer, 0, INTERNAL_BUF_SIZE);
@@ -92,7 +92,7 @@ void SysTimeService( void )
 
 /* */
 	if ( WriteToRTC ) {
-		if ( T_CountDownTimerIsTimeUp(&WriteRTCTimer) ) {
+		if ( (WriteRTCCountDown -= ONE_CLOCK_STEP_USEC) <= 0 ) {
 			SetTimeDate(&TimeDateSetting);
 			WriteToRTC = 0;
 		}
@@ -191,7 +191,7 @@ void SysTimeToHWTime( const int timezone )
 /* */
 	now_time.tv_sec += ((long)timezone * 3600) + 1;
 /* Turn the usec to the msec to next second */
-	now_time.tv_usec = (ONE_EPOCH_USEC - now_time.tv_usec) / 1000;
+	now_time.tv_usec = ONE_EPOCH_USEC - now_time.tv_usec;
 /* */
 	brktime = gmtime( &now_time.tv_sec );
 	TimeDateSetting.year  = brktime->tm_year + 1900;
@@ -202,7 +202,7 @@ void SysTimeToHWTime( const int timezone )
 	TimeDateSetting.minute = brktime->tm_min;
 	TimeDateSetting.sec    = brktime->tm_sec;
 /* */
-	T_CountDownTimerStart(&WriteRTCTimer, now_time.tv_usec);
+	WriteRTCCountDown = now_time.tv_usec;
 	WriteToRTC = 1;
 
 	return;
@@ -434,7 +434,7 @@ static ulong frac2usec( const ulong frac )
  */
 static ulong usec2frac( const ulong usec )
 {
-	return ((((usec & 0x000fffff) << 12) + 7812) / 15625) << 14;
+	return ((((usec & 0x000fffff) << 12) + 7813) / 15625) << 14;
 }
 
 /**
