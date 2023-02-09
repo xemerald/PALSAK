@@ -18,8 +18,6 @@
 /*
  *
  */
-static time_t FetchHWTime( void );
-static void   SetHWTime( time_t, ulong );
 static time_t _mktime( uint, uint, uint, uint, uint, uint );
 static ulong  frac2usec( const ulong );
 static ulong  usec2frac( const ulong );
@@ -57,8 +55,13 @@ static COUNTDOWNTIMER NTPProcessTimer;
  */
 void SysTimeInit( const int timezone )
 {
+	TIME_DATE timedate;
+
 /* */
-	_SoftSysTime.tv_sec  = FetchHWTime() - ((long)timezone * 3600);
+	GetTimeDate(&timedate);
+/* */
+	_SoftSysTime.tv_sec
+		= _mktime( timedate.year, timedate.month, timedate.day, timedate.hour, timedate.minute, timedate.sec ) - ((long)timezone * 3600);
 	_SoftSysTime.tv_usec = 250000L;
 	TimeResidual.tv_sec  = 0L;
 	TimeResidual.tv_usec = 0L;
@@ -179,12 +182,28 @@ void SysTimeGet( struct timeval far *sys_time )
 void SysTimeToHWTime( const int timezone )
 {
 	struct timeval now_time;
+	struct tm *brktime;
 
+/* */
 	_asm cli
 	now_time = _SoftSysTime;
 	_asm sti
 /* */
-	SetHWTime( now_time.tv_sec + ((long)timezone * 3600), now_time.tv_usec );
+	now_time.tv_sec += ((long)timezone * 3600) + 1;
+/* Turn the usec to the msec to next second */
+	now_time.tv_usec = (ONE_EPOCH_USEC - now_time.tv_usec) / 1000;
+/* */
+	brktime = gmtime( &now_time.tv_sec );
+	TimeDateSetting.year  = brktime->tm_year + 1900;
+	TimeDateSetting.month = brktime->tm_mon + 1;
+	TimeDateSetting.day   = brktime->tm_mday;
+/* */
+	TimeDateSetting.hour   = brktime->tm_hour;
+	TimeDateSetting.minute = brktime->tm_min;
+	TimeDateSetting.sec    = brktime->tm_sec;
+/* */
+	T_CountDownTimerStart(&WriteRTCTimer, now_time.tv_usec);
+	WriteToRTC = 1;
 
 	return;
 }
@@ -234,7 +253,6 @@ int NTPProcess( void )
 /* */
 	struct timeval offset;
 	struct timeval tv1, tv2, tv3, tv4;
-	long  offset_f;
 
 /* Check the processing interval */
 	if ( !T_CountDownTimerIsTimeUp(&NTPProcessTimer) )
@@ -271,6 +289,8 @@ int NTPProcess( void )
 /* Get the remote transmit timestamp */
 	tv3.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[40] );
 	tv3.tv_usec = frac2usec( NTOHS_FP( *(ulong *)&InternalBuffer[44] ) );
+/* Debug information */
+	Print("\r\nTv2 %ld usec, Tv3 %ld usec.", tv2.tv_usec, tv3.tv_usec);
 /* Calculate the time offset */
 	offset.tv_sec  = (tv2.tv_sec - tv1.tv_sec) + (tv3.tv_sec - (tv4.tv_sec + EpochDiff_Jan1970));
 	offset.tv_usec = ((tv2.tv_usec - tv1.tv_usec) + (tv3.tv_usec - tv4.tv_usec)) / 2;
@@ -303,25 +323,38 @@ int NTPProcess( void )
 /* */
 	if ( !first_time ) {
 	/* */
-		compensate[ind_compensate++] = (offset.tv_usec + offset.tv_sec * ONE_EPOCH_USEC) / (long)(1 << (ulong)PollIntervalPower);
+		compensate[ind_compensate++] = offset.tv_usec + offset.tv_sec * ONE_EPOCH_USEC;
 		if ( ind_compensate >= COMPENSATE_CANDIDATE_NUM ) {
 		/* */
 			ind_compensate = 0;
-			offset_f = get_compensate_avg( compensate );
+			compensate[1] = get_compensate_avg( compensate );
+			compensate[0] = compensate[1] / (long)(1 << (ulong)PollIntervalPower);
+			compensate[2] = labs(CompensateUSec);
 		/* */
-			if ( CompensateReady && (labs(offset_f) > (labs(CompensateUSec) * 2) && labs(CompensateUSec) > 99) ) {
+			if ( CompensateReady && (labs(offset_f - CompensateUSec) > compensate[2] && compensate[2] > 100) ) {
 				PollIntervalPower = MIN_INTERVAL_POWER;
 				CompensateReady   = 0;
 				CompensateUSec    = 0L;
 				first_time        = 1;
 			}
 			else if ( CompensateReady ) {
+			/* */
+				if ( !compensate[0] )
+					compensate[0] = compensate[1] / (long)(1 << (ulong)(PollIntervalPower - 1));
+			/* */
 				_asm cli
-				CompensateUSec += offset_f;
+				CompensateUSec += compensate[0];
 				_asm sti
-				if ( labs(offset_f) <= (labs(CompensateUSec) / 2) || labs(CompensateUSec) < 100 )
+			/* */
+				compensate[0] = labs(compensate[0]);
+				if ( compensate[0] < COMPENSATE_CANDIDATE_NUM * 2 ) {
 					if ( PollIntervalPower < MAX_INTERVAL_POWER )
 						++PollIntervalPower;
+				}
+				else if ( compensate[0] > COMPENSATE_CANDIDATE_NUM * 4 ) {
+					if ( PollIntervalPower > MIN_INTERVAL_POWER )
+						--PollIntervalPower;
+				}
 			}
 			else {
 				CompensateUSec  = offset_f;
@@ -360,53 +393,6 @@ void NTPClose( void )
 }
 
 /**
- * @brief Get the Hardware system time in unix timestamp base
- *
- * @return time_t
- */
-static time_t FetchHWTime( void )
-{
-	TIME_DATE timedate;
-
-/* */
-	GetTimeDate(&timedate);
-
-	return _mktime(
-		timedate.year, timedate.month, timedate.day,
-		timedate.hour, timedate.minute, timedate.sec
-	);
-}
-
-/**
- * @brief Set the Hardware system time
- *
- * @param sec
- * @param usec
- */
-static void SetHWTime( time_t sec, ulong usec )
-{
-	struct tm *brktime;
-
-/* */
-	++sec;
-	usec = (ONE_EPOCH_USEC - usec) / 1000;
-/* */
-	brktime = gmtime( &sec );
-	TimeDateSetting.year  = brktime->tm_year + 1900;
-	TimeDateSetting.month = brktime->tm_mon + 1;
-	TimeDateSetting.day   = brktime->tm_mday;
-/* */
-	TimeDateSetting.hour   = brktime->tm_hour;
-	TimeDateSetting.minute = brktime->tm_min;
-	TimeDateSetting.sec    = brktime->tm_sec;
-/* */
-	T_CountDownTimerStart(&WriteRTCTimer, usec);
-	WriteToRTC = 1;
-
-	return;
-}
-
-/**
  * @brief Turn the broken time structure into calendar time(UTC)
  *
  * @param year
@@ -436,7 +422,7 @@ static time_t _mktime( uint year, uint mon, uint day, uint hour, uint min, uint 
  */
 static ulong frac2usec( const ulong frac )
 {
-	return ((((frac >> 16) & 0x0000ffff) * 15625) >> 10) + (((frac & 0x0000ffff) * 15625) >> 26) + (frac & 0x1);
+	return frac / ONE_USEC_FRAC + (frac % ONE_USEC_FRAC > HALF_USEC_FRAC);
 }
 
 /**
@@ -447,7 +433,7 @@ static ulong frac2usec( const ulong frac )
  */
 static ulong usec2frac( const ulong usec )
 {
-	return (((usec & 0x000fffff) << 12) / 15625 + 1) << 14;
+	return usec * ONE_USEC_FRAC;
 }
 
 /**

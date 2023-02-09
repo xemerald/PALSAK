@@ -27,10 +27,13 @@ extern "C" {
 /* */
 #define ONE_EPOCH_USEC       1000000L /* 1000000 usec = 1 sec */
 #define HALF_EPOCH_USEC      500000L  /* 500000 usec = 0.5 sec */
+#define ONE_USEC_FRAC        4295L
+#define HALF_USEC_FRAC       2147L
+/* */
 #define ONE_CLOCK_STEP_USEC  500L     /* One step for clock in usec */
 #define ABS_HALF_CLOCK_STEP  250L     /* Half step for clock in usec & it should be always larger than 0 */
 #define STEP_TIMES_IN_EPOCH  2000L    /* ABS(ONE_EPOCH_USEC / CLOCK_STEP_USEC) */
-#define L_CLOCK_PRECISION    -7       /* Precision of the local clock, in seconds to the nearest power of two */
+#define L_CLOCK_PRECISION    -10      /* Precision of the local clock, in seconds to the nearest power of two */
 /* */
 #define MIN_INTERVAL_POWER  5
 #define MAX_INTERVAL_POWER  9
