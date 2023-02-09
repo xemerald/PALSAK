@@ -19,8 +19,8 @@
  *
  */
 static time_t _mktime( uint, uint, uint, uint, uint, uint );
-static ulong  frac2usec( const ulong );
-static ulong  usec2frac( const ulong );
+static ulong  frac2usec( ulong );
+static ulong  usec2frac( ulong );
 static long   get_compensate_avg( long [] );
 
 /* */
@@ -421,7 +421,7 @@ static time_t _mktime( uint year, uint mon, uint day, uint hour, uint min, uint 
  * @param frac
  * @return ulong: microsecond.
  */
-static ulong frac2usec( const ulong frac )
+static ulong frac2usec( ulong frac )
 {
 	return ((((frac >> 16) & 0x0000ffff) * 15625) >> 10) + (((frac & 0x0000ffff) * 15625) >> 26) + (frac % ONE_USEC_FRAC > HALF_USEC_FRAC);
 }
@@ -432,9 +432,10 @@ static ulong frac2usec( const ulong frac )
  * @param usec it must smaller than 1 minion.
  * @return ulong
  */
-static ulong usec2frac( const ulong usec )
+static ulong usec2frac( ulong usec )
 {
-	return ((((usec & 0x000fffff) << 12) + 15625) / 15625) << 14;
+	usec = (usec & 0x000fffff) << 12;
+	return (usec / 15625 + (usec % 15625 > 7812)) << 14;
 }
 
 /**
