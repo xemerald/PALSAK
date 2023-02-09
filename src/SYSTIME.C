@@ -81,8 +81,8 @@ void SysTimeInit( const int timezone )
  */
 void SysTimeService( void )
 {
-	static long count_one_epoch   = ONE_EPOCH_USEC;
-	static long remain_compensate = 0L;
+	static uint count_step_epoch  = (uint)STEP_TIMES_IN_EPOCH;
+	static int  remain_compensate = 0;
 /* */
 	register long adjs;
 
@@ -95,9 +95,9 @@ void SysTimeService( void )
 	}
 /* */
 	if ( CompensateReady ) {
-		if ( (count_one_epoch -= ONE_CLOCK_STEP_USEC) <= 0 ) {
+		if ( --count_step_epoch == 0 ) {
 			remain_compensate += RmCompensateUSec;
-			count_one_epoch    = ONE_EPOCH_USEC;
+			count_step_epoch   = (uint)STEP_TIMES_IN_EPOCH;
 		}
 	}
 
@@ -338,7 +338,7 @@ int NTPProcess( void )
 				CorrectTimeStep  = (uint)ONE_CLOCK_STEP_USEC;
 				first_time       = 1;
 			}
-			else if ( CompensateReady ) {
+			else {
 			/* Just in case & avoid the CorrectTimeStep whould be too large or being negative */
 				if ( labs(CompensateUSec += compensate[0]) >= ONE_EPOCH_USEC )
 					return SYSTIME_ERROR;
@@ -355,10 +355,9 @@ int NTPProcess( void )
 					if ( PollIntervalPow > MIN_INTERVAL_POW )
 						--PollIntervalPow;
 				}
-			}
-			else {
-				CompensateUSec  = compensate[0];
-				CompensateReady = 1;
+			/* */
+				if ( !CompensateReady )
+					CompensateReady = 1;
 			}
 		}
 	}
