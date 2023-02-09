@@ -248,7 +248,7 @@ int NTPConnect( const char *host, const uint port )
 int NTPProcess( void )
 {
 	static long  compensate[COMPENSATE_CANDIDATE_NUM];
-	static uchar ind_compensate = 0;
+	static uchar i_compensate = 0;
 	static uchar first_time = 1;
 /* */
 	struct timeval offset;
@@ -323,10 +323,10 @@ int NTPProcess( void )
 /* */
 	if ( !first_time ) {
 	/* */
-		compensate[ind_compensate++] = offset.tv_usec + offset.tv_sec * ONE_EPOCH_USEC;
-		if ( ind_compensate >= COMPENSATE_CANDIDATE_NUM ) {
+		compensate[i_compensate++] = offset.tv_usec + offset.tv_sec * ONE_EPOCH_USEC;
+		if ( i_compensate >= COMPENSATE_CANDIDATE_NUM ) {
 		/* */
-			ind_compensate = 0;
+			i_compensate  = 0;
 			compensate[1] = get_compensate_avg( compensate );
 			compensate[0] = compensate[1] / (long)(1 << (ulong)PollIntervalPower);
 			compensate[2] = labs(CompensateUSec);
@@ -357,7 +357,7 @@ int NTPProcess( void )
 				}
 			}
 			else {
-				CompensateUSec  = offset_f;
+				CompensateUSec  = compensate[0];
 				CompensateReady = 1;
 			}
 		}
