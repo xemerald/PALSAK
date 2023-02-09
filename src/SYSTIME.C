@@ -26,12 +26,6 @@ static long   get_compensate_avg( long [] );
 /* */
 #define INTERNAL_BUF_SIZE  64
 static char InternalBuffer[INTERNAL_BUF_SIZE];
-/*
- * Time returns the time since the Epoch (00:00:00 UTC, January 1, 1970),
- * measured in seconds. If t is non-NULL, the return value is also stored
- * in the memory pointed to by t .
- */
-static const ulong EpochDiff_Jan1970 = 86400UL * (365UL * 70 + 17);
 /* */
 static volatile int MainSock = -1;
 /* */
@@ -188,9 +182,9 @@ void SysTimeToHWTime( const int timezone )
 	_asm cli
 	now_time = _SoftSysTime;
 	_asm sti
-/* */
+/* Add to the next second */
 	now_time.tv_sec += ((long)timezone * 3600) + 1;
-/* Turn the usec to the msec to next second */
+/* Turn the usec to the usec between next second */
 	now_time.tv_usec = ONE_EPOCH_USEC - now_time.tv_usec;
 /* */
 	brktime = gmtime( &now_time.tv_sec );
@@ -267,9 +261,7 @@ int NTPProcess( void )
 	_asm cli
 	tv1 = _SoftSysTime;
 	_asm sti
-/* */
-	Print("\r\nOrigin tv1 %ld usec.", tv1.tv_usec);
-	*(ulong *)&InternalBuffer[40] = HTONS_FP( tv1.tv_sec + EpochDiff_Jan1970 );
+	*(ulong *)&InternalBuffer[40] = HTONS_FP( tv1.tv_sec + EPOCH_DIFF_JAN1970 );
 	*(ulong *)&InternalBuffer[44] = HTONS_FP( usec2frac( tv1.tv_usec ) );
 /* Send to the server */
 	if ( send(MainSock, InternalBuffer, 48, 0) <= 0 )
@@ -282,6 +274,7 @@ int NTPProcess( void )
 	tv4 = _SoftSysTime;
 	_asm sti
 /* Get the local transmitted timestamp */
+	Print("\r\nOrigin tv1 %ld usec.", tv1.tv_usec);
 	tv1.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[24] );
 	tv1.tv_usec = frac2usec( NTOHS_FP( *(ulong *)&InternalBuffer[28] ) );
 /* Get the remote receive timestamp */
@@ -293,7 +286,7 @@ int NTPProcess( void )
 /* Debug information */
 	Print("\r\nTv1 %ld usec, Tv2 %ld usec, Tv3 %ld usec.", tv1.tv_usec, tv2.tv_usec, tv3.tv_usec);
 /* Calculate the time offset */
-	offset.tv_sec  = (tv2.tv_sec - tv1.tv_sec) + (tv3.tv_sec - (tv4.tv_sec + EpochDiff_Jan1970));
+	offset.tv_sec  = (tv2.tv_sec - tv1.tv_sec) + (tv3.tv_sec - (tv4.tv_sec + EPOCH_DIFF_JAN1970));
 	offset.tv_usec = ((tv2.tv_usec - tv1.tv_usec) + (tv3.tv_usec - tv4.tv_usec)) / 2;
 	if ( offset.tv_sec & 0x1 ) {
 		if ( offset.tv_sec < 0 )

@@ -29,6 +29,12 @@ extern "C" {
 #define HALF_EPOCH_USEC      500000L  /* 500000 usec = 0.5 sec */
 #define ONE_USEC_FRAC        4295L
 #define HALF_USEC_FRAC       2147L
+/*
+ * Time returns the time since the Epoch (00:00:00 UTC, January 1, 1970),
+ * measured in seconds. If t is non-NULL, the return value is also stored
+ * in the memory pointed to by t .
+ */
+#define EPOCH_DIFF_JAN1970   2208988800UL
 /* */
 #define ONE_CLOCK_STEP_USEC  500L     /* One step for clock in usec */
 #define ABS_HALF_CLOCK_STEP  250L     /* Half step for clock in usec & it should be always larger than 0 */
