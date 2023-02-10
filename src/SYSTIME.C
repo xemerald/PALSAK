@@ -99,12 +99,12 @@ void SysTimeService( void )
 			dec count_step_epoch
 			mov ax,count_step_epoch
 			or  ax,ax
-				jne next
+				jne L107
 				mov ax,RmCompensateUSec
 				add remain_compensate,ax
-				mov count_step_epoch, STEP_TIMES_IN_EPOCH
-			next:
+				mov count_step_epoch, 2000
 		}
+L107:
 //		if ( --count_step_epoch == 0 ) {
 //			remain_compensate += RmCompensateUSec;
 //			count_step_epoch   = (uint)STEP_TIMES_IN_EPOCH;
