@@ -421,7 +421,7 @@ static time_t _mktime( uint year, uint mon, uint day, uint hour, uint min, uint 
  */
 static ulong frac2usec( const ulong frac )
 {
-	return ((((frac >> 16) & 0x0000ffff) * 15625) >> 10) + ((((frac & 0x0000ffff) + HALF_USEC_FRAC) * 15625) >> 26);
+	return ((((frac >> 16) & 0x0000ffff) * 15625) >> 10) + ((((frac & 0x0000ffff) + ONE_USEC_FRAC) * 15625) >> 26);
 }
 
 /**
