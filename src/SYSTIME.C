@@ -95,10 +95,20 @@ void SysTimeService( void )
 	}
 /* */
 	if ( CompensateReady ) {
-		if ( --count_step_epoch == 0 ) {
-			remain_compensate += RmCompensateUSec;
-			count_step_epoch   = (uint)STEP_TIMES_IN_EPOCH;
+		_asm {
+			dec count_step_epoch
+			mov ax,count_step_epoch
+			or  ax,ax
+				jne next
+				mov ax,RmCompensateUSec
+				add remain_compensate,ax
+				mov count_step_epoch, STEP_TIMES_IN_EPOCH
+			next:
 		}
+//		if ( --count_step_epoch == 0 ) {
+//			remain_compensate += RmCompensateUSec;
+//			count_step_epoch   = (uint)STEP_TIMES_IN_EPOCH;
+//		}
 	}
 
 /* If there is some residual only in sub-second, step or slew it! */
@@ -347,11 +357,11 @@ int NTPProcess( void )
 				CorrectTimeStep  = (uint)(ONE_CLOCK_STEP_USEC + compensate[3]);
 				RmCompensateUSec = (int)(CompensateUSec - STEP_TIMES_IN_EPOCH * compensate[3]);
 			/* */
-				if ( labs(compensate[0]) < COMPENSATE_CANDIDATE_NUM << 1 ) {
+				if ( labs(compensate[0]) < (COMPENSATE_CANDIDATE_NUM << 1) ) {
 					if ( PollIntervalPow < MAX_INTERVAL_POW )
 						++PollIntervalPow;
 				}
-				else if ( labs(compensate[0]) > COMPENSATE_CANDIDATE_NUM << 2 ) {
+				else if ( labs(compensate[0]) > (COMPENSATE_CANDIDATE_NUM << 2) ) {
 					if ( PollIntervalPow > MIN_INTERVAL_POW )
 						--PollIntervalPow;
 				}
