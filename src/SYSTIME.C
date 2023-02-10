@@ -94,24 +94,30 @@ void SysTimeService( void )
 		}
 	}
 /* */
-	if ( CompensateReady ) {
-		_asm {
-			dec count_step_epoch
-			mov ax,count_step_epoch
-			or  ax,ax
-				jne L107
-				mov ax,RmCompensateUSec
-				add remain_compensate,ax
-				mov count_step_epoch, 2000
-		}
-L107:
-//		if ( --count_step_epoch == 0 ) {
-//			remain_compensate += RmCompensateUSec;
-//			count_step_epoch   = (uint)STEP_TIMES_IN_EPOCH;
-//		}
+	_asm {
+		cmp CompensateReady, 0
+		je  L107
+		dec count_step_epoch
+		mov ax, count_step_epoch
+		or  ax, ax
+		jnz L107
+		mov ax, RmCompensateUSec
+		add remain_compensate, ax
+		mov count_step_epoch, 2000
 	}
+L107:
 
 /* If there is some residual only in sub-second, step or slew it! */
+	_asm {
+		cmp TimeResidualUsec, 0
+		je  L116
+		mov dx, 250
+
+	}
+L116:
+	_asm {
+		mov dx, 0
+	}
 	if ( TimeResidualUsec ) {
 	/* */
 		adjs = ABS_HALF_CLOCK_STEP;
@@ -123,6 +129,7 @@ L107:
 	/* */
 		TimeResidualUsec -= adjs;
 	}
+
 	else {
 		adjs = 0;
 	}
