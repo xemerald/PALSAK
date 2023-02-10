@@ -333,9 +333,9 @@ int NTPProcess( void )
 			if ( CompensateReady && (labs(compensate[0] - CompensateUSec) > compensate[2] && compensate[2] > 200) ) {
 				PollIntervalPow  = MIN_INTERVAL_POW;
 				CompensateReady  = 0;
-				CompensateUSec   = 0L;
-				RmCompensateUSec = 0;
 				CorrectTimeStep  = (uint)ONE_CLOCK_STEP_USEC;
+				RmCompensateUSec = 0;
+				CompensateUSec   = 0L;
 				first_time       = 1;
 			}
 			else {
@@ -347,11 +347,11 @@ int NTPProcess( void )
 				CorrectTimeStep  = (uint)(ONE_CLOCK_STEP_USEC + compensate[3]);
 				RmCompensateUSec = (int)(CompensateUSec - STEP_TIMES_IN_EPOCH * compensate[3]);
 			/* */
-				if ( labs(compensate[0]) < COMPENSATE_CANDIDATE_NUM * 2 ) {
+				if ( labs(compensate[0]) < COMPENSATE_CANDIDATE_NUM << 1 ) {
 					if ( PollIntervalPow < MAX_INTERVAL_POW )
 						++PollIntervalPow;
 				}
-				else if ( labs(compensate[0]) > COMPENSATE_CANDIDATE_NUM * 4 ) {
+				else if ( labs(compensate[0]) > COMPENSATE_CANDIDATE_NUM << 2 ) {
 					if ( PollIntervalPow > MIN_INTERVAL_POW )
 						--PollIntervalPow;
 				}
@@ -421,7 +421,7 @@ static time_t _mktime( uint year, uint mon, uint day, uint hour, uint min, uint 
  */
 static ulong frac2usec( const ulong frac )
 {
-	return ((((frac >> 16) & 0x0000ffff) * 15625) >> 10) + (((frac & 0x0000ffff) * 15625) >> 26) + (frac % ONE_USEC_FRAC > HALF_USEC_FRAC);
+	return ((((frac >> 16) & 0x0000ffff) * 15625) >> 10) + ((((frac & 0x0000ffff) * 15625) + 15624) >> 26);
 }
 
 /**
@@ -432,7 +432,7 @@ static ulong frac2usec( const ulong frac )
  */
 static ulong usec2frac( const ulong usec )
 {
-	return (((((usec & 0x000fffff) << 12) + 7813) / 15625) << 14) | FRAC_RANDOM_FILL;
+	return (((((((usec & 0x000fffff) << 12) + 4095) / 125) << 7) / 125) << 7) | FRAC_RANDOM_FILL;
 }
 
 /**

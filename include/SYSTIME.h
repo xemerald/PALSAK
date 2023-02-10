@@ -28,8 +28,8 @@ extern "C" {
 #define ONE_EPOCH_USEC       1000000L /* 1000000 usec = 1 sec */
 #define HALF_EPOCH_USEC      500000L  /* 500000 usec = 0.5 sec */
 #define ONE_USEC_FRAC        4295L
-#define HALF_USEC_FRAC       2147L
-#define FRAC_RANDOM_FILL     0x00002827
+#define HALF_USEC_FRAC       2148L
+#define FRAC_RANDOM_FILL     0x00000070
 /*
  * The time between the Unix Timestamp Base Epoch (00:00:00 UTC, January 1, 1970) &
  * NTP Base Epoch (00:00:00 UTC, January 1, 1900) measured in seconds.
