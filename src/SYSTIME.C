@@ -93,7 +93,7 @@ void SysTimeService( void )
 		}
 	}
 /* */
-	asm {
+	_asm {
 		cmp CompensateReady, 0
 		je RESIDUAL_PROC
 		dec count_step_epoch
@@ -133,17 +133,35 @@ RESIDUAL_PROC:
 /* Keep the clock step forward */
 	if ( (adjs += CorrectTimeStep) )
 		_SoftSysTime.tv_usec += adjs;
-/* */
-	if ( _SoftSysTime.tv_usec >= ONE_EPOCH_USEC ) {
-		++_SoftSysTime.tv_sec;
-		_SoftSysTime.tv_usec -= ONE_EPOCH_USEC;
-	}
-	else if ( _SoftSysTime.tv_usec < 0 ) {
-		--_SoftSysTime.tv_sec;
-		_SoftSysTime.tv_usec += ONE_EPOCH_USEC;
-	}
 
-	return;
+CARRY_CHECK:
+	asm {
+		mov ax, word ptr [_SoftSysTime.tv_usec]
+		mov dx, word ptr [_SoftSysTime.tv_usec + 2]
+		cmp dx, 15
+		jl FINAL_PROC
+		js NEG_CHECK
+		cmp ax, 16960
+		jb FINAL_PROC
+		add word ptr [_SoftSysTime.tv_sec], 1
+		adc word ptr [_SoftSysTime.tv_sec + 2], 0
+		sub ax, 16960
+		sbb dx, 15
+		jmp FINAL_PROC
+	}
+NEG_CHECK:
+	asm {
+		sub word ptr [_SoftSysTime.tv_sec], 1
+		sbb word ptr [_SoftSysTime.tv_sec + 2], 0
+		add ax, 16960
+		adc dx, 15
+	}
+FINAL_PROC:
+	asm {
+		mov word ptr [_SoftSysTime.tv_usec], ax
+		mov word ptr [_SoftSysTime.tv_usec + 2], dx
+		ret
+	}
 }
 
 /**
