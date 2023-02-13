@@ -83,8 +83,6 @@ void SysTimeService( void )
 {
 	static uint count_step_epoch  = (uint)STEP_TIMES_IN_EPOCH;
 	static int  remain_compensate = 0;
-/* */
-	register long adjs;
 
 /* */
 	if ( WriteToRTC ) {
@@ -107,94 +105,7 @@ void SysTimeService( void )
 	}
 /* If there is some residual only in sub-second, step or slew it! */
 RESIDUAL_PROC:
-	asm {
-		mov dx, 0
-		mov ax, word ptr [TimeResidualUsec]
-		or ax, word ptr [TimeResidualUsec + 2]
-		je REM_COMPENSATE_PROC
-		mov ax, 250d
-		cmp word ptr [TimeResidualUsec + 2], dx
-		jg ADJUST_RESIDUAL_PROC
-		jne MOVE_RESIDUAL_ADJS
-		cmp word ptr [TimeResidualUsec], ax
-		ja ADJUST_RESIDUAL_PROC
-		cmp word ptr [TimeResidualUsec + 2], 0
-		jns MOVE_RESIDUAL_ADJS
-		neg dx
-		neg ax
-		sbb dx, 0
-		cmp word ptr [TimeResidualUsec + 2], dx
-		jg MOVE_RESIDUAL_ADJS
-		jne ADJUST_RESIDUAL_PROC
-		cmp word ptr [TimeResidualUsec], ax
-		jb ADJUST_RESIDUAL_PROC
-	}
-MOVE_RESIDUAL_ADJS:
-	asm {
-		mov ax, word ptr [TimeResidualUsec]
-		mov dx, word ptr [TimeResidualUsec + 2]
-		mov word ptr [TimeResidualUsec], 0
-		mov word ptr [TimeResidualUsec + 2], 0
-		jmp REM_COMPENSATE_PROC
-	}
-ADJUST_RESIDUAL_PROC:
-	asm {
-		sub word ptr [TimeResidualUsec], ax
-		sbb word ptr [TimeResidualUsec + 2], dx
-	}
-/* */
-REM_COMPENSATE_PROC:
-	asm {
-		cmp remain_compensate, 0
-		je REAL_ADJS
-		js NEG_REM_COMPENSATE
-		inc ax
-		adc dx, 0
-		dec remain_compensate
-		jmp REAL_ADJS
-	}
-NEG_REM_COMPENSATE:
-	asm {
-		dec ax
-		sbb dx, 0
-		inc remain_compensate
-	}
-/* Keep the clock step forward */
-REAL_ADJS:
-	asm {
-		add ax, CorrectTimeStep
-		adc dx, 0
-		or ax, dx
-		je CARRY_CHECK
-		add ax, word ptr [_SoftSysTime.tv_usec]
-		adc dx, word ptr [_SoftSysTime.tv_usec + 2]
-	}
-CARRY_CHECK:
-	asm {
-		cmp dx, 15
-		jl FINAL_PROC
-		js NEG_CHECK
-		cmp ax, 16960
-		jb FINAL_PROC
-		add word ptr [_SoftSysTime.tv_sec], 1
-		adc word ptr [_SoftSysTime.tv_sec + 2], 0
-		sub ax, 16960
-		sbb dx, 15
-		jmp FINAL_PROC
-	}
-NEG_CHECK:
-	asm {
-		sub word ptr [_SoftSysTime.tv_sec], 1
-		sbb word ptr [_SoftSysTime.tv_sec + 2], 0
-		add ax, 16960
-		adc dx, 15
-	}
-FINAL_PROC:
-	asm {
-		mov word ptr [_SoftSysTime.tv_usec], ax
-		mov word ptr [_SoftSysTime.tv_usec + 2], dx
-		ret
-	}
+
 }
 
 /**
