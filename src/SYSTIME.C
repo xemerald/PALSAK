@@ -96,68 +96,83 @@ void SysTimeService( void )
 /* */
 	_asm {
 		cmp CompensateReady, 0
-		je  L107
+		je RESIDUAL_PROC
 		dec count_step_epoch
 		mov ax, count_step_epoch
-		or  ax, ax
-		jnz L107
+		or ax, ax
+		jnz RESIDUAL_PROC
 		mov ax, RmCompensateUSec
 		add remain_compensate, ax
-		mov count_step_epoch, 2000
+		mov count_step_epoch, 2000d
 	}
-L107:
-
 /* If there is some residual only in sub-second, step or slew it! */
+RESIDUAL_PROC:
 	_asm {
-		cmp TimeResidualUsec, 0
-		je  L116
-		mov dx, 250
-
+		mov edx, 0
+		mov eax, TimeResidualUsec
+		cmp eax, 0
+		je REM_COMPENSATE_PROC
+		mov edx, 250d
+		cmp eax, edx
+		jnl ADJUST_RESIDUAL_PROC
+		cmp eax, 0
+		jg MOVE_RESIDUAL_ADJS
+		neg edx
+		cmp eax, edx
+		jng ADJUST_RESIDUAL_PROC
 	}
-L116:
+MOVE_RESIDUAL_ADJS:
 	_asm {
-		mov dx, 0
+		mov edx, eax
+		mov TimeResidualUsec, 0
+		jmp REM_COMPENSATE_PROC
 	}
-	if ( TimeResidualUsec ) {
-	/* */
-		adjs = ABS_HALF_CLOCK_STEP;
-	/* */
-		if ( labs(TimeResidualUsec) <= adjs )
-			adjs = TimeResidualUsec;
-		else if ( TimeResidualUsec < 0 )
-			adjs = -adjs;
-	/* */
-		TimeResidualUsec -= adjs;
-	}
-
-	else {
-		adjs = 0;
+ADJUST_RESIDUAL_PROC:
+	_asm {
+		sub TimeResidualUsec, edx
 	}
 /* */
-	if ( remain_compensate ) {
-		if ( remain_compensate < 0 ) {
-			--adjs;
-			++remain_compensate;
-		}
-		else {
-			++adjs;
-			--remain_compensate;
-		}
+REM_COMPENSATE_PROC:
+	_asm {
+		mov ax, remain_compensate
+		cmp ax, 0
+		je REAL_ADJS
+		js NEG_REM_COMPENSATE
+		inc edx
+		dec remain_compensate
+		jmp REAL_ADJS
+	}
+NEG_REM_COMPENSATE:
+	_asm {
+		dec edx
+		inc remain_compensate
 	}
 /* Keep the clock step forward */
-	if ( (adjs += CorrectTimeStep) )
-		_SoftSysTime.tv_usec += adjs;
-/* */
-	if ( _SoftSysTime.tv_usec >= ONE_EPOCH_USEC ) {
-		++_SoftSysTime.tv_sec;
-		_SoftSysTime.tv_usec -= ONE_EPOCH_USEC;
+REAL_ADJS:
+	_asm {
+		movzx eax, CorrectTimeStep
+		add edx, eax
+		mov eax, _SoftSysTime.tv_usec
+		add eax, edx
+		cmp eax, 1000000d
+		jl NEG_CHECK
+		inc _SoftSysTime.tv_sec
+		sub eax, 1000000d
+		jmp FINAL_PROC
 	}
-	else if ( _SoftSysTime.tv_usec < 0 ) {
-		--_SoftSysTime.tv_sec;
-		_SoftSysTime.tv_usec += ONE_EPOCH_USEC;
+NEG_CHECK:
+	_asm {
+		cmp eax, 0
+		jnl FINAL_PROC
+		dec _SoftSysTime.tv_sec
+		add eax, 1000000d
+		mov _SoftSysTime.tv_usec, eax
 	}
-
-	return;
+FINAL_PROC:
+	_asm {
+		mov _SoftSysTime.tv_usec, eax
+		ret
+	}
 }
 
 /**
