@@ -106,38 +106,70 @@ void SysTimeService( void )
 	}
 /* If there is some residual only in sub-second, step or slew it! */
 RESIDUAL_PROC:
-	adjs = 0;
-	if ( TimeResidualUsec ) {
-	/* */
-		adjs = ABS_HALF_CLOCK_STEP;
-	/* */
-		if ( labs(TimeResidualUsec) <= adjs )
-			adjs = TimeResidualUsec;
-		else if ( TimeResidualUsec < 0 )
-			adjs = -adjs;
-	/* */
-		TimeResidualUsec -= adjs;
+	_asm {
+		mov dx, 0
+		mov ax, word ptr TimeResidualUsec
+		or ax, word ptr TimeResidualUsec+2
+		je REM_COMPENSATE_PROC
+		mov ax, 250d
+		cmp word ptr TimeResidualUsec+2, dx
+		jg ADJUST_RESIDUAL_PROC
+		jne MOVE_RESIDUAL_ADJS
+		cmp word ptr TimeResidualUsec, ax
+		ja ADJUST_RESIDUAL_PROC
+		cmp word ptr TimeResidualUsec+2, 0
+		jns MOVE_RESIDUAL_ADJS
+		neg dx
+		neg ax
+		sbb dx, 0
+		cmp word ptr TimeResidualUsec+2, dx
+		jg MOVE_RESIDUAL_ADJS
+		jne ADJUST_RESIDUAL_PROC
+		cmp word ptr TimeResidualUsec, ax
+		jb ADJUST_RESIDUAL_PROC
 	}
-
+MOVE_RESIDUAL_ADJS:
+	_asm {
+		mov ax, word ptr TimeResidualUsec
+		mov dx, word ptr TimeResidualUsec+2
+		mov word ptr TimeResidualUsec, 0
+		mov word ptr TimeResidualUsec+2, 0
+		jmp REM_COMPENSATE_PROC
+	}
+ADJUST_RESIDUAL_PROC:
+	_asm {
+		sub word ptr TimeResidualUsec, ax
+		sbb word ptr TimeResidualUsec+2, dx
+	}
 /* */
-	if ( remain_compensate ) {
-		if ( remain_compensate < 0 ) {
-			--adjs;
-			++remain_compensate;
-		}
-		else {
-			++adjs;
-			--remain_compensate;
-		}
+REM_COMPENSATE_PROC:
+	_asm {
+		cmp remain_compensate, 0
+		je REAL_ADJS
+		js NEG_REM_COMPENSATE
+		inc ax
+		adc dx, 0
+		dec remain_compensate
+		jmp REAL_ADJS
+	}
+NEG_REM_COMPENSATE:
+	_asm {
+		dec ax
+		sbb dx, 0
+		inc remain_compensate
 	}
 /* Keep the clock step forward */
-	if ( (adjs += CorrectTimeStep) )
-		_SoftSysTime.tv_usec += adjs;
-
+REAL_ADJS:
+	_asm {
+		add ax, CorrectTimeStep
+		adc dx, 0
+		or ax, dx
+		je CARRY_CHECK
+		add ax, word ptr _SoftSysTime+4
+		adc dx, word ptr _SoftSysTime+6
+	}
 CARRY_CHECK:
 	_asm {
-		mov ax, word ptr _SoftSysTime+4
-		mov dx, word ptr _SoftSysTime+6
 		cmp dx, 15d
 		jl FINAL_PROC
 		js NEG_CHECK
