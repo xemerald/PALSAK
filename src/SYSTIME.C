@@ -135,31 +135,31 @@ RESIDUAL_PROC:
 		_SoftSysTime.tv_usec += adjs;
 
 CARRY_CHECK:
-	asm {
-		mov ax, word ptr _SoftSysTime + 4
-		mov dx, word ptr _SoftSysTime + 6
-		cmp dx, 15
+	_asm {
+		mov ax, word ptr _SoftSysTime+4
+		mov dx, word ptr _SoftSysTime+6
+		cmp dx, 15d
 		jl FINAL_PROC
 		js NEG_CHECK
-		cmp ax, 16960
+		cmp ax, 16960d
 		jb FINAL_PROC
 		add word ptr _SoftSysTime, 1
-		adc word ptr _SoftSysTime + 2, 0
-		sub ax, 16960
-		sbb dx, 15
+		adc word ptr _SoftSysTime+2, 0
+		sub ax, 16960d
+		sbb dx, 15d
 		jmp FINAL_PROC
 	}
 NEG_CHECK:
-	asm {
+	_asm {
 		sub word ptr _SoftSysTime, 1
-		sbb word ptr _SoftSysTime + 2, 0
-		add ax, 16960
-		adc dx, 15
+		sbb word ptr _SoftSysTime+2, 0
+		add ax, 16960d
+		adc dx, 15d
 	}
 FINAL_PROC:
-	asm {
-		mov word ptr _SoftSysTime + 4, ax
-		mov word ptr _SoftSysTime + 6, dx
+	_asm {
+		mov word ptr _SoftSysTime+4, ax
+		mov word ptr _SoftSysTime+6, dx
 		ret
 	}
 }
