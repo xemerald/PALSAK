@@ -160,8 +160,8 @@ FINAL_PROC:
 	_asm {
 		mov word ptr _SoftSysTime+4, ax
 		mov word ptr _SoftSysTime+6, dx
-		ret
 	}
+	return;
 }
 
 /**
