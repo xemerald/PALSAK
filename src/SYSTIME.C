@@ -94,7 +94,7 @@ void SysTimeService( void )
 		}
 	}
 /* */
-	_asm {
+	asm {
 		cmp CompensateReady, 0
 		je RESIDUAL_PROC
 		dec count_step_epoch
@@ -107,7 +107,7 @@ void SysTimeService( void )
 	}
 /* If there is some residual only in sub-second, step or slew it! */
 RESIDUAL_PROC:
-	_asm {
+	asm {
 		mov edx, 0
 		mov eax, TimeResidualUsec
 		cmp eax, 0
@@ -122,18 +122,18 @@ RESIDUAL_PROC:
 		jng ADJUST_RESIDUAL_PROC
 	}
 MOVE_RESIDUAL_ADJS:
-	_asm {
+	asm {
 		mov edx, eax
 		mov TimeResidualUsec, 0
 		jmp REM_COMPENSATE_PROC
 	}
 ADJUST_RESIDUAL_PROC:
-	_asm {
+	asm {
 		sub TimeResidualUsec, edx
 	}
 /* */
 REM_COMPENSATE_PROC:
-	_asm {
+	asm {
 		mov ax, remain_compensate
 		cmp ax, 0
 		je REAL_ADJS
@@ -143,13 +143,13 @@ REM_COMPENSATE_PROC:
 		jmp REAL_ADJS
 	}
 NEG_REM_COMPENSATE:
-	_asm {
+	asm {
 		dec edx
 		inc remain_compensate
 	}
 /* Keep the clock step forward */
 REAL_ADJS:
-	_asm {
+	asm {
 		movzx eax, CorrectTimeStep
 		add edx, eax
 		mov eax, _SoftSysTime.tv_usec
@@ -161,7 +161,7 @@ REAL_ADJS:
 		jmp FINAL_PROC
 	}
 NEG_CHECK:
-	_asm {
+	asm {
 		cmp eax, 0
 		jnl FINAL_PROC
 		dec _SoftSysTime.tv_sec
@@ -169,7 +169,7 @@ NEG_CHECK:
 		mov _SoftSysTime.tv_usec, eax
 	}
 FINAL_PROC:
-	_asm {
+	asm {
 		mov _SoftSysTime.tv_usec, eax
 		ret
 	}
