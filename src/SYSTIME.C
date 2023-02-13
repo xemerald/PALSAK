@@ -108,69 +108,91 @@ void SysTimeService( void )
 /* If there is some residual only in sub-second, step or slew it! */
 RESIDUAL_PROC:
 	asm {
-		mov edx, 0
-		mov eax, TimeResidualUsec
-		cmp eax, 0
+		mov dx, 0
+		mov ax, word ptr [TimeResidualUsec]
+		or ax, word ptr [TimeResidualUsec + 2]
 		je REM_COMPENSATE_PROC
-		mov edx, 250d
-		cmp eax, edx
-		jnl ADJUST_RESIDUAL_PROC
-		cmp eax, 0
+		mov ax, 250d
+		cmp word ptr [TimeResidualUsec + 2], dx
+		jg ADJUST_RESIDUAL_PROC
+		jne MOVE_RESIDUAL_ADJS
+		cmp word ptr [TimeResidualUsec], ax
+		ja ADJUST_RESIDUAL_PROC
+		cmp word ptr [TimeResidualUsec + 2], 0
+		jns MOVE_RESIDUAL_ADJS
+		neg dx
+		neg ax
+		sbb dx, 0
+		cmp word ptr [TimeResidualUsec + 2], dx
 		jg MOVE_RESIDUAL_ADJS
-		neg edx
-		cmp eax, edx
-		jng ADJUST_RESIDUAL_PROC
+		jne ADJUST_RESIDUAL_PROC
+		cmp word ptr [TimeResidualUsec], ax
+		jb ADJUST_RESIDUAL_PROC
 	}
 MOVE_RESIDUAL_ADJS:
 	asm {
-		mov edx, eax
-		mov TimeResidualUsec, 0
+		mov ax, word ptr [TimeResidualUsec]
+		mov dx, word ptr [TimeResidualUsec + 2]
+		mov word ptr [TimeResidualUsec], 0
+		mov word ptr [TimeResidualUsec + 2], 0
 		jmp REM_COMPENSATE_PROC
 	}
 ADJUST_RESIDUAL_PROC:
 	asm {
-		sub TimeResidualUsec, edx
+		sub word ptr [TimeResidualUsec], ax
+		sbb word ptr [TimeResidualUsec + 2], dx
 	}
 /* */
 REM_COMPENSATE_PROC:
 	asm {
-		mov ax, remain_compensate
-		cmp ax, 0
+		cmp remain_compensate, 0
 		je REAL_ADJS
 		js NEG_REM_COMPENSATE
-		inc edx
+		inc ax
+		adc dx, 0
 		dec remain_compensate
 		jmp REAL_ADJS
 	}
 NEG_REM_COMPENSATE:
 	asm {
-		dec edx
+		dec ax
+		sbb dx, 0
 		inc remain_compensate
 	}
 /* Keep the clock step forward */
 REAL_ADJS:
 	asm {
-		movzx eax, CorrectTimeStep
-		add edx, eax
-		mov eax, _SoftSysTime.tv_usec
-		add eax, edx
-		cmp eax, 1000000d
-		jl NEG_CHECK
-		inc _SoftSysTime.tv_sec
-		sub eax, 1000000d
+		add ax, CorrectTimeStep
+		adc dx, 0
+		or ax, dx
+		je CARRY_CHECK
+		add ax, word ptr [_SoftSysTime.tv_usec]
+		adc dx, word ptr [_SoftSysTime.tv_usec + 2]
+	}
+CARRY_CHECK:
+	asm {
+		cmp dx, 15
+		jl FINAL_PROC
+		js NEG_CHECK
+		cmp ax, 16960
+		jb FINAL_PROC
+		add word ptr [_SoftSysTime.tv_sec], 1
+		adc word ptr [_SoftSysTime.tv_sec + 2], 0
+		sub ax, 16960
+		sbb dx, 15
 		jmp FINAL_PROC
 	}
 NEG_CHECK:
 	asm {
-		cmp eax, 0
-		jnl FINAL_PROC
-		dec _SoftSysTime.tv_sec
-		add eax, 1000000d
-		mov _SoftSysTime.tv_usec, eax
+		sub word ptr [_SoftSysTime.tv_sec], 1
+		sbb word ptr [_SoftSysTime.tv_sec + 2], 0
+		add ax, 16960
+		adc dx, 15
 	}
 FINAL_PROC:
 	asm {
-		mov _SoftSysTime.tv_usec, eax
+		mov word ptr [_SoftSysTime.tv_usec], ax
+		mov word ptr [_SoftSysTime.tv_usec + 2], dx
 		ret
 	}
 }
