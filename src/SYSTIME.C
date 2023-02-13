@@ -84,6 +84,7 @@ void SysTimeService( void )
 	static uint count_step_epoch  = (uint)STEP_TIMES_IN_EPOCH;
 	static int  remain_compensate = 0;
 
+	long adjs;
 /* */
 	if ( WriteToRTC ) {
 		if ( (WriteRTCCountDown -= CorrectTimeStep) <= 0 ) {
@@ -105,6 +106,7 @@ void SysTimeService( void )
 	}
 /* If there is some residual only in sub-second, step or slew it! */
 RESIDUAL_PROC:
+	adjs = 0;
 	if ( TimeResidualUsec ) {
 	/* */
 		adjs = ABS_HALF_CLOCK_STEP;
@@ -117,9 +119,6 @@ RESIDUAL_PROC:
 		TimeResidualUsec -= adjs;
 	}
 
-	else {
-		adjs = 0;
-	}
 /* */
 	if ( remain_compensate ) {
 		if ( remain_compensate < 0 ) {
