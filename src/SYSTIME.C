@@ -84,7 +84,6 @@ void SysTimeService( void )
 	static uint count_step_epoch  = (uint)STEP_TIMES_IN_EPOCH;
 	static int  remain_compensate = 0;
 
-	long adjs;
 /* */
 	if ( WriteToRTC ) {
 		if ( (WriteRTCCountDown -= CorrectTimeStep) <= 0 ) {
@@ -93,30 +92,35 @@ void SysTimeService( void )
 		}
 	}
 /* */
+REFILL_COMPENSATE:
 	_asm {
 		cmp CompensateReady, 0
-		je RESIDUAL_PROC
+		je STEP_RESIDUAL
 		dec count_step_epoch
 		mov ax, count_step_epoch
 		or ax, ax
-		jnz RESIDUAL_PROC
+		jnz STEP_RESIDUAL
 		mov ax, RmCompensateUSec
 		add remain_compensate, ax
 		mov count_step_epoch, 2000d
 	}
 /* If there is some residual only in sub-second, step or slew it! */
-RESIDUAL_PROC:
+STEP_RESIDUAL:
 	_asm {
 		mov dx, 0
 		mov ax, word ptr TimeResidualUsec
 		or ax, word ptr TimeResidualUsec+2
-		je REM_COMPENSATE_PROC
+		jz STEP_COMPENSATE
 		mov ax, 250d
 		cmp word ptr TimeResidualUsec+2, dx
-		jg ADJUST_RESIDUAL_PROC
-		jne MOVE_RESIDUAL_ADJS
+		jg SUB_RESIDUAL
+		jne NEG_RESIDUAL_CHECK
 		cmp word ptr TimeResidualUsec, ax
-		ja ADJUST_RESIDUAL_PROC
+		ja SUB_RESIDUAL
+		jmp MOVE_RESIDUAL_ADJS
+	}
+NEG_RESIDUAL_CHECK:
+	_asm {
 		cmp word ptr TimeResidualUsec+2, 0
 		jns MOVE_RESIDUAL_ADJS
 		neg dx
@@ -124,9 +128,9 @@ RESIDUAL_PROC:
 		sbb dx, 0
 		cmp word ptr TimeResidualUsec+2, dx
 		jg MOVE_RESIDUAL_ADJS
-		jne ADJUST_RESIDUAL_PROC
+		jne SUB_RESIDUAL
 		cmp word ptr TimeResidualUsec, ax
-		jb ADJUST_RESIDUAL_PROC
+		jb SUB_RESIDUAL
 	}
 MOVE_RESIDUAL_ADJS:
 	_asm {
@@ -134,15 +138,15 @@ MOVE_RESIDUAL_ADJS:
 		mov dx, word ptr TimeResidualUsec+2
 		mov word ptr TimeResidualUsec, 0
 		mov word ptr TimeResidualUsec+2, 0
-		jmp REM_COMPENSATE_PROC
+		jmp STEP_COMPENSATE
 	}
-ADJUST_RESIDUAL_PROC:
+SUB_RESIDUAL:
 	_asm {
 		sub word ptr TimeResidualUsec, ax
 		sbb word ptr TimeResidualUsec+2, dx
 	}
 /* */
-REM_COMPENSATE_PROC:
+STEP_COMPENSATE:
 	_asm {
 		cmp remain_compensate, 0
 		je REAL_ADJS
@@ -163,27 +167,30 @@ REAL_ADJS:
 	_asm {
 		add ax, CorrectTimeStep
 		adc dx, 0
-		or ax, dx
-		je CARRY_CHECK
 		add ax, word ptr _SoftSysTime+4
 		adc dx, word ptr _SoftSysTime+6
 	}
 CARRY_CHECK:
 	_asm {
 		cmp dx, 15d
-		jl FINAL_PROC
-		js NEG_CHECK
+		jl NEG_CARRY_CHECK
+		jne POS_CARRY_PROC
 		cmp ax, 16960d
 		jb FINAL_PROC
-		add word ptr _SoftSysTime, 1
+	}
+POS_CARRY_PROC:
+	_asm {
+		inc word ptr _SoftSysTime
 		adc word ptr _SoftSysTime+2, 0
 		sub ax, 16960d
 		sbb dx, 15d
 		jmp FINAL_PROC
 	}
-NEG_CHECK:
+NEG_CARRY_CHECK:
 	_asm {
-		sub word ptr _SoftSysTime, 1
+		or dx, dx
+		jns FINAL_PROC
+		dec word ptr _SoftSysTime
 		sbb word ptr _SoftSysTime+2, 0
 		add ax, 16960d
 		adc dx, 15d
