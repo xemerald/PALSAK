@@ -105,7 +105,46 @@ void SysTimeService( void )
 	}
 /* If there is some residual only in sub-second, step or slew it! */
 RESIDUAL_PROC:
+	if ( TimeResidualUsec ) {
+	/* */
+		adjs = ABS_HALF_CLOCK_STEP;
+	/* */
+		if ( labs(TimeResidualUsec) <= adjs )
+			adjs = TimeResidualUsec;
+		else if ( TimeResidualUsec < 0 )
+			adjs = -adjs;
+	/* */
+		TimeResidualUsec -= adjs;
+	}
 
+	else {
+		adjs = 0;
+	}
+/* */
+	if ( remain_compensate ) {
+		if ( remain_compensate < 0 ) {
+			--adjs;
+			++remain_compensate;
+		}
+		else {
+			++adjs;
+			--remain_compensate;
+		}
+	}
+/* Keep the clock step forward */
+	if ( (adjs += CorrectTimeStep) )
+		_SoftSysTime.tv_usec += adjs;
+/* */
+	if ( _SoftSysTime.tv_usec >= ONE_EPOCH_USEC ) {
+		++_SoftSysTime.tv_sec;
+		_SoftSysTime.tv_usec -= ONE_EPOCH_USEC;
+	}
+	else if ( _SoftSysTime.tv_usec < 0 ) {
+		--_SoftSysTime.tv_sec;
+		_SoftSysTime.tv_usec += ONE_EPOCH_USEC;
+	}
+
+	return;
 }
 
 /**
