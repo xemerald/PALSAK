@@ -136,30 +136,30 @@ RESIDUAL_PROC:
 
 CARRY_CHECK:
 	asm {
-		mov ax, word ptr [_SoftSysTime + 4]
-		mov dx, word ptr [_SoftSysTime + 6]
+		mov ax, word ptr _SoftSysTime + 4
+		mov dx, word ptr _SoftSysTime + 6
 		cmp dx, 15
 		jl FINAL_PROC
 		js NEG_CHECK
 		cmp ax, 16960
 		jb FINAL_PROC
-		add word ptr [_SoftSysTime], 1
-		adc word ptr [_SoftSysTime + 2], 0
+		add word ptr _SoftSysTime, 1
+		adc word ptr _SoftSysTime + 2, 0
 		sub ax, 16960
 		sbb dx, 15
 		jmp FINAL_PROC
 	}
 NEG_CHECK:
 	asm {
-		sub word ptr [_SoftSysTime], 1
-		sbb word ptr [_SoftSysTime + 2], 0
+		sub word ptr _SoftSysTime, 1
+		sbb word ptr _SoftSysTime + 2, 0
 		add ax, 16960
 		adc dx, 15
 	}
 FINAL_PROC:
 	asm {
-		mov word ptr [_SoftSysTime + 4], ax
-		mov word ptr [_SoftSysTime + 6], dx
+		mov word ptr _SoftSysTime + 4, ax
+		mov word ptr _SoftSysTime + 6, dx
 		ret
 	}
 }
