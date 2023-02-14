@@ -127,13 +127,16 @@ EPOCH_CHECK:
 SELECT_COMPENSATE:
 	_asm {
 		cmp ax, RmCompensateUSec
-		jle add1cx
+		jle INC_CX
 		neg ax
 		cmp ax, RmCompensateUSec
 		jl STEP_RESIDUAL
 		dec cx
 		jmp STEP_RESIDUAL
-		add1cx: inc cx
+	}
+INC_CX:
+	_asm {
+		inc cx
 	}
 /* If there is some residual only in sub-second, step or slew it! */
 STEP_RESIDUAL:
