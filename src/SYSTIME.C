@@ -114,9 +114,9 @@ REAL_WRITE_RTC:
 /* */
 EPOCH_CHECK:
 	_asm {
+		xor cx, cx
 		cmp byte ptr CompensateReady, 0
 		je STEP_RESIDUAL
-		xor cx, cx
 		dec count_step_epoch
 		mov ax, count_step_epoch
 		or ax, ax
@@ -127,10 +127,13 @@ EPOCH_CHECK:
 SELECT_COMPENSATE:
 	_asm {
 		cmp ax, RmCompensateUSec
-		cmovle cx, 1
+		jle add1cx
 		neg ax
 		cmp ax, RmCompensateUSec
-		cmovge cx, -1
+		jl STEP_RESIDUAL
+		dec cx
+		jmp STEP_RESIDUAL
+		add1cx: inc cx
 	}
 /* If there is some residual only in sub-second, step or slew it! */
 STEP_RESIDUAL:
