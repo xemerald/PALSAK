@@ -111,8 +111,6 @@ REAL_WRITE_RTC:
 EPOCH_CHECK:
 	_asm {
 		xor cx, cx
-		cmp byte ptr CompensateReady, 0
-		je STEP_RESIDUAL
 		dec count_step_epoch
 		mov ax, count_step_epoch
 		or ax, ax
@@ -122,17 +120,13 @@ EPOCH_CHECK:
 	}
 SELECT_COMPENSATE:
 	_asm {
+		mov dx, 1
 		cmp ax, RmCompensateUSec
-		jle INC_CX
+		cmovle cx, dx
+		mov dx, -1
 		neg ax
 		cmp ax, RmCompensateUSec
-		jl STEP_RESIDUAL
-		dec cx
-		jmp STEP_RESIDUAL
-	}
-INC_CX:
-	_asm {
-		inc cx
+		cmovge cx, dx
 	}
 /* If there is some residual only in sub-second, step or slew it! */
 STEP_RESIDUAL:
@@ -408,12 +402,12 @@ int NTPProcess( void )
 		/* */
 			i_compensate  = 0;
 			compensate[1] = get_compensate_avg( compensate );
-			compensate[2] = labs( CompensateUSec ) << 1;
+			compensate[2] = labs(CompensateUSec) << 1;
 		/* */
 			if ( !(compensate[0] = compensate[1] / (long)(1 << (ulong)PollIntervalPow)) )
 				compensate[0] = compensate[1] / (long)(1 << (ulong)(PollIntervalPow - 1));
 		/* */
-			if ( CompensateReady && (labs( compensate[0] - CompensateUSec ) > compensate[2] && compensate[2] > 200) ) {
+			if ( CompensateReady && (labs(compensate[0] - CompensateUSec) > compensate[2] && compensate[2] > 200) ) {
 				PollIntervalPow  = MIN_INTERVAL_POW;
 				CompensateReady  = 0;
 				CorrectTimeStep  = (uint)ONE_CLOCK_STEP_USEC;
@@ -423,18 +417,18 @@ int NTPProcess( void )
 			}
 			else {
 			/* Just in case & avoid the CorrectTimeStep whould be too large or being negative */
-				if ( labs( CompensateUSec += compensate[0] ) >= ONE_EPOCH_USEC )
+				if ( labs(CompensateUSec += compensate[0]) >= ONE_EPOCH_USEC )
 					return SYSTIME_ERROR;
 			/* */
 				compensate[3]    = CompensateUSec / STEP_TIMES_IN_EPOCH;
 				CorrectTimeStep  = (uint)(ONE_CLOCK_STEP_USEC + compensate[3]);
 				RmCompensateUSec = (int)(CompensateUSec - STEP_TIMES_IN_EPOCH * compensate[3]);
 			/* */
-				if ( labs( compensate[0] ) < (COMPENSATE_CANDIDATE_NUM << 1) ) {
+				if ( labs(compensate[0]) < (COMPENSATE_CANDIDATE_NUM << 1) ) {
 					if ( PollIntervalPow < MAX_INTERVAL_POW )
 						++PollIntervalPow;
 				}
-				else if ( labs( compensate[0] ) > (COMPENSATE_CANDIDATE_NUM << 2) ) {
+				else if ( labs(compensate[0]) > (COMPENSATE_CANDIDATE_NUM << 2) ) {
 					if ( PollIntervalPow > MIN_INTERVAL_POW )
 						--PollIntervalPow;
 				}
@@ -537,12 +531,12 @@ static long get_compensate_avg( long compensate[] )
 	result /= COMPENSATE_CANDIDATE_NUM;
 /* */
 	for ( i = 1, i_st = 0, i_nd = 1; i < COMPENSATE_CANDIDATE_NUM; i++ ) {
-		_max = labs( compensate[i] - result );
-		if ( _max > labs( compensate[i_st] - result ) ) {
+		_max = labs(compensate[i] - result);
+		if ( _max > labs(compensate[i_st] - result) ) {
 			i_nd = i_st;
 			i_st = i;
 		}
-		else if ( _max > labs( compensate[i_nd] - result ) ) {
+		else if ( _max > labs(compensate[i_nd] - result) ) {
 			i_nd = i;
 		}
 	}
