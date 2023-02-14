@@ -120,13 +120,13 @@ EPOCH_CHECK:
 		dec count_step_epoch
 		mov ax, count_step_epoch
 		or ax, ax
-		cmovz count_step_epoch, 2000d
+		cmovz count_step_epoch, 2000
 		jz STEP_RESIDUAL
 		cmp ax, RmCompensateUSec
-		cmovle cx, 1d
+		cmovle cx, 1
 		neg ax
 		cmp ax, RmCompensateUSec
-		cmovge cx, -1d
+		cmovge cx, -1
 	}
 /* If there is some residual only in sub-second, step or slew it! */
 STEP_RESIDUAL:
@@ -142,27 +142,27 @@ STEP_RESIDUAL:
 		cmp dx, 0
 		jg ASSIGN_POS_RESIDUAL
 		jne ZERO_RESIDUAL
-		cmp ax, 250d
+		cmp ax, 250
 		jbe ZERO_RESIDUAL
 	}
 ASSIGN_POS_RESIDUAL:
 	_asm {
 		xor dx, dx
-		mov ax, 250d
+		mov ax, 250
 		jmp SUB_RESIDUAL
 	}
 NEG_RESIDUAL_CHECK:
 	_asm {
-		cmp dx, FFFFh
+		cmp dx, 0xFFFF
 		jg ZERO_RESIDUAL
 		jne ASSIGN_NEG_RESIDUAL
-		cmp ax, FF06h
+		cmp ax, 0xFF06
 		jae ZERO_RESIDUAL
 	}
 ASSIGN_NEG_RESIDUAL:
 	_asm {
-		mov dx, FFFFh
-		mov ax, FF06h
+		mov dx, 0xFFFF
+		mov ax, 0xFF06
 		jmp SUB_RESIDUAL
 	}
 ZERO_RESIDUAL:
@@ -190,26 +190,26 @@ CARRY_CHECK:
 	_asm {
 		or dx, dx
 		js NEG_CARRY_PROC
-		cmp dx, 15d
+		cmp dx, 15
 		jg POS_CARRY_PROC
 		jne FINAL_PROC
-		cmp ax, 16960d
+		cmp ax, 16960
 		jb FINAL_PROC
 	}
 POS_CARRY_PROC:
 	_asm {
 		add word ptr _SoftSysTime, 1
 		adc word ptr _SoftSysTime+2, 0
-		sub ax, 16960d
-		sbb dx, 15d
+		sub ax, 16960
+		sbb dx, 15
 		jmp FINAL_PROC
 	}
 NEG_CARRY_PROC:
 	_asm {
 		sub word ptr _SoftSysTime, 1
 		sbb word ptr _SoftSysTime+2, 0
-		add ax, 16960d
-		adc dx, 15d
+		add ax, 16960
+		adc dx, 15
 	}
 FINAL_PROC:
 	_asm {
