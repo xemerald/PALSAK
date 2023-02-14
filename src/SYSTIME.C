@@ -32,9 +32,8 @@ static volatile int MainSock = -1;
 static struct timeval _SoftSysTime;
 const struct timeval far *SoftSysTime = &_SoftSysTime;
 /* */
-static uchar     PollIntervalPow;
+static BYTE      PollIntervalPow;
 static BYTE      WriteToRTC;
-static BYTE      CompensateReady;
 static long      CompensateUSec;
 static int       RmCompensateUSec;
 static uint      CorrectTimeStep;
@@ -61,7 +60,6 @@ void SysTimeInit( const int timezone )
 	_SoftSysTime.tv_usec = 250000L;
 	PollIntervalPow      = MIN_INTERVAL_POW;
 	WriteToRTC           = 0;
-	CompensateReady      = 0;
 	CompensateUSec       = 0L;
 	RmCompensateUSec     = 0;
 	CorrectTimeStep      = (uint)ONE_CLOCK_STEP_USEC;
@@ -344,8 +342,6 @@ int NTPProcess( void )
 	_asm cli
 	tv4 = _SoftSysTime;
 	_asm sti
-/* Checking & get the local transmitted timestamp */
-	Print("\r\nOrigin Tv1 %ld usec.", tv1.tv_usec);
 /* Checking part */
 	//if ( (tv1.tv_usec = NTOHS_FP( *(ulong *)&InternalBuffer[28] )) & FRAC_RANDOM_FILL ^ FRAC_RANDOM_FILL )
 		//return SYSTIME_ERROR;
@@ -357,8 +353,6 @@ int NTPProcess( void )
 /* Get the remote transmit timestamp */
 	tv3.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[40] );
 	tv3.tv_usec = frac2usec( NTOHS_FP( *(ulong *)&InternalBuffer[44] ) );
-/* Debug information */
-	Print("\r\nTv1 %ld usec, Tv2 %ld usec, Tv3 %ld usec.", tv1.tv_usec, tv2.tv_usec, tv3.tv_usec);
 /* Calculate the time offset */
 	offset.tv_sec  = (tv2.tv_sec - tv1.tv_sec) + (tv3.tv_sec - (tv4.tv_sec + EPOCH_DIFF_JAN1970));
 	offset.tv_usec = ((tv2.tv_usec - tv1.tv_usec) + (tv3.tv_usec - tv4.tv_usec)) / 2;
@@ -411,9 +405,8 @@ int NTPProcess( void )
 			if ( !(compensate[0] = compensate[1] / (long)(1 << (ulong)PollIntervalPow)) )
 				compensate[0] = compensate[1] / (long)(1 << (ulong)(PollIntervalPow - 1));
 		/* */
-			if ( CompensateReady && (labs(compensate[0] - CompensateUSec) > compensate[2] && compensate[2] > 200) ) {
+			if ( !CompensateUSec && (labs(compensate[0] - CompensateUSec) > compensate[2] && compensate[2] > 200) ) {
 				PollIntervalPow  = MIN_INTERVAL_POW;
-				CompensateReady  = 0;
 				CorrectTimeStep  = (uint)ONE_CLOCK_STEP_USEC;
 				RmCompensateUSec = 0;
 				CompensateUSec   = 0L;
@@ -436,9 +429,6 @@ int NTPProcess( void )
 					if ( PollIntervalPow > MIN_INTERVAL_POW )
 						--PollIntervalPow;
 				}
-			/* */
-				if ( !CompensateReady )
-					CompensateReady = 1;
 			}
 		}
 	}
@@ -446,9 +436,11 @@ int NTPProcess( void )
 		first_time = 0;
 	}
 /* Debug information */
-	Print("\r\nOffset: %ld sec, %ld usec.", offset.tv_sec, offset.tv_usec);
-	Print("\r\nFrequency %+ld ppm.", CompensateUSec);
-	Print("\r\nPolling: %u sec.", 1 << PollIntervalPow);
+#ifdef __SYSTIME__DEBUG__
+	Print("\r\nOffset:     %ld sec, %ld usec.", offset.tv_sec, offset.tv_usec);
+	Print("\r\nPolling:    %u sec.", 1 << PollIntervalPow);
+	Print("\r\nFrequency:  %+ld ppm.", CompensateUSec);
+#endif
 /* */
 	T_CountDownTimerStart(&NTPProcessTimer, 1000UL << (ulong)PollIntervalPow);
 
