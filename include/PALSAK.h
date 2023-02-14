@@ -15,6 +15,8 @@
 extern "C" {
 #endif
 
+/* */
+#define TAIWAN_TIME_ZONE  8
 /* Address to accept any incoming messages */
 #define INADDR_ANY        0x00000000
 /* Address to send to all hosts */

@@ -853,19 +853,19 @@ static int CheckServerConnect( const uint msec )
 /* Show 'ntP.' on the 7-seg led */
 	ShowAll5DigitLedSeg( 0x00, 0x15, 0x11, 0xe7, 0x00 );
 /* Start the system time service */
-	SysTimeInit( 8 );
+	SysTimeInit( TAIWAN_TIME_ZONE );
 	SYSTIME_INSTALL_TICKTIMER_FUNC( SysTimeService );
 	Delay2(msec);
 /* NTP server connection test */
 	sprintf(RecvBuffer, "%u.%u.%u.%u", (BYTE)PreBuffer[41], (BYTE)PreBuffer[43], (BYTE)PreBuffer[45], (BYTE)PreBuffer[47]);
-	if ( NTPConnect( RecvBuffer, 123 ) == ERROR || (NTPProcess() == ERROR && NTPProcess() == ERROR) ) {
+	if ( NTPConnect( RecvBuffer, DEFAULT_NTP_UDP_PORT ) == ERROR || (NTPProcess() == ERROR && NTPProcess() == ERROR) ) {
 		SHOW_ERROR_5DIGITLED();
 	}
 	else {
 	/* If we can get the offset from ntp server, then write it into HW(RTC) timer */
 		SHOW_GOOD_5DIGITLED();
 		Delay2(1000);
-		SysTimeToHWTime( 8 );
+		SysTimeToHWTime( TAIWAN_TIME_ZONE );
 	}
 /* This one second delay is for waiting RTC write-in */
 	Delay2(1000);

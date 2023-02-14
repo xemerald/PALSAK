@@ -46,6 +46,8 @@ extern "C" {
 /* */
 #define COMPENSATE_CANDIDATE_NUM 5
 /* */
+#define DEFAULT_NTP_UDP_PORT  123
+/* */
 #define SYSTIME_INSTALL_TICKTIMER_FUNC(__FUNC) \
 		InstallUserTimer1Function_us(ONE_CLOCK_STEP_USEC * 10, (__FUNC))
 /*

@@ -31,7 +31,7 @@ void main( void )
 
 	Print("\r\nPress any key to start timer");
 	Print("\r\nthen Press 'q' to quit\r\n");
-	NTPConnect( "140.112.2.189", 123 );
+	NTPConnect( "140.112.2.189", DEFAULT_NTP_UDP_PORT );
 
 	Getch();
 	while( 1 ) {
