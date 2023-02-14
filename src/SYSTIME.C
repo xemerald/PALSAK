@@ -120,8 +120,12 @@ EPOCH_CHECK:
 		dec count_step_epoch
 		mov ax, count_step_epoch
 		or ax, ax
-		cmovz count_step_epoch, 2000
-		jz STEP_RESIDUAL
+		jnz SELECT_COMPENSATE
+		mov count_step_epoch, 2000
+		jmp STEP_RESIDUAL
+	}
+SELECT_COMPENSATE:
+	_asm {
 		cmp ax, RmCompensateUSec
 		cmovle cx, 1
 		neg ax
