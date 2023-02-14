@@ -18,6 +18,10 @@
 /*
  *
  */
+#define __ABS(__X) ((__X) < 0 ? -(__X) : (__X))
+/*
+ *
+ */
 static time_t _mktime( uint, uint, uint, uint, uint, uint );
 static ulong  frac2usec( const ulong );
 static ulong  usec2frac( const ulong );
@@ -81,90 +85,102 @@ void SysTimeInit( const int timezone )
  */
 void SysTimeService( void )
 {
-	static uint count_step_epoch  = (uint)STEP_TIMES_IN_EPOCH;
-	static int  remain_compensate = 0;
+	static int count_step_epoch = STEP_TIMES_IN_EPOCH;
 
 /* */
-	if ( WriteToRTC ) {
-		if ( (WriteRTCCountDown -= CorrectTimeStep) <= 0 ) {
-			SetTimeDate(&TimeDateSetting);
-			WriteToRTC = 0;
-		}
+WRITE_RTC_CHECK:
+	_asm {
+		cmp byte ptr WriteToRTC, 0
+		je EPOCH_CHECK
+		mov ax, CorrectTimeStep
+		sub word ptr WriteRTCCountDown, ax
+		mov ax, word ptr WriteRTCCountDown
+		sbb word ptr WriteRTCCountDown+2, 0
+		mov dx, word ptr WriteRTCCountDown+2
+		or dx, dx
+		jg EPOCH_CHECK
+		jne REAL_WRITE_RTC
+		or ax, ax
+		ja EPOCH_CHECK
+	}
+REAL_WRITE_RTC:
+	_asm {
+		push ds
+		push offset TimeDateSetting
+		call far ptr SetTimeDate
+		add sp, 4
+		mov byte ptr WriteToRTC, 0
 	}
 /* */
-REFILL_COMPENSATE:
+EPOCH_CHECK:
 	_asm {
-		cmp CompensateReady, 0
+		cmp byte ptr CompensateReady, 0
 		je STEP_RESIDUAL
+		xor cx, cx
 		dec count_step_epoch
 		mov ax, count_step_epoch
 		or ax, ax
-		jnz STEP_RESIDUAL
-		mov ax, RmCompensateUSec
-		add remain_compensate, ax
-		mov count_step_epoch, 2000d
+		cmovz count_step_epoch, 2000d
+		jz STEP_RESIDUAL
+		cmp ax, RmCompensateUSec
+		cmovle cx, 1d
+		neg ax
+		cmp ax, RmCompensateUSec
+		cmovge cx, -1d
 	}
 /* If there is some residual only in sub-second, step or slew it! */
 STEP_RESIDUAL:
 	_asm {
-		mov dx, 0
+		xor dx, dx
 		mov ax, word ptr TimeResidualUsec
 		or ax, word ptr TimeResidualUsec+2
-		jz STEP_COMPENSATE
+		jz REAL_ADJS
+		mov ax, word ptr TimeResidualUsec
+		mov dx, word ptr TimeResidualUsec+2
+		or dx, dx
+		js NEG_RESIDUAL_CHECK
+		cmp dx, 0
+		jg ASSIGN_POS_RESIDUAL
+		jne ZERO_RESIDUAL
+		cmp ax, 250d
+		jbe ZERO_RESIDUAL
+	}
+ASSIGN_POS_RESIDUAL:
+	_asm {
+		xor dx, dx
 		mov ax, 250d
-		cmp word ptr TimeResidualUsec+2, dx
-		jg SUB_RESIDUAL
-		jne NEG_RESIDUAL_CHECK
-		cmp word ptr TimeResidualUsec, ax
-		ja SUB_RESIDUAL
-		jmp MOVE_RESIDUAL_ADJS
+		jmp SUB_RESIDUAL
 	}
 NEG_RESIDUAL_CHECK:
 	_asm {
-		cmp word ptr TimeResidualUsec+2, 0
-		jns MOVE_RESIDUAL_ADJS
-		neg dx
-		neg ax
-		sbb dx, 0
-		cmp word ptr TimeResidualUsec+2, dx
-		jg MOVE_RESIDUAL_ADJS
-		jne SUB_RESIDUAL
-		cmp word ptr TimeResidualUsec, ax
-		jb SUB_RESIDUAL
+		cmp dx, FFFFh
+		jg ZERO_RESIDUAL
+		jne ASSIGN_NEG_RESIDUAL
+		cmp ax, FF06h
+		jae ZERO_RESIDUAL
 	}
-MOVE_RESIDUAL_ADJS:
+ASSIGN_NEG_RESIDUAL:
 	_asm {
-		mov ax, word ptr TimeResidualUsec
-		mov dx, word ptr TimeResidualUsec+2
+		mov dx, FFFFh
+		mov ax, FF06h
+		jmp SUB_RESIDUAL
+	}
+ZERO_RESIDUAL:
+	_asm {
 		mov word ptr TimeResidualUsec, 0
 		mov word ptr TimeResidualUsec+2, 0
-		jmp STEP_COMPENSATE
+		jmp REAL_ADJS
 	}
 SUB_RESIDUAL:
 	_asm {
 		sub word ptr TimeResidualUsec, ax
 		sbb word ptr TimeResidualUsec+2, dx
 	}
-/* */
-STEP_COMPENSATE:
-	_asm {
-		cmp remain_compensate, 0
-		je REAL_ADJS
-		js NEG_REM_COMPENSATE
-		inc ax
-		adc dx, 0
-		dec remain_compensate
-		jmp REAL_ADJS
-	}
-NEG_REM_COMPENSATE:
-	_asm {
-		dec ax
-		sbb dx, 0
-		inc remain_compensate
-	}
 /* Keep the clock step forward */
 REAL_ADJS:
 	_asm {
+		add ax, cx
+		adc dx, 0
 		add ax, CorrectTimeStep
 		adc dx, 0
 		add ax, word ptr _SoftSysTime+4
@@ -172,25 +188,25 @@ REAL_ADJS:
 	}
 CARRY_CHECK:
 	_asm {
+		or dx, dx
+		js NEG_CARRY_PROC
 		cmp dx, 15d
-		jl NEG_CARRY_CHECK
-		jne POS_CARRY_PROC
+		jg POS_CARRY_PROC
+		jne FINAL_PROC
 		cmp ax, 16960d
 		jb FINAL_PROC
 	}
 POS_CARRY_PROC:
 	_asm {
-		inc word ptr _SoftSysTime
+		add word ptr _SoftSysTime, 1
 		adc word ptr _SoftSysTime+2, 0
 		sub ax, 16960d
 		sbb dx, 15d
 		jmp FINAL_PROC
 	}
-NEG_CARRY_CHECK:
+NEG_CARRY_PROC:
 	_asm {
-		or dx, dx
-		jns FINAL_PROC
-		dec word ptr _SoftSysTime
+		sub word ptr _SoftSysTime, 1
 		sbb word ptr _SoftSysTime+2, 0
 		add ax, 16960d
 		adc dx, 15d
@@ -200,6 +216,7 @@ FINAL_PROC:
 		mov word ptr _SoftSysTime+4, ax
 		mov word ptr _SoftSysTime+6, dx
 	}
+
 	return;
 }
 
@@ -385,12 +402,12 @@ int NTPProcess( void )
 		/* */
 			i_compensate  = 0;
 			compensate[1] = get_compensate_avg( compensate );
-			compensate[2] = labs(CompensateUSec) << 1;
+			compensate[2] = __ABS( CompensateUSec ) << 1;
 		/* */
 			if ( !(compensate[0] = compensate[1] / (long)(1 << (ulong)PollIntervalPow)) )
 				compensate[0] = compensate[1] / (long)(1 << (ulong)(PollIntervalPow - 1));
 		/* */
-			if ( CompensateReady && (labs(compensate[0] - CompensateUSec) > compensate[2] && compensate[2] > 200) ) {
+			if ( CompensateReady && (__ABS( compensate[0] - CompensateUSec ) > compensate[2] && compensate[2] > 200) ) {
 				PollIntervalPow  = MIN_INTERVAL_POW;
 				CompensateReady  = 0;
 				CorrectTimeStep  = (uint)ONE_CLOCK_STEP_USEC;
@@ -400,18 +417,19 @@ int NTPProcess( void )
 			}
 			else {
 			/* Just in case & avoid the CorrectTimeStep whould be too large or being negative */
-				if ( labs(CompensateUSec += compensate[0]) >= ONE_EPOCH_USEC )
+				CompensateUSec += compensate[0];
+				if ( __ABS( CompensateUSec ) >= ONE_EPOCH_USEC )
 					return SYSTIME_ERROR;
 			/* */
 				compensate[3]    = CompensateUSec / STEP_TIMES_IN_EPOCH;
 				CorrectTimeStep  = (uint)(ONE_CLOCK_STEP_USEC + compensate[3]);
 				RmCompensateUSec = (int)(CompensateUSec - STEP_TIMES_IN_EPOCH * compensate[3]);
 			/* */
-				if ( labs(compensate[0]) < (COMPENSATE_CANDIDATE_NUM << 1) ) {
+				if ( __ABS( compensate[0] ) < (COMPENSATE_CANDIDATE_NUM << 1) ) {
 					if ( PollIntervalPow < MAX_INTERVAL_POW )
 						++PollIntervalPow;
 				}
-				else if ( labs(compensate[0]) > (COMPENSATE_CANDIDATE_NUM << 2) ) {
+				else if ( __ABS( compensate[0] ) > (COMPENSATE_CANDIDATE_NUM << 2) ) {
 					if ( PollIntervalPow > MIN_INTERVAL_POW )
 						--PollIntervalPow;
 				}
@@ -514,12 +532,12 @@ static long get_compensate_avg( long compensate[] )
 	result /= COMPENSATE_CANDIDATE_NUM;
 /* */
 	for ( i = 1, i_st = 0, i_nd = 1; i < COMPENSATE_CANDIDATE_NUM; i++ ) {
-		_max = labs(compensate[i] - result);
-		if ( _max > labs(compensate[i_st] - result) ) {
+		_max = __ABS( compensate[i] - result );
+		if ( _max > __ABS( compensate[i_st] - result ) ) {
 			i_nd = i_st;
 			i_st = i;
 		}
-		else if ( _max > labs(compensate[i_nd] - result) ) {
+		else if ( _max > __ABS( compensate[i_nd] - result ) ) {
 			i_nd = i;
 		}
 	}
