@@ -345,7 +345,7 @@ int NTPProcess( void )
 	tv4 = _SoftSysTime;
 	_asm sti
 /* Checking & get the local transmitted timestamp */
-	Print("\r\nOrigin tv1 %ld usec.", tv1.tv_usec);
+	Print("\r\nOrigin Tv1 %ld usec.", tv1.tv_usec);
 /* Checking part */
 	//if ( (tv1.tv_usec = NTOHS_FP( *(ulong *)&InternalBuffer[28] )) & FRAC_RANDOM_FILL ^ FRAC_RANDOM_FILL )
 		//return SYSTIME_ERROR;
@@ -446,9 +446,9 @@ int NTPProcess( void )
 		first_time = 0;
 	}
 /* Debug information */
-	Print("\r\nTime offset is %ld sec %ld usec.", offset.tv_sec, offset.tv_usec);
-	Print("\r\nCompensate is %ld usec.", CompensateUSec);
-	Print("\r\nPolling interval is %u sec.", 1 << PollIntervalPow);
+	Print("\r\nOffset: %ld sec, %ld usec.", offset.tv_sec, offset.tv_usec);
+	Print("\r\nFrequency %+ld ppm.", CompensateUSec);
+	Print("\r\nPolling: %u sec.", 1 << PollIntervalPow);
 /* */
 	T_CountDownTimerStart(&NTPProcessTimer, 1000UL << (ulong)PollIntervalPow);
 
