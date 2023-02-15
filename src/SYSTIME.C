@@ -149,9 +149,10 @@ STEP_RESIDUAL:
 	}
 ASSIGN_POS_RESIDUAL:
 	_asm {
-		xor dx, dx
-		mov ax, 250
-		jmp SUB_RESIDUAL
+		add cx, 250
+		sub word ptr TimeResidualUsec, 250
+		sbb word ptr TimeResidualUsec+2, 0
+		jmp REAL_ADJS
 	}
 NEG_RESIDUAL_CHECK:
 	_asm {
@@ -163,28 +164,24 @@ NEG_RESIDUAL_CHECK:
 	}
 ASSIGN_NEG_RESIDUAL:
 	_asm {
-		mov dx, 0xFFFF
-		mov ax, 0xFF06
-		jmp SUB_RESIDUAL
+		sub cx, 250
+		add word ptr TimeResidualUsec, 250
+		adc word ptr TimeResidualUsec+2, 0
+		jmp REAL_ADJS
 	}
 ZERO_RESIDUAL:
 	_asm {
 		mov word ptr TimeResidualUsec, 0
 		mov word ptr TimeResidualUsec+2, 0
-		jmp REAL_ADJS
-	}
-SUB_RESIDUAL:
-	_asm {
-		sub word ptr TimeResidualUsec, ax
-		sbb word ptr TimeResidualUsec+2, dx
+		add cx, ax
 	}
 /* Keep the clock step forward */
 REAL_ADJS:
 	_asm {
+		mov ax, word ptr _SoftSysTime+4
+		mov dx, word ptr _SoftSysTime+6
 		add ax, cx
 		adc dx, 0
-		add ax, word ptr _SoftSysTime+4
-		adc dx, word ptr _SoftSysTime+6
 	}
 CARRY_CHECK:
 	_asm {
@@ -402,7 +399,7 @@ int NTPProcess( void )
 			}
 			else {
 			/* Just in case & avoid the CorrectTimeStep whould be too large or being negative */
-				if ( labs(CompensateUSec += compensate[0]) >= ONE_EPOCH_USEC )
+				if ( labs(CompensateUSec += compensate[0]) >= HALF_EPOCH_USEC )
 					return SYSTIME_ERROR;
 			/* */
 				compensate[3]    = CompensateUSec / STEP_TIMES_IN_EPOCH;

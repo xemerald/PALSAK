@@ -38,7 +38,7 @@ static long      CompensateFrac;
 static int       RmCompensateFrac;
 static uint      CorrectTimeStep;
 static long      TimeResidualFrac;
-static long      WriteRTCCountDown;
+static uint      WriteRTCCountDown;
 static TIME_DATE TimeDateSetting;
 /* */
 static COUNTDOWNTIMER NTPProcessTimer;
@@ -64,7 +64,7 @@ void SysTimeInit( const int timezone )
 	RmCompensateFrac     = 0;
 	CorrectTimeStep      = 32;
 	TimeResidualFrac     = 0L;
-	WriteRTCCountDown    = 0L;
+	WriteRTCCountDown    = 0;
 /* */
 	T_CountDownTimerStart(&NTPProcessTimer, 0);
 /* Flush the internal buffer */
@@ -84,18 +84,12 @@ void SysTimeService( void )
 /* */
 WRITE_RTC_CHECK:
 	_asm {
+		mov cx, CorrectTimeStep
 		cmp byte ptr WriteToRTC, 0
 		je EPOCH_CHECK
-		mov ax, CorrectTimeStep
-		sub word ptr WriteRTCCountDown, ax
-		mov ax, word ptr WriteRTCCountDown
-		sbb word ptr WriteRTCCountDown+2, 0
-		mov dx, word ptr WriteRTCCountDown+2
-		or dx, dx
-		jg EPOCH_CHECK
-		jne REAL_WRITE_RTC
-		or ax, ax
-		ja EPOCH_CHECK
+		sub WriteRTCCountDown, cx
+		jz REAL_WRITE_RTC
+		jnc EPOCH_CHECK
 	}
 REAL_WRITE_RTC:
 	_asm {
@@ -108,7 +102,6 @@ REAL_WRITE_RTC:
 /* */
 EPOCH_CHECK:
 	_asm {
-		mov cx, CorrectTimeStep
 		dec count_step_epoch
 		mov ax, count_step_epoch
 		or ax, ax
@@ -380,14 +373,14 @@ int NTPProcess( void )
 			}
 			else {
 			/* Just in case & avoid the CorrectTimeStep whould be too large or being negative */
-				if ( labs(CompensateFrac += compensate[0]) >= 65536 )
+				if ( labs(CompensateFrac += compensate[0]) >= 32768 )
 					return SYSTIME_ERROR;
 			/* */
 				compensate[3]    = CompensateFrac / 2048;
 				CorrectTimeStep  = (uint)(32 + compensate[3]);
 				RmCompensateFrac = (int)(CompensateFrac - (compensate[3] << 11));
 			/* */
-				if ( labs(compensate[0]) < 1 ) {
+				if ( labs(compensate[0]) <= 1 ) {
 					if ( PollIntervalPow < MAX_INTERVAL_POW )
 						++PollIntervalPow;
 				}
