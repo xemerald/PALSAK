@@ -321,7 +321,7 @@ int NTPProcess( void )
 	tv3.tv_frac = nfrac2lfrac( NTOHS_FP( *(ulong *)&InternalBuffer[44] ) );
 /* Calculate the time offset */
 	offset_sec  = (tv2.tv_sec - tv1.tv_sec) + (tv3.tv_sec - (tv4.tv_sec + EPOCH_DIFF_JAN1970));
-	offset_frac = (((ulong)tv2.tv_frac - (ulong)tv1.tv_frac) + ((ulong)tv3.tv_frac - (ulong)tv4.tv_frac)) / 2;
+	offset_frac = ((long)((ulong)tv2.tv_frac - (ulong)tv1.tv_frac) + (long)((ulong)tv3.tv_frac - (ulong)tv4.tv_frac)) / 2;
 	if ( offset_sec & 0x1 ) {
 		if ( offset_sec < 0 )
 			offset_frac -= 32768;
