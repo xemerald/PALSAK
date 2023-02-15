@@ -214,9 +214,9 @@ FINAL_PROC:
  */
 void SysTimeGet( struct timeval far *sys_time )
 {
-	_asm cli
+	_asm cli;
 	*sys_time = _SoftSysTime;
-	_asm sti
+	_asm sti;
 
 	return;
 }
@@ -233,9 +233,9 @@ void SysTimeToHWTime( const int timezone )
 	struct tm *brktime;
 
 /* */
-	_asm cli
+	_asm cli;
 	now_time = _SoftSysTime;
-	_asm sti
+	_asm sti;
 /* Add to the next second */
 	now_time.tv_sec += ((long)timezone * 3600) + 1;
 /* Turn the usec to the usec between next second */
@@ -312,9 +312,9 @@ int NTPProcess( void )
 /* Clock precision */
 	InternalBuffer[3] = L_CLOCK_PRECISION;
 /* Get the local sent time - Originate Timestamp */
-	_asm cli
+	_asm cli;
 	tv1 = _SoftSysTime;
-	_asm sti
+	_asm sti;
 	*(ulong *)&InternalBuffer[40] = HTONS_FP( tv1.tv_sec + EPOCH_DIFF_JAN1970 );
 	*(ulong *)&InternalBuffer[44] = HTONS_FP( usec2frac( tv1.tv_usec ) );
 /* Send to the server */
@@ -324,9 +324,9 @@ int NTPProcess( void )
 	if ( recv(MainSock, InternalBuffer, INTERNAL_BUF_SIZE, 0) <= 0 )
 		return SYSTIME_WARNING;
 /* Get the local received timestamp */
-	_asm cli
+	_asm cli;
 	tv4 = _SoftSysTime;
-	_asm sti
+	_asm sti;
 /* Checking part */
 	//if ( (tv1.tv_usec = NTOHS_FP( *(ulong *)&InternalBuffer[28] )) & FRAC_RANDOM_FILL ^ FRAC_RANDOM_FILL )
 		//return SYSTIME_ERROR;
@@ -361,16 +361,16 @@ int NTPProcess( void )
 /* If the residual is larger than one second, directly adjust it! */
 	if ( offset.tv_sec ) {
 	/* Disable the ISR */
-		_asm cli
+		_asm cli;
 		_SoftSysTime.tv_sec += offset.tv_sec;
-		_asm sti
+		_asm sti;
 	}
 /* Otherwise keep the adjustment in residual */
 	if ( offset.tv_usec ) {
 	/* Disable the ISR */
-		_asm cli
+		_asm cli;
 		TimeResidualUsec = offset.tv_usec;
-		_asm sti
+		_asm sti;
 	}
 
 /* */
