@@ -48,7 +48,7 @@ void main( void )
 		}
 	}
 
-	StopUserTimer1Fun();
+	SYSTIME_STOP_TICKTIMER_FUNC();
 
 	return;
 }

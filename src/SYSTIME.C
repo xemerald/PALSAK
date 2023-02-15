@@ -84,10 +84,10 @@ void SysTimeService( void )
 /* */
 WRITE_RTC_CHECK:
 	_asm {
+		mov cx, CorrectTimeStep
 		cmp byte ptr WriteToRTC, 0
 		je EPOCH_CHECK
-		mov ax, CorrectTimeStep
-		sub word ptr WriteRTCCountDown, ax
+		sub word ptr WriteRTCCountDown, cx
 		mov ax, word ptr WriteRTCCountDown
 		sbb word ptr WriteRTCCountDown+2, 0
 		mov dx, word ptr WriteRTCCountDown+2
@@ -108,7 +108,6 @@ REAL_WRITE_RTC:
 /* */
 EPOCH_CHECK:
 	_asm {
-		mov cx, CorrectTimeStep
 		dec count_step_epoch
 		mov ax, count_step_epoch
 		or ax, ax
@@ -133,7 +132,6 @@ INC_CX:
 /* If there is some residual only in sub-second, step or slew it! */
 STEP_RESIDUAL:
 	_asm {
-		xor dx, dx
 		mov ax, word ptr TimeResidualUsec
 		or ax, word ptr TimeResidualUsec+2
 		jz REAL_ADJS

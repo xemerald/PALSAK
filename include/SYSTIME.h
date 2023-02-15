@@ -50,6 +50,8 @@ extern "C" {
 /* */
 #define SYSTIME_INSTALL_TICKTIMER_FUNC(__FUNC) \
 		InstallUserTimer1Function_us(ONE_CLOCK_STEP_USEC * 10, (__FUNC))
+#define SYSTIME_STOP_TICKTIMER_FUNC() \
+		StopUserTimer1Fun();
 /*
  *
  */

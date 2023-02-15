@@ -870,7 +870,7 @@ static int CheckServerConnect( const uint msec )
 /* This one second delay is for waiting RTC write-in */
 	Delay2(1000);
 /* Close the system time service & ntp connection */
-	StopUserTimer1Fun();
+	SYSTIME_STOP_TICKTIMER_FUNC();
 	NTPClose();
 
 /* Show 'tCP.0.' on the 7-seg led */

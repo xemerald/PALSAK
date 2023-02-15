@@ -48,7 +48,8 @@ extern "C" {
 /* */
 #define SYSTIME_INSTALL_TICKTIMER_FUNC(__FUNC) \
 		InstallUserTimer1Function_us((ulong)ONE_CLOCK_STEP_FRAC * 78125 / 512 + 1, (__FUNC))
-
+#define SYSTIME_STOP_TICKTIMER_FUNC() \
+		StopUserTimer1Fun();
 /*
  *
  */
