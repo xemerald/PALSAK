@@ -41,7 +41,7 @@ void main( void )
 		NTPProcess();
 		if ( inc % 5 == 0 ) {
 			SysTimeGet( & tv );
-			Print("\r\nNow time is %ld.%.6ld", tv.tv_sec, tv.tv_frac);
+			Print("\r\nNow time is %ld.%.6d", tv.tv_sec, tv.tv_frac);
 		}
 		inc++;
 		if ( inc % 3000 == 0 ) {

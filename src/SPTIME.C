@@ -279,7 +279,7 @@ int NTPProcess( void )
 	static uchar i_compensate = 0;
 	static uchar first_time = 1;
 /* */
-	int  offset_sec;
+	long offset_sec;
 	long offset_frac;
 	timeval_s tv1, tv2, tv3, tv4;
 
@@ -321,7 +321,7 @@ int NTPProcess( void )
 	tv3.tv_frac = nfrac2lfrac( NTOHS_FP( *(ulong *)&InternalBuffer[44] ) );
 /* Calculate the time offset */
 	offset_sec  = (tv2.tv_sec - tv1.tv_sec) + (tv3.tv_sec - (tv4.tv_sec + EPOCH_DIFF_JAN1970));
-	offset_frac = ((tv2.tv_frac - tv1.tv_frac) + (tv3.tv_frac - tv4.tv_frac)) / 2;
+	offset_frac = (((long)tv2.tv_frac - (long)tv1.tv_frac) + ((long)tv3.tv_frac - (long)tv4.tv_frac)) / 2;
 	if ( offset_sec & 0x1 ) {
 		if ( offset_sec < 0 )
 			offset_frac -= 32768;
@@ -330,7 +330,7 @@ int NTPProcess( void )
 	}
 	offset_sec /= 2;
 /* Deal with the different sign condition */
-	if ( offset_sec && ((long)offset_sec ^ offset_frac) & 0x80000000 ) {
+	if ( offset_sec && (offset_sec ^ offset_frac) & 0x80000000 ) {
 		if ( offset_sec < 0 ) {
 			++offset_sec;
 			offset_frac -= 65536;
