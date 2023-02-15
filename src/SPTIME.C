@@ -387,11 +387,11 @@ int NTPProcess( void )
 				CorrectTimeStep  = (uint)(32 + compensate[3]);
 				RmCompensateFrac = (int)(CompensateFrac - (compensate[3] << 11));
 			/* */
-				if ( labs(compensate[0]) < (COMPENSATE_CANDIDATE_NUM << 1) ) {
+				if ( labs(compensate[0]) < 1 ) {
 					if ( PollIntervalPow < MAX_INTERVAL_POW )
 						++PollIntervalPow;
 				}
-				else if ( labs(compensate[0]) > (COMPENSATE_CANDIDATE_NUM << 2) ) {
+				else if ( labs(compensate[0]) > 2 ) {
 					if ( PollIntervalPow > MIN_INTERVAL_POW )
 						--PollIntervalPow;
 				}
