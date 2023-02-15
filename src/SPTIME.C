@@ -38,7 +38,7 @@ static long      CompensateFrac;
 static int       RmCompensateFrac;
 static uint      CorrectTimeStep;
 static long      TimeResidualFrac;
-static uint      WriteRTCCountDown;
+static long      WriteRTCCountDown;
 static TIME_DATE TimeDateSetting;
 /* */
 static COUNTDOWNTIMER NTPProcessTimer;
