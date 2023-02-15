@@ -173,15 +173,15 @@ ZERO_RESIDUAL:
 	_asm {
 		mov word ptr TimeResidualFrac, 0
 		mov word ptr TimeResidualFrac+2, 0
+		add cx, ax
 	}
 /* Keep the clock step forward */
 REAL_ADJS:
 	_asm {
-		mov ax, word ptr _SoftSysTime+4
-		add ax, cx
+		add cx, word ptr _SoftSysTime+4
 		adc word ptr _SoftSysTime, 0
 		adc word ptr _SoftSysTime+2, 0
-		mov word ptr _SoftSysTime+4, ax
+		mov word ptr _SoftSysTime+4, cx
 	}
 
 	return;
@@ -403,9 +403,9 @@ int NTPProcess( void )
 	}
 /* Debug information */
 #ifdef __SYSTIME__DEBUG__
-	Print("\r\nOffset:     %ld sec, %ld frac.", offset_sec, offset_frac);
+	Print("\r\nOffset:     %ld sec, %ld(%ld) usec.", offset_sec, (offset_frac * 15625 / 1024), offset_frac);
 	Print("\r\nPolling:    %u sec.", 1 << PollIntervalPow);
-	Print("\r\nFrequency:  %+ld frac.", CompensateFrac);
+	Print("\r\nFrequency:  %+ld(%+ld) ppm.", (CompensateFrac * 15625 / 1024), CompensateFrac);
 #endif
 /* */
 	T_CountDownTimerStart(&NTPProcessTimer, 1000UL << (ulong)PollIntervalPow);
