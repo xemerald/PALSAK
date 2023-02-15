@@ -7,7 +7,7 @@
 #include "./include/u7186EX/Tcpip32.h"
 /* */
 #include "./include/PALSAK.h"
-#include "./include/SYSTIME_S.h"
+#include "./include/SPTIME.h"
 
 /* Main function, entry */
 void main( void )

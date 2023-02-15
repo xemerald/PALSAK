@@ -8,7 +8,7 @@
 #include "./include/u7186EX/7186e.h"
 #include "./include/u7186EX/Tcpip32.h"
 /* */
-#include "./include/SYSTIME_S.h"
+#include "./include/SPTIME.h"
 
 /*
  * Byte order conversions
