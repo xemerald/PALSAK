@@ -108,8 +108,7 @@ REAL_WRITE_RTC:
 /* */
 EPOCH_CHECK:
 	_asm {
-		xor cx, cx
-		xor bx, bx
+		mov cx, CorrectTimeStep
 		dec count_step_epoch
 		mov ax, count_step_epoch
 		or ax, ax
@@ -120,17 +119,16 @@ EPOCH_CHECK:
 SELECT_COMPENSATE:
 	_asm {
 		cmp ax, RmCompensateUSec
-		jle POS_ONE_CX
+		jle INC_CX
 		neg ax
 		cmp ax, RmCompensateUSec
 		jl STEP_RESIDUAL
-		mov cx, -1
-		mov bx, 0xFFFF
+		dec cx
 		jmp STEP_RESIDUAL
 	}
-POS_ONE_CX:
+INC_CX:
 	_asm {
-		mov cx, 1
+		inc cx
 	}
 /* If there is some residual only in sub-second, step or slew it! */
 STEP_RESIDUAL:
@@ -184,36 +182,24 @@ SUB_RESIDUAL:
 REAL_ADJS:
 	_asm {
 		add ax, cx
-		adc dx, bx
-		add ax, CorrectTimeStep
 		adc dx, 0
 		add ax, word ptr _SoftSysTime+4
 		adc dx, word ptr _SoftSysTime+6
 	}
 CARRY_CHECK:
 	_asm {
-		or dx, dx
-		js NEG_CARRY_PROC
 		cmp dx, 15
-		jg POS_CARRY_PROC
+		jg CARRY_PROC
 		jne FINAL_PROC
 		cmp ax, 16960
 		jb FINAL_PROC
 	}
-POS_CARRY_PROC:
+CARRY_PROC:
 	_asm {
 		add word ptr _SoftSysTime, 1
 		adc word ptr _SoftSysTime+2, 0
 		sub ax, 16960
 		sbb dx, 15
-		jmp FINAL_PROC
-	}
-NEG_CARRY_PROC:
-	_asm {
-		sub word ptr _SoftSysTime, 1
-		sbb word ptr _SoftSysTime+2, 0
-		add ax, 16960
-		adc dx, 15
 	}
 FINAL_PROC:
 	_asm {
@@ -383,12 +369,12 @@ int NTPProcess( void )
 	if ( offset.tv_sec ) {
 	/* Disable the ISR */
 		_asm cli
-		_SoftSysTime.tv_sec  += offset.tv_sec;
-		_SoftSysTime.tv_usec += offset.tv_usec;
+		_SoftSysTime.tv_sec += offset.tv_sec;
 		_asm sti
 	}
-/* Otherwise keep the adjustment */
-	else {
+/* Otherwise keep the adjustment in residual */
+	if ( offset.tv_usec ) {
+	/* Disable the ISR */
 		_asm cli
 		TimeResidualUsec = offset.tv_usec;
 		_asm sti
