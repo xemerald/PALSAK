@@ -62,7 +62,7 @@ void SysTimeInit( const int timezone )
 	WriteToRTC           = 0;
 	CompensateFrac       = 0L;
 	RmCompensateFrac     = 0;
-	CorrectTimeStep      = 32;
+	CorrectTimeStep      = ONE_CLOCK_STEP_FRAC;
 	TimeResidualFrac     = 0L;
 	WriteRTCCountDown    = 0;
 /* */
@@ -79,7 +79,7 @@ void SysTimeInit( const int timezone )
  */
 void SysTimeService( void )
 {
-	static int count_step_epoch = 2048;
+	static int count_step_epoch = STEP_TIMES_IN_EPOCH;
 
 /* */
 WRITE_RTC_CHECK:
@@ -106,7 +106,7 @@ EPOCH_CHECK:
 		mov ax, count_step_epoch
 		or ax, ax
 		jnz SELECT_COMPENSATE
-		mov count_step_epoch, 2048
+		mov count_step_epoch, STEP_TIMES_IN_EPOCH
 		jmp STEP_RESIDUAL
 	}
 SELECT_COMPENSATE:
@@ -137,13 +137,13 @@ STEP_RESIDUAL:
 		cmp dx, 0
 		jg ASSIGN_POS_RESIDUAL
 		jne ZERO_RESIDUAL
-		cmp ax, 16
+		cmp ax, ABS_HALF_CLOCK_STEP
 		jbe ZERO_RESIDUAL
 	}
 ASSIGN_POS_RESIDUAL:
 	_asm {
-		add cx, 16
-		sub word ptr TimeResidualFrac, 16
+		add cx, ABS_HALF_CLOCK_STEP
+		sub word ptr TimeResidualFrac, ABS_HALF_CLOCK_STEP
 		sbb word ptr TimeResidualFrac+2, 0
 		jmp REAL_ADJS
 	}
@@ -157,8 +157,8 @@ NEG_RESIDUAL_CHECK:
 	}
 ASSIGN_NEG_RESIDUAL:
 	_asm {
-		sub cx, 16
-		add word ptr TimeResidualFrac, 16
+		sub cx, ABS_HALF_CLOCK_STEP
+		add word ptr TimeResidualFrac, ABS_HALF_CLOCK_STEP
 		adc word ptr TimeResidualFrac+2, 0
 		jmp REAL_ADJS
 	}
@@ -212,7 +212,7 @@ void SysTimeToHWTime( const int timezone )
 /* Add to the next second */
 	now_time.tv_sec += ((long)timezone * 3600) + 1;
 /* Turn the frac to the frac between next second */
-	now_time.tv_frac = 65536 - now_time.tv_frac;
+	now_time.tv_frac = ONE_EPOCH_FRAC - now_time.tv_frac;
 /* */
 	brktime = gmtime( &now_time.tv_sec );
 	TimeDateSetting.year  = brktime->tm_year + 1900;
@@ -315,22 +315,18 @@ int NTPProcess( void )
 /* Calculate the time offset */
 	offset_sec  = (tv2.tv_sec - tv1.tv_sec) + (tv3.tv_sec - (tv4.tv_sec + EPOCH_DIFF_JAN1970));
 	offset_frac = ((long)((ulong)tv2.tv_frac - (ulong)tv1.tv_frac) + (long)((ulong)tv3.tv_frac - (ulong)tv4.tv_frac)) / 2;
-	if ( offset_sec & 0x1 ) {
-		if ( offset_sec < 0 )
-			offset_frac -= 32768;
-		else
-			offset_frac += 32768;
-	}
+	if ( offset_sec & 0x1 )
+		offset_frac += offset_sec < 0 ? -HALF_EPOCH_FRAC : HALF_EPOCH_FRAC;
 	offset_sec /= 2;
 /* Deal with the different sign condition */
 	if ( offset_sec && (offset_sec ^ offset_frac) & 0x80000000 ) {
 		if ( offset_sec < 0 ) {
 			++offset_sec;
-			offset_frac -= 65536;
+			offset_frac -= ONE_EPOCH_FRAC;
 		}
 		else {
 			--offset_sec;
-			offset_frac += 65536;
+			offset_frac += ONE_EPOCH_FRAC;
 		}
 	}
 /* Maybe also need to calculate the transmitting delta... */
@@ -354,7 +350,7 @@ int NTPProcess( void )
 /* */
 	if ( !first_time ) {
 	/* */
-		compensate[i_compensate++] = offset_frac + (offset_sec << 16);
+		compensate[i_compensate++] = offset_frac + offset_sec * ONE_EPOCH_FRAC;
 		if ( i_compensate >= COMPENSATE_CANDIDATE_NUM ) {
 		/* */
 			i_compensate  = 0;
@@ -366,19 +362,19 @@ int NTPProcess( void )
 		/* */
 			if ( !CompensateFrac && (labs(compensate[0] - CompensateFrac) > compensate[2] && compensate[2] > 20) ) {
 				PollIntervalPow  = MIN_INTERVAL_POW;
-				CorrectTimeStep  = 32;
+				CorrectTimeStep  = ONE_CLOCK_STEP_FRAC;
 				RmCompensateFrac = 0;
 				CompensateFrac   = 0L;
 				first_time       = 1;
 			}
 			else {
 			/* Just in case & avoid the CorrectTimeStep whould be too large or being negative */
-				if ( labs(CompensateFrac += compensate[0]) >= 32768 )
+				if ( labs(CompensateFrac += compensate[0]) >= HALF_EPOCH_FRAC )
 					return SYSTIME_ERROR;
 			/* */
-				compensate[3]    = CompensateFrac / 2048;
-				CorrectTimeStep  = (uint)(32 + compensate[3]);
-				RmCompensateFrac = (int)(CompensateFrac - (compensate[3] << 11));
+				compensate[3]    = CompensateFrac / STEP_TIMES_IN_EPOCH;
+				CorrectTimeStep  = (uint)(ONE_CLOCK_STEP_FRAC + compensate[3]);
+				RmCompensateFrac = (int)(CompensateFrac - compensate[3] * STEP_TIMES_IN_EPOCH);
 			/* */
 				if ( labs(compensate[0]) <= 1 ) {
 					if ( PollIntervalPow < MAX_INTERVAL_POW )

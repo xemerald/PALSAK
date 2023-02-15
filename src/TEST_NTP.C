@@ -6,7 +6,6 @@
 #include "./include/u7186EX/7186e.h"
 #include "./include/u7186EX/Tcpip32.h"
 /* */
-#include "./include/PALSAK.h"
 #include "./include/SPTIME.h"
 
 /* Main function, entry */
@@ -40,7 +39,7 @@ void main( void )
 		Delay2(100);
 		NTPProcess();
 		if ( inc % 5 == 0 ) {
-			SysTimeGet( & tv );
+			SysTimeGet( &tv );
 			Print("\r\nNow time is %ld.%.6ld", tv.tv_sec, ((long)tv.tv_frac * 15625) / 1024);
 		}
 		inc++;

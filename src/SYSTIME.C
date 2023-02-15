@@ -341,12 +341,8 @@ int NTPProcess( void )
 /* Calculate the time offset */
 	offset.tv_sec  = (tv2.tv_sec - tv1.tv_sec) + (tv3.tv_sec - (tv4.tv_sec + EPOCH_DIFF_JAN1970));
 	offset.tv_usec = ((tv2.tv_usec - tv1.tv_usec) + (tv3.tv_usec - tv4.tv_usec)) / 2;
-	if ( offset.tv_sec & 0x1 ) {
-		if ( offset.tv_sec < 0 )
-			offset.tv_usec -= HALF_EPOCH_USEC;
-		else
-			offset.tv_usec += HALF_EPOCH_USEC;
-	}
+	if ( offset.tv_sec & 0x1 )
+		offset.tv_usec += offset.tv_sec < 0 ? -HALF_EPOCH_USEC : HALF_EPOCH_USEC;
 	offset.tv_sec /= 2;
 /* Deal with the different sign condition */
 	if ( offset.tv_sec && (offset.tv_sec ^ offset.tv_usec) & 0x80000000 ) {
