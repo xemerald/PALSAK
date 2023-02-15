@@ -170,10 +170,9 @@ ZERO_RESIDUAL:
 /* Keep the clock step forward */
 REAL_ADJS:
 	_asm {
-		add cx, word ptr _SoftSysTime+4
+		add word ptr _SoftSysTime+4, cx
 		adc word ptr _SoftSysTime, 0
 		adc word ptr _SoftSysTime+2, 0
-		mov word ptr _SoftSysTime+4, cx
 	}
 
 	return;
