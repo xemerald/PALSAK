@@ -126,7 +126,6 @@ INC_CX:
 /* If there is some residual only in sub-second, step or slew it! */
 STEP_RESIDUAL:
 	_asm {
-		xor dx, dx
 		mov ax, word ptr TimeResidualFrac
 		or ax, word ptr TimeResidualFrac+2
 		jz REAL_ADJS
