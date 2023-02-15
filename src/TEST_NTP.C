@@ -7,12 +7,12 @@
 #include "./include/u7186EX/Tcpip32.h"
 /* */
 #include "./include/PALSAK.h"
-#include "./include/SYSTIME.h"
+#include "./include/SYSTIME_S.h"
 
 /* Main function, entry */
 void main( void )
 {
-	struct timeval tv;
+	timeval_s tv;
 	uint   inc   = 0;
 /* Initialization for u7186EX's general library */
 	InitLib();
@@ -41,7 +41,7 @@ void main( void )
 		NTPProcess();
 		if ( inc % 5 == 0 ) {
 			SysTimeGet( & tv );
-			Print("\r\nNow time is %ld.%.6ld", tv.tv_sec, tv.tv_usec);
+			Print("\r\nNow time is %ld.%.6ld", tv.tv_sec, tv.tv_frac);
 		}
 		inc++;
 		if ( inc % 3000 == 0 ) {
