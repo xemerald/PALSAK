@@ -219,7 +219,7 @@ void SysTimeToHWTime( const int timezone )
 /* Add to the next second */
 	now_time.tv_sec += ((long)timezone * 3600) + 1;
 /* Turn the frac to the frac between next second */
-	now_time.tv_frac = 65536 - now_time.tv_frac - 1;
+	now_time.tv_frac = 65536 - now_time.tv_frac;
 /* */
 	brktime = gmtime( &now_time.tv_sec );
 	TimeDateSetting.year  = brktime->tm_year + 1900;
@@ -321,7 +321,7 @@ int NTPProcess( void )
 	tv3.tv_frac = nfrac2lfrac( NTOHS_FP( *(ulong *)&InternalBuffer[44] ) );
 /* Calculate the time offset */
 	offset_sec  = (tv2.tv_sec - tv1.tv_sec) + (tv3.tv_sec - (tv4.tv_sec + EPOCH_DIFF_JAN1970));
-	offset_frac = (((long)tv2.tv_frac - (long)tv1.tv_frac) + ((long)tv3.tv_frac - (long)tv4.tv_frac)) / 2;
+	offset_frac = (((ulong)tv2.tv_frac - (ulong)tv1.tv_frac) + ((ulong)tv3.tv_frac - (ulong)tv4.tv_frac)) / 2;
 	if ( offset_sec & 0x1 ) {
 		if ( offset_sec < 0 )
 			offset_frac -= 32768;
@@ -361,7 +361,7 @@ int NTPProcess( void )
 /* */
 	if ( !first_time ) {
 	/* */
-		compensate[i_compensate++] = offset_frac + offset_sec * 65536;
+		compensate[i_compensate++] = offset_frac + (offset_sec << 16);
 		if ( i_compensate >= COMPENSATE_CANDIDATE_NUM ) {
 		/* */
 			i_compensate  = 0;
@@ -371,7 +371,7 @@ int NTPProcess( void )
 			if ( !(compensate[0] = compensate[1] / (long)(1 << (ulong)PollIntervalPow)) )
 				compensate[0] = compensate[1] / (long)(1 << (ulong)(PollIntervalPow - 1));
 		/* */
-			if ( !CompensateFrac && (labs(compensate[0] - CompensateFrac) > compensate[2] && compensate[2] > 200) ) {
+			if ( !CompensateFrac && (labs(compensate[0] - CompensateFrac) > compensate[2] && compensate[2] > 20) ) {
 				PollIntervalPow  = MIN_INTERVAL_POW;
 				CorrectTimeStep  = 32;
 				RmCompensateFrac = 0;
@@ -385,7 +385,7 @@ int NTPProcess( void )
 			/* */
 				compensate[3]    = CompensateFrac / 2048;
 				CorrectTimeStep  = (uint)(32 + compensate[3]);
-				RmCompensateFrac = (int)(CompensateFrac - 2048 * compensate[3]);
+				RmCompensateFrac = (int)(CompensateFrac - (compensate[3] << 11));
 			/* */
 				if ( labs(compensate[0]) < (COMPENSATE_CANDIDATE_NUM << 1) ) {
 					if ( PollIntervalPow < MAX_INTERVAL_POW )
