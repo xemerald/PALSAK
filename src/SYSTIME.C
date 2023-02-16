@@ -204,20 +204,6 @@ FINAL_PROC:
 /**
  * @brief
  *
- * @param sys_time
- */
-void SysTimeGet( struct timeval far *sys_time )
-{
-	_asm cli;
-	*sys_time = _SoftSysTime;
-	_asm sti;
-
-	return;
-}
-
-/**
- * @brief
- *
  * @param timezone
  * @param timer
  */

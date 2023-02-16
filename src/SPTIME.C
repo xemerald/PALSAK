@@ -18,10 +18,13 @@
 /*
  *
  */
+#define LFRAC_TO_NFRAC(__LFRAC) (((ulong)(__LFRAC) << 16) | FRAC_RANDOM_FILL)
+#define NFRAC_TO_LFRAC(__NFRAC) ((uint)(((__NFRAC) >> 16) & 0x0000ffff))
+/*
+ *
+ */
 static time_t _mktime( uint, uint, uint, uint, uint, uint );
-static uint   nfrac2lfrac( const ulong );
-static ulong  lfrac2nfrac( const uint );
-static long   get_compensate_avg( long [] );
+static long   get_compensate_avg( long [COMPENSATE_CANDIDATE_NUM] );
 
 /* */
 #define INTERNAL_BUF_SIZE  64
@@ -177,20 +180,6 @@ REAL_ADJS:
 /**
  * @brief
  *
- * @param sys_time
- */
-void SysTimeGet( timeval_s far *sys_time )
-{
-	_asm cli;
-	*sys_time = _SoftSysTime;
-	_asm sti;
-
-	return;
-}
-
-/**
- * @brief
- *
  * @param timezone
  */
 void SysTimeToHWTime( const int timezone )
@@ -290,7 +279,7 @@ int NTPProcess( void )
 	tv1 = _SoftSysTime;
 	_asm sti;
 	*(ulong *)&InternalBuffer[40] = HTONS_FP( tv1.tv_sec + EPOCH_DIFF_JAN1970 );
-	*(ulong *)&InternalBuffer[44] = HTONS_FP( lfrac2nfrac( tv1.tv_frac ) );
+	*(ulong *)&InternalBuffer[44] = HTONS_FP( LFRAC_TO_NFRAC( tv1.tv_frac ) );
 /* Send to the server */
 	if ( send(MainSock, InternalBuffer, 48, 0) <= 0 )
 		return SYSTIME_WARNING;
@@ -305,13 +294,13 @@ int NTPProcess( void )
 	//if ( (tv1.tv_usec = NTOHS_FP( *(ulong *)&InternalBuffer[28] )) & FRAC_RANDOM_FILL ^ FRAC_RANDOM_FILL )
 		//return SYSTIME_ERROR;
 	tv1.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[24] );
-	tv1.tv_frac = nfrac2lfrac( NTOHS_FP( *(ulong *)&InternalBuffer[28] ) );
+	tv1.tv_frac = NFRAC_TO_LFRAC( NTOHS_FP( *(ulong *)&InternalBuffer[28] ) );
 /* Get the remote receive timestamp */
 	tv2.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[32] );
-	tv2.tv_frac = nfrac2lfrac( NTOHS_FP( *(ulong *)&InternalBuffer[36] ) );
+	tv2.tv_frac = NFRAC_TO_LFRAC( NTOHS_FP( *(ulong *)&InternalBuffer[36] ) );
 /* Get the remote transmit timestamp */
 	tv3.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[40] );
-	tv3.tv_frac = nfrac2lfrac( NTOHS_FP( *(ulong *)&InternalBuffer[44] ) );
+	tv3.tv_frac = NFRAC_TO_LFRAC( NTOHS_FP( *(ulong *)&InternalBuffer[44] ) );
 /* Calculate the time offset */
 	offset_sec  = (tv2.tv_sec - tv1.tv_sec) + (tv3.tv_sec - (tv4.tv_sec + EPOCH_DIFF_JAN1970));
 	offset_frac = ((long)((ulong)tv2.tv_frac - (ulong)tv1.tv_frac) + (long)((ulong)tv3.tv_frac - (ulong)tv4.tv_frac)) / 2;
@@ -441,34 +430,12 @@ static time_t _mktime( uint year, uint mon, uint day, uint hour, uint min, uint 
 }
 
 /**
- * @brief Convert from fraction of a second to microsecond
- *
- * @param frac
- * @return ulong: microsecond.
- */
-static uint nfrac2lfrac( const ulong frac )
-{
-	return (uint)((frac >> 16) & 0x0000ffff);
-}
-
-/**
- * @brief Convert from local fraction to ntp long fraction of a second
- *
- * @param lfrac
- * @return ulong
- */
-static ulong lfrac2nfrac( const uint lfrac )
-{
-	return ((ulong)lfrac << 16) | FRAC_RANDOM_FILL;
-}
-
-/**
  * @brief Get the compensate average
  *
  * @param compensate
  * @return long
  */
-static long get_compensate_avg( long compensate[] )
+static long get_compensate_avg( long compensate[COMPENSATE_CANDIDATE_NUM] )
 {
 	register int i;
 	int  i_st, i_nd;

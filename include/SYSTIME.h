@@ -62,7 +62,6 @@ extern const struct timeval far *SoftSysTime;
  */
 void SysTimeInit( const int );
 void SysTimeService( void );
-void SysTimeGet( struct timeval * );
 void SysTimeToHWTime( const int );
 
 int  NTPConnect( const char *, const uint );

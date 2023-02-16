@@ -39,7 +39,9 @@ void main( void )
 		Delay2(100);
 		NTPProcess();
 		if ( inc % 5 == 0 ) {
-			SysTimeGet( &tv );
+			_asm cli;
+			tv = *SoftSysTime;
+			_asm sti;
 			Print("\r\nNow time is %ld.%.6ld", tv.tv_sec, ((long)tv.tv_frac * 15625) / 1024);
 		}
 		inc++;
