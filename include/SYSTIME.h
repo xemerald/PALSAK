@@ -41,6 +41,7 @@ extern "C" {
 #define STEP_TIMES_IN_EPOCH  2000L    /* ABS(ONE_EPOCH_USEC / CLOCK_STEP_USEC) */
 #define L_CLOCK_PRECISION    -10      /* Precision of the local clock, in seconds to the nearest power of two */
 /* */
+#define FIVE_MSEC_USEC       5000
 #define MIN_INTERVAL_POW     5
 #define MAX_INTERVAL_POW     9
 /* */

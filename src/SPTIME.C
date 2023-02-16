@@ -40,8 +40,6 @@ static uint      CorrectTimeStep;
 static long      TimeResidualFrac;
 static uint      WriteRTCCountDown;
 static TIME_DATE TimeDateSetting;
-/* */
-static COUNTDOWNTIMER NTPProcessTimer;
 
 /**
  * @brief
@@ -65,8 +63,6 @@ void SysTimeInit( const int timezone )
 	CorrectTimeStep      = ONE_CLOCK_STEP_FRAC;
 	TimeResidualFrac     = 0L;
 	WriteRTCCountDown    = 0;
-/* */
-	T_CountDownTimerStart(&NTPProcessTimer, 0);
 /* Flush the internal buffer */
 	memset(InternalBuffer, 0, INTERNAL_BUF_SIZE);
 
@@ -196,13 +192,15 @@ void SysTimeGet( timeval_s far *sys_time )
  * @brief
  *
  * @param timezone
- * @param timer
  */
 void SysTimeToHWTime( const int timezone )
 {
 	timeval_s  now_time;
 	struct tm *brktime;
 
+/* */
+	if ( WriteToRTC )
+		return;
 /* */
 	_asm cli;
 	now_time = _SoftSysTime;
@@ -242,7 +240,7 @@ int NTPConnect( const char *host, const uint port )
 	if ( (MainSock = socket(PF_INET, SOCK_DGRAM, 0)) < 0 )
 		return SYSTIME_ERROR;
 /* Set the timeout of receiving socket to 0.5 sec. */
-	SOCKET_RXTOUT(MainSock, 500);
+	SOCKET_RXTOUT(MainSock, 250);
 
 /* Addressing for master socket */
 	memset(&_addr, 0, sizeof(_addr));
@@ -267,6 +265,7 @@ int NTPConnect( const char *host, const uint port )
 int NTPProcess( void )
 {
 	static long  compensate[COMPENSATE_CANDIDATE_NUM];
+	static long  last_sec = 0;
 	static uchar i_compensate = 0;
 	static uchar first_time = 1;
 /* */
@@ -275,7 +274,10 @@ int NTPProcess( void )
 	timeval_s tv1, tv2, tv3, tv4;
 
 /* Check the processing interval */
-	if ( !T_CountDownTimerIsTimeUp(&NTPProcessTimer) )
+	_asm cli;
+	tv1.tv_sec = _SoftSysTime.tv_sec;
+	_asm sti;
+	if ( (tv1.tv_sec - last_sec) >= (1 << (int)PollIntervalPow) )
 		return SYSTIME_SUCCESS;
 /* 00 001 011 - leap, ntp ver, client. Ref. RFC 1361. */
 	InternalBuffer[0] = (0 << 6) | (1 << 3) | 3;
@@ -344,7 +346,6 @@ int NTPProcess( void )
 		TimeResidualFrac = offset_frac;
 		_asm sti;
 	}
-
 /* */
 	if ( !first_time ) {
 	/* */
@@ -354,7 +355,7 @@ int NTPProcess( void )
 			i_compensate  = 0;
 			compensate[1] = get_compensate_avg( compensate );
 			compensate[2] = labs(CompensateFrac) << 1;
-		/* */
+		/* Get the frequency different, if it is zero we should check reduce the interval to half */
 			if ( !(compensate[0] = compensate[1] / (long)(1 << (ulong)PollIntervalPow)) )
 				compensate[0] = compensate[1] / (long)(1 << (ulong)(PollIntervalPow - 1));
 		/* */
@@ -374,11 +375,11 @@ int NTPProcess( void )
 				CorrectTimeStep  = (uint)(ONE_CLOCK_STEP_FRAC + compensate[3]);
 				RmCompensateFrac = (int)(CompensateFrac - compensate[3] * STEP_TIMES_IN_EPOCH);
 			/* */
-				if ( labs(compensate[0]) <= 1 ) {
+				if ( labs(compensate[1]) <= (1 << (int)PollIntervalPow) ) {
 					if ( PollIntervalPow < MAX_INTERVAL_POW )
 						++PollIntervalPow;
 				}
-				else if ( labs(compensate[0]) > 2 ) {
+				else if ( labs(compensate[1]) > (2 << (int)PollIntervalPow) || labs(compensate[1]) > FIVE_MSEC_FRACTION ) {
 					if ( PollIntervalPow > MIN_INTERVAL_POW )
 						--PollIntervalPow;
 				}
@@ -395,7 +396,7 @@ int NTPProcess( void )
 	Print("\r\nFrequency:  %+ld(%+ld) ppm.", (CompensateFrac * 15625 / 1024), CompensateFrac);
 #endif
 /* */
-	T_CountDownTimerStart(&NTPProcessTimer, 1000UL << (ulong)PollIntervalPow);
+	last_sec = tv4.tv_sec;
 
 	return SYSTIME_SUCCESS;
 }
