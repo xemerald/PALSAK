@@ -12,7 +12,7 @@
 void main( void )
 {
 	timeval_s tv;
-	uint   inc   = 0;
+	uint      inc = 0;
 /* Initialization for u7186EX's general library */
 	InitLib();
 	Init5DigitLed();
@@ -27,29 +27,29 @@ void main( void )
 	Int9Flag = 0;
 	SysTimeInit( 8 );
 	SYSTIME_INSTALL_TICKTIMER_FUNC( SysTimeService );
-
+/* */
 	Print("\r\nPress any key to start timer");
-	Print("\r\nthen Press 'q' to quit\r\n");
+	Print("\r\nthen press 'q' to quit\r\n");
 	NTPConnect( "140.112.2.189", DEFAULT_NTP_UDP_PORT );
-
+/* */
 	Getch();
 	while( 1 ) {
 		if ( Kbhit() && Getch() == 'q' )
 			break;
+	/* */
 		Delay2(100);
 		NTPProcess();
 		if ( inc % 5 == 0 ) {
 			_asm cli;
 			tv = *SoftSysTime;
 			_asm sti;
-			Print("\r\nNow time is %ld.%.6ld", tv.tv_sec, ((long)tv.tv_frac * 15625) / 1024);
+			Print("\r\nNow is %ld.%.6ld", tv.tv_sec, ((long)tv.tv_frac * 15625) / 1024);
 		}
 		inc++;
-		if ( inc % 3000 == 0 ) {
+	/* */
+		if ( inc % 3000 == 0 )
 			SysTimeToHWTime( 8 );
-		}
 	}
-
 	SYSTIME_STOP_TICKTIMER_FUNC();
 
 	return;

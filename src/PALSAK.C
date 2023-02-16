@@ -20,7 +20,7 @@
 #include "./include/FTP.h"
 #include "./include/FILE.h"
 #include "./include/LEDINFO.h"
-#include "./include/SYSTIME.h"
+#include "./include/NPTIME.h"
 
 /* Main socket */
 static volatile int SockRecv = -1;
@@ -858,7 +858,7 @@ static int CheckServerConnect( const uint msec )
 	Delay2(msec);
 /* NTP server connection test */
 	sprintf(RecvBuffer, "%u.%u.%u.%u", (BYTE)PreBuffer[41], (BYTE)PreBuffer[43], (BYTE)PreBuffer[45], (BYTE)PreBuffer[47]);
-	if ( NTPConnect( RecvBuffer, DEFAULT_NTP_UDP_PORT ) == ERROR || (NTPProcess() == ERROR && NTPProcess() == ERROR) ) {
+	if ( NTPConnect( RecvBuffer, DEFAULT_NTP_UDP_PORT ) != SYSTIME_SUCCESS || (NTPProcess() != SYSTIME_SUCCESS && NTPProcess() != SYSTIME_SUCCESS) ) {
 		SHOW_ERROR_5DIGITLED();
 	}
 	else {
@@ -868,10 +868,10 @@ static int CheckServerConnect( const uint msec )
 		SysTimeToHWTime( TAIWAN_TIME_ZONE );
 	}
 /* This one second delay is for waiting RTC write-in */
+	NTPClose();
 	Delay2(1000);
 /* Close the system time service & ntp connection */
 	SYSTIME_STOP_TICKTIMER_FUNC();
-	NTPClose();
 
 /* Show 'tCP.0.' on the 7-seg led */
 	ShowAll5DigitLedSeg( 0x00, 0x11, ShowData[0x0c], 0xe7, ShowData[0x00] | 0x80 );

@@ -1,5 +1,5 @@
 /**
- * @file SYSTIME.h
+ * @file NPTIME.h
  * @author Benjamin Ming Yang (b98204032@gmail.com) in Department of Geology of National Taiwan University
  * @brief
  * @version 0.1
@@ -9,8 +9,8 @@
  *
  */
 
-#ifndef __PALSAK_SYSTIME_H__
-#define __PALSAK_SYSTIME_H__
+#ifndef __PALSAK_NPTIME_H__
+#define __PALSAK_NPTIME_H__
 
 #ifdef __cplusplus
 extern "C" {
