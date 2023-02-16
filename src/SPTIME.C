@@ -277,7 +277,7 @@ int NTPProcess( void )
 	_asm cli;
 	tv1.tv_sec = _SoftSysTime.tv_sec;
 	_asm sti;
-	if ( (tv1.tv_sec - last_sec) >= (1 << (int)PollIntervalPow) )
+	if ( (tv1.tv_sec - last_sec) < (long)(1 << (int)PollIntervalPow) )
 		return SYSTIME_SUCCESS;
 /* 00 001 011 - leap, ntp ver, client. Ref. RFC 1361. */
 	InternalBuffer[0] = (0 << 6) | (1 << 3) | 3;
@@ -356,8 +356,8 @@ int NTPProcess( void )
 			compensate[1] = get_compensate_avg( compensate );
 			compensate[2] = labs(CompensateFrac) << 1;
 		/* Get the frequency different, if it is zero we should check reduce the interval to half */
-			if ( !(compensate[0] = compensate[1] / (long)(1 << (ulong)PollIntervalPow)) )
-				compensate[0] = compensate[1] / (long)(1 << (ulong)(PollIntervalPow - 1));
+			if ( !(compensate[0] = compensate[1] / (long)(1 << (int)PollIntervalPow)) )
+				compensate[0] = compensate[1] / (long)(1 << (int)(PollIntervalPow - 1));
 		/* */
 			if ( !CompensateFrac && (labs(compensate[0] - CompensateFrac) > compensate[2] && compensate[2] > 20) ) {
 				PollIntervalPow  = MIN_INTERVAL_POW;
@@ -375,11 +375,11 @@ int NTPProcess( void )
 				CorrectTimeStep  = (uint)(ONE_CLOCK_STEP_FRAC + compensate[3]);
 				RmCompensateFrac = (int)(CompensateFrac - compensate[3] * STEP_TIMES_IN_EPOCH);
 			/* */
-				if ( labs(compensate[1]) <= (1 << (int)PollIntervalPow) ) {
+				if ( labs(compensate[1]) <= (long)(1 << (int)PollIntervalPow) ) {
 					if ( PollIntervalPow < MAX_INTERVAL_POW )
 						++PollIntervalPow;
 				}
-				else if ( labs(compensate[1]) > (2 << (int)PollIntervalPow) || labs(compensate[1]) > FIVE_MSEC_FRACTION ) {
+				else if ( labs(compensate[1]) > (long)(1 << (int)PollIntervalPow) || labs(compensate[1]) > FIVE_MSEC_FRACTION ) {
 					if ( PollIntervalPow > MIN_INTERVAL_POW )
 						--PollIntervalPow;
 				}
