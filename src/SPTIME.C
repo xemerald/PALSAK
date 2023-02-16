@@ -30,7 +30,7 @@ static long   get_compensate_avg( long [COMPENSATE_CANDIDATE_NUM] );
 #define INTERNAL_BUF_SIZE  64
 static char InternalBuffer[INTERNAL_BUF_SIZE];
 /* */
-static volatile int MainSock = -1;
+static volatile int NTPSock = -1;
 /* */
 static timeval_s _SoftSysTime;
 const timeval_s far *SoftSysTime = &_SoftSysTime;
@@ -126,16 +126,15 @@ INC_CX:
 STEP_RESIDUAL:
 	_asm {
 		mov ax, word ptr TimeResidualFrac
-		or ax, word ptr TimeResidualFrac+2
-		jz REAL_ADJS
-		mov ax, word ptr TimeResidualFrac
 		mov dx, word ptr TimeResidualFrac+2
+		or ax, dx
+		jz REAL_ADJS
 		or dx, dx
 		js NEG_RESIDUAL_CHECK
 		cmp dx, 0
 		jg ASSIGN_POS_RESIDUAL
 		jne ZERO_RESIDUAL
-		cmp ax, ABS_HALF_CLOCK_STEP
+		cmp word ptr TimeResidualFrac, ABS_HALF_CLOCK_STEP
 		jbe ZERO_RESIDUAL
 	}
 ASSIGN_POS_RESIDUAL:
@@ -150,7 +149,7 @@ NEG_RESIDUAL_CHECK:
 		cmp dx, 0xFFFF
 		jg ZERO_RESIDUAL
 		jne ASSIGN_NEG_RESIDUAL
-		cmp ax, 0xFFF0
+		cmp word ptr TimeResidualFrac, 0xFFF0
 		jae ZERO_RESIDUAL
 	}
 ASSIGN_NEG_RESIDUAL:
@@ -162,9 +161,9 @@ ASSIGN_NEG_RESIDUAL:
 	}
 ZERO_RESIDUAL:
 	_asm {
+		add cx, word ptr TimeResidualFrac
 		mov word ptr TimeResidualFrac, 0
 		mov word ptr TimeResidualFrac+2, 0
-		add cx, ax
 	}
 /* Keep the clock step forward */
 REAL_ADJS:
@@ -197,7 +196,7 @@ void SysTimeToHWTime( const int timezone )
 /* Add to the next second */
 	now_time.tv_sec += ((long)timezone * 3600) + 1;
 /* Turn the frac to the frac between next second */
-	now_time.tv_frac = ONE_EPOCH_FRAC - now_time.tv_frac;
+	WriteRTCCountDown = ONE_EPOCH_FRAC - now_time.tv_frac;
 /* */
 	brktime = gmtime( &now_time.tv_sec );
 	TimeDateSetting.year  = brktime->tm_year + 1900;
@@ -208,7 +207,6 @@ void SysTimeToHWTime( const int timezone )
 	TimeDateSetting.minute = brktime->tm_min;
 	TimeDateSetting.sec    = brktime->tm_sec;
 /* */
-	WriteRTCCountDown = now_time.tv_frac;
 	WriteToRTC = 1;
 
 	return;
@@ -226,10 +224,10 @@ int NTPConnect( const char *host, const uint port )
 	struct sockaddr_in _addr;
 
 /* Create the UDP socket */
-	if ( (MainSock = socket(PF_INET, SOCK_DGRAM, 0)) < 0 )
+	if ( (NTPSock = socket(PF_INET, SOCK_DGRAM, 0)) < 0 )
 		return SYSTIME_ERROR;
 /* Set the timeout of receiving socket to 0.5 sec. */
-	SOCKET_RXTOUT(MainSock, 250);
+	SOCKET_RXTOUT(NTPSock, 250);
 
 /* Addressing for master socket */
 	memset(&_addr, 0, sizeof(_addr));
@@ -237,9 +235,9 @@ int NTPConnect( const char *host, const uint port )
 	_addr.sin_addr.s_addr = inet_addr((char *)host);
 	_addr.sin_port = htons(port);
 /* Initialize the connection */
-	if ( connect(MainSock, (struct sockaddr*)&_addr, sizeof(_addr)) < 0 ) {
+	if ( connect(NTPSock, (struct sockaddr*)&_addr, sizeof(_addr)) < 0 ) {
 	/* Close the opened socket */
-		closesocket(MainSock);
+		closesocket(NTPSock);
 		return SYSTIME_ERROR;
 	}
 
@@ -281,10 +279,10 @@ int NTPProcess( void )
 	*(ulong *)&InternalBuffer[40] = HTONS_FP( tv1.tv_sec + EPOCH_DIFF_JAN1970 );
 	*(ulong *)&InternalBuffer[44] = HTONS_FP( LFRAC_TO_NFRAC( tv1.tv_frac ) );
 /* Send to the server */
-	if ( send(MainSock, InternalBuffer, 48, 0) <= 0 )
+	if ( send(NTPSock, InternalBuffer, 48, 0) <= 0 )
 		return SYSTIME_WARNING;
 /* Read from the server */
-	if ( recv(MainSock, InternalBuffer, INTERNAL_BUF_SIZE, 0) <= 0 )
+	if ( recv(NTPSock, InternalBuffer, INTERNAL_BUF_SIZE, 0) <= 0 )
 		return SYSTIME_WARNING;
 /* Get the local received timestamp */
 	_asm cli;
@@ -397,11 +395,10 @@ int NTPProcess( void )
 void NTPClose( void )
 {
 /* */
-	if ( MainSock >= 0 ) {
-		closesocket(MainSock);
-		MainSock = -1;
-	}
+	if ( NTPSock >= 0 )
+		closesocket(NTPSock);
 /* */
+	NTPSock = -1;
 	YIELD();
 
 	return;
