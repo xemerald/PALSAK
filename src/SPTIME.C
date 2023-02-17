@@ -283,7 +283,6 @@ int NTPConnect( const char *host, const uint port )
 int NTPProcess( void )
 {
 	static long  compensate[COMPENSATE_CANDIDATE_NUM];
-	static uint  last_sec = 0;
 	static uchar i_compensate = 0;
 	static uchar first_time = 1;
 /* */
@@ -292,15 +291,8 @@ int NTPProcess( void )
 	timeval_s tv1, tv2, tv3, tv4;
 
 /* Check the processing interval */
-	if ( !first_time && (_SoftTimeSec - last_sec) < (uint)(1 << (int)PollIntervalPow) )
+	if ( !first_time && _SoftTimeSec < (1 << (uint)PollIntervalPow) )
 		return SYSTIME_SUCCESS;
-/* Change the time base */
-	_asm {
-		xor ax, ax
-		xchg ax, _SoftTimeSec
-		add word ptr _SoftTimeBase, ax
-		adc word ptr _SoftTimeBase+2, 0
-	}
 /* 00 001 011 - leap, ntp ver, client. Ref. RFC 1361. */
 	InternalBuffer[0] = (0 << 6) | (1 << 3) | 3;
 /* Polling interval */
@@ -357,9 +349,14 @@ int NTPProcess( void )
 /* Otherwise keep the adjustment in residual */
 	if ( offset_frac ) {
 	/* Disable the ISR */
-		_asm cli;
-		TimeResidualFrac = offset_frac;
-		_asm sti;
+		_asm {
+			mov ax, word ptr offset_frac
+			mov dx, word ptr offset_frac+2
+			cli
+			mov word ptr TimeResidualFrac, ax
+			mov word ptr TimeResidualFrac+2, dx
+			sti
+		}
 	}
 /* */
 	if ( !first_time ) {
@@ -410,8 +407,13 @@ int NTPProcess( void )
 	Print("\r\nPolling:    %u sec.", 1 << PollIntervalPow);
 	Print("\r\nFrequency:  %+ld(%+ld) ppm.", (CompensateFrac * 15625 / 1024), CompensateFrac);
 #endif
-/* */
-	last_sec = _SoftTimeSec;
+/* Change the time base */
+	_asm {
+		xor ax, ax
+		xchg ax, _SoftTimeSec
+		add word ptr _SoftTimeBase, ax
+		adc word ptr _SoftTimeBase+2, 0
+	}
 
 	return SYSTIME_SUCCESS;
 }
