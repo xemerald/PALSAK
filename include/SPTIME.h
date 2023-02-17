@@ -55,19 +55,22 @@ extern "C" {
  *
  */
 typedef struct {
-	long tv_sec;   /* seconds */
-	uint tv_frac;  /* fraction of second */
+	ulong tv_sec;   /* seconds */
+	uint  tv_frac;  /* fraction of second */
 } timeval_s;
 
 /*
  *
  */
-extern const timeval_s far *SoftSysTime;
+extern const ulong far *SoftTimeBase;
+extern const uint  far *SoftTimeSec;
+extern const uint  far *SoftTimeFrac;
 /*
  *
  */
 void SysTimeInit( const int );
 void SysTimeService( void );
+void SysTimeGet( timeval_s * );
 void SysTimeToHWTime( const int );
 
 int  NTPConnect( const char *, const uint );

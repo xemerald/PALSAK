@@ -32,8 +32,12 @@ static char InternalBuffer[INTERNAL_BUF_SIZE];
 /* */
 static volatile int NTPSock = -1;
 /* */
-static timeval_s _SoftSysTime;
-const timeval_s far *SoftSysTime = &_SoftSysTime;
+static ulong _SoftTimeBase;
+static uint  _SoftTimeSec;
+static uint  _SoftTimeFrac;
+const  ulong far *SoftTimeBase = &_SoftTimeBase;
+const  uint  far *SoftTimeSec  = &_SoftTimeSec;
+const  uint  far *SoftTimeFrac = &_SoftTimeFrac;
 /* */
 static BYTE      PollIntervalPow;
 static BYTE      WriteToRTC;
@@ -56,16 +60,17 @@ void SysTimeInit( const int timezone )
 /* */
 	GetTimeDate(&timedate);
 /* */
-	_SoftSysTime.tv_sec
+	_SoftTimeBase
 		= _mktime( timedate.year, timedate.month, timedate.day, timedate.hour, timedate.minute, timedate.sec ) - ((long)timezone * 3600);
-	_SoftSysTime.tv_frac = 16384;
-	PollIntervalPow      = MIN_INTERVAL_POW;
-	WriteToRTC           = 0;
-	CompensateFrac       = 0L;
-	RmCompensateFrac     = 0;
-	CorrectTimeStep      = ONE_CLOCK_STEP_FRAC;
-	TimeResidualFrac     = 0L;
-	WriteRTCCountDown    = 0;
+	_SoftTimeSec      = 0;
+	_SoftTimeFrac     = 16384;
+	PollIntervalPow   = MIN_INTERVAL_POW;
+	WriteToRTC        = 0;
+	CompensateFrac    = 0L;
+	RmCompensateFrac  = 0;
+	CorrectTimeStep   = ONE_CLOCK_STEP_FRAC;
+	TimeResidualFrac  = 0L;
+	WriteRTCCountDown = 0;
 /* Flush the internal buffer */
 	memset(InternalBuffer, 0, INTERNAL_BUF_SIZE);
 
@@ -168,9 +173,36 @@ ZERO_RESIDUAL:
 /* Keep the clock step forward */
 REAL_ADJS:
 	_asm {
-		add word ptr _SoftSysTime+4, cx
-		adc word ptr _SoftSysTime, 0
-		adc word ptr _SoftSysTime+2, 0
+		add _SoftTimeFrac, cx
+		adc _SoftTimeSec, 0
+	}
+/* Maybe we still need to deal with _SoftTimeSec carrying condition here... */
+	return;
+}
+
+/**
+ * @brief
+ *
+ * @param tvs
+ */
+void SysTimeGet( timeval_s far *tvs )
+{
+_asm {
+		les bx, dword ptr tvs
+		mov ax, _SoftTimeSec
+		mov dx, _SoftTimeFrac
+		mov cx, _SoftTimeSec
+		mov word ptr es:[bx+4], dx
+		cmp dx, HALF_EPOCH_FRAC
+		jae ADD_TIMEBASE
+		mov ax, cx
+	}
+ADD_TIMEBASE:
+	_asm {
+		mov word ptr es:[bx+2], 0
+		add ax, word ptr _SoftTimeBase
+		adc word ptr es:[bx+2], word ptr _SoftTimeBase+2
+		mov word ptr es:[bx], ax
 	}
 
 	return;
@@ -190,9 +222,7 @@ void SysTimeToHWTime( const int timezone )
 	if ( WriteToRTC )
 		return;
 /* */
-	_asm cli;
-	now_time = _SoftSysTime;
-	_asm sti;
+	SysTimeGet( &now_time );
 /* Add to the next second */
 	now_time.tv_sec += ((long)timezone * 3600) + 1;
 /* Turn the frac to the frac between next second */
@@ -252,7 +282,7 @@ int NTPConnect( const char *host, const uint port )
 int NTPProcess( void )
 {
 	static long  compensate[COMPENSATE_CANDIDATE_NUM];
-	static long  last_sec = 0;
+	static uint  last_sec = 0;
 	static uchar i_compensate = 0;
 	static uchar first_time = 1;
 /* */
@@ -261,11 +291,15 @@ int NTPProcess( void )
 	timeval_s tv1, tv2, tv3, tv4;
 
 /* Check the processing interval */
-	_asm cli;
-	tv1.tv_sec = _SoftSysTime.tv_sec;
-	_asm sti;
-	if ( (tv1.tv_sec - last_sec) < (long)(1 << (int)PollIntervalPow) )
+	if ( !first_time && (_SoftTimeSec - last_sec) < (uint)(1 << (int)PollIntervalPow) )
 		return SYSTIME_SUCCESS;
+/* Change the time base */
+	_asm {
+		xor ax, ax
+		xchg ax, _SoftTimeSec
+		add word ptr _SoftTimeBase, ax
+		adc word ptr _SoftTimeBase+2, 0
+	}
 /* 00 001 011 - leap, ntp ver, client. Ref. RFC 1361. */
 	InternalBuffer[0] = (0 << 6) | (1 << 3) | 3;
 /* Polling interval */
@@ -273,9 +307,7 @@ int NTPProcess( void )
 /* Clock precision */
 	InternalBuffer[3] = L_CLOCK_PRECISION;
 /* Get the local sent time - Originate Timestamp */
-	_asm cli;
-	tv1 = _SoftSysTime;
-	_asm sti;
+	SysTimeGet( &tv1 );
 	*(ulong *)&InternalBuffer[40] = HTONS_FP( tv1.tv_sec + EPOCH_DIFF_JAN1970 );
 	*(ulong *)&InternalBuffer[44] = HTONS_FP( LFRAC_TO_NFRAC( tv1.tv_frac ) );
 /* Send to the server */
@@ -285,9 +317,7 @@ int NTPProcess( void )
 	if ( recv(NTPSock, InternalBuffer, INTERNAL_BUF_SIZE, 0) <= 0 )
 		return SYSTIME_WARNING;
 /* Get the local received timestamp */
-	_asm cli;
-	tv4 = _SoftSysTime;
-	_asm sti;
+	SysTimeGet( &tv4 );
 /* Checking part */
 	//if ( (tv1.tv_usec = NTOHS_FP( *(ulong *)&InternalBuffer[28] )) & FRAC_RANDOM_FILL ^ FRAC_RANDOM_FILL )
 		//return SYSTIME_ERROR;
@@ -300,7 +330,7 @@ int NTPProcess( void )
 	tv3.tv_sec  = NTOHS_FP( *(ulong *)&InternalBuffer[40] );
 	tv3.tv_frac = NFRAC_TO_LFRAC( NTOHS_FP( *(ulong *)&InternalBuffer[44] ) );
 /* Calculate the time offset */
-	offset_sec  = (tv2.tv_sec - tv1.tv_sec) + (tv3.tv_sec - (tv4.tv_sec + EPOCH_DIFF_JAN1970));
+	offset_sec  = (long)(tv2.tv_sec - tv1.tv_sec) + (long)(tv3.tv_sec - (tv4.tv_sec + EPOCH_DIFF_JAN1970));
 	offset_frac = ((long)((ulong)tv2.tv_frac - (ulong)tv1.tv_frac) + (long)((ulong)tv3.tv_frac - (ulong)tv4.tv_frac)) / 2;
 	if ( offset_sec & 0x1 )
 		offset_frac += offset_sec < 0 ? -HALF_EPOCH_FRAC : HALF_EPOCH_FRAC;
@@ -321,10 +351,7 @@ int NTPProcess( void )
 	memset(InternalBuffer, 0, INTERNAL_BUF_SIZE);
 /* If the residual is larger than one second, directly adjust it! */
 	if ( offset_sec ) {
-	/* Disable the ISR */
-		_asm cli;
-		_SoftSysTime.tv_sec += offset_sec;
-		_asm sti;
+		_SoftTimeBase += offset_sec;
 	}
 /* Otherwise keep the adjustment in residual */
 	if ( offset_frac ) {
@@ -383,7 +410,7 @@ int NTPProcess( void )
 	Print("\r\nFrequency:  %+ld(%+ld) ppm.", (CompensateFrac * 15625 / 1024), CompensateFrac);
 #endif
 /* */
-	last_sec = tv4.tv_sec;
+	last_sec = _SoftTimeSec;
 
 	return SYSTIME_SUCCESS;
 }
