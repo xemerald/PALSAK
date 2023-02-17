@@ -342,13 +342,12 @@ int NTPProcess( void )
 /* Maybe also need to calculate the transmitting delta... */
 /* Flush the internal buffer for next time usage */
 	memset(InternalBuffer, 0, INTERNAL_BUF_SIZE);
-/* If the residual is larger than one second, directly adjust it! */
-	if ( offset_sec ) {
+/* If the residual is larger than one second, directly adjust the time base! */
+	if ( offset_sec )
 		_SoftTimeBase += offset_sec;
-	}
 /* Otherwise keep the adjustment in residual */
 	if ( offset_frac ) {
-	/* Disable the ISR */
+	/* Disable the ISR before copy to the TimeResidualFrac */
 		_asm {
 			mov ax, word ptr offset_frac
 			mov dx, word ptr offset_frac+2
