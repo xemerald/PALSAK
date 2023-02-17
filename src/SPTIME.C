@@ -199,10 +199,11 @@ _asm {
 	}
 ADD_TIMEBASE:
 	_asm {
-		mov word ptr es:[bx+2], 0
+		xor dx, dx
 		add ax, word ptr _SoftTimeBase
-		adc word ptr es:[bx+2], word ptr _SoftTimeBase+2
+		adc dx, word ptr _SoftTimeBase+2
 		mov word ptr es:[bx], ax
+		mov word ptr es:[bx+2], dx
 	}
 
 	return;
@@ -228,7 +229,7 @@ void SysTimeToHWTime( const int timezone )
 /* Turn the frac to the frac between next second */
 	WriteRTCCountDown = ONE_EPOCH_FRAC - now_time.tv_frac;
 /* */
-	brktime = gmtime( &now_time.tv_sec );
+	brktime = gmtime( (time_t *)&now_time.tv_sec );
 	TimeDateSetting.year  = brktime->tm_year + 1900;
 	TimeDateSetting.month = brktime->tm_mon + 1;
 	TimeDateSetting.day   = brktime->tm_mday;
