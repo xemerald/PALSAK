@@ -187,7 +187,7 @@ REAL_ADJS:
  */
 void SysTimeGet( timeval_s far *tvs )
 {
-_asm {
+	_asm {
 		les bx, dword ptr tvs
 		mov ax, _SoftTimeSec
 		mov dx, _SoftTimeFrac

@@ -307,11 +307,18 @@ static int BroadcastResp( char *resp, const uint msec )
  */
 static int EnrichBlockZero( void )
 {
+	BYTE opmode[EEPROM_OPMODE_LENGTH];
+
+/* Those information should always be keep, include the device serial & correction value */
 	if (
 		!EE_MultiRead(0, EEPROM_SERIAL_ADDR, EEPROM_SERIAL_LENGTH, (char *)&BlockZero[EEPROM_SERIAL_ADDR]) &&
 		!EE_MultiRead(0, EEPROM_CVALUE_ADDR, EEPROM_CVALUE_LENGTH, (char *)&BlockZero[EEPROM_CVALUE_ADDR])
 	) {
-		return NORMAL;
+	/* Then fetch the DHCP setting & keep it */
+		if ( !EE_MultiRead(0, EEPROM_OPMODE_ADDR, EEPROM_OPMODE_LENGTH, (char *)opmode) ) {
+			BlockZero[EEPROM_OPMODE_ADDR + 1] |= opmode[1] & OPMODE_BITS_MODE_DHCP;
+			return NORMAL;
+		}
 	}
 
 	return ERROR;
