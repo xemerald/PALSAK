@@ -187,9 +187,7 @@ extern "C" {
  *
  */
 #define SWAP_WORD_ASM(__WORD) \
-		(_AX = (__WORD); \
-		_asm xchg al, ah; \
-		(__WORD) = _AX;)
+		(_AX = (__WORD); _asm xchg al, ah; (__WORD) = _AX;)
 
 #ifdef __cplusplus
 }
