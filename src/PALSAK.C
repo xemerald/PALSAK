@@ -377,11 +377,12 @@ static int InitDHCP( const uint msec )
  */
 static void SwitchWorkflow( const uint msec )
 {
-	uint num = 0;
-	uint delay_msec = msec;
+	uchar init_pin = InitPinIsOpen;
+	uint  num = 0;
+	uint  delay_msec = msec;
 
 /* Show the "-0-" message on the 7-seg led */
-	SHOW_2DASH_5DIGITLED( 0 );
+	SHOW_2DASH_5DIGITLED( num );
 /*
  * External variables for network linking status :
  * After testing, when network is real connected,
@@ -389,77 +390,15 @@ static void SwitchWorkflow( const uint msec )
  */
 	while ( bEthernetLinkOk == 0x00 ) {
 	/* Detect the init. pin condition for switching to the updating firmware func. */
-		if ( ReadInitPin() && WorkflowFlag != WORKFLOW_0 ) {
-		/* Fetch the saved IP information from EEPROM */
-			GetIp((uchar *)&RecvBuffer[0]);
-			GetMask((uchar *)&RecvBuffer[4]);
-			GetGateway((uchar *)&RecvBuffer[8]);
-		/* Show the saved IP information on the 7-seg led roller once */
-			ParseNetinfoToRoller( PreBuffer, (BYTE *)&RecvBuffer[0], (BYTE *)&RecvBuffer[4], (BYTE *)&RecvBuffer[8] );
-		/* */
-			num = 0;
-			delay_msec = msec;
-			WorkflowFlag = WORKFLOW_0;
+		if ( ReadInitPin() ) {
+			init_pin = InitPinIsNotopen;
 		}
-	/* Increase the times of waiting network connection every 500 msec */
-		if ( ++delay_msec >= msec ) {
-		/* */
-			if ( (num && !(num % 0x10)) || WorkflowFlag == WORKFLOW_0 ) {
-			/* */
-				switch ( WorkflowFlag ) {
-				case WORKFLOW_1:
-					WorkflowFlag = WORKFLOW_2;
-					SHOW_2DASH_5DIGITLED( 1 );
-					break;
-				case WORKFLOW_2:
-					WorkflowFlag = WORKFLOW_3;
-					SHOW_2DASH_5DIGITLED( 2 );
-					break;
-				case WORKFLOW_3:
-					WorkflowFlag = WORKFLOW_4;
-					SHOW_2DASH_5DIGITLED( 3 );
-					break;
-				case WORKFLOW_4:
-					WorkflowFlag = WORKFLOW_5;
-					SHOW_2DASH_5DIGITLED( 4 );
-					break;
-				case WORKFLOW_5:
-					WorkflowFlag = WORKFLOW_6;
-					SHOW_2DASH_5DIGITLED( 5 );
-					break;
-				case WORKFLOW_6:
-					WorkflowFlag = WORKFLOW_1;
-					SHOW_2DASH_5DIGITLED( 0 );
-					break;
-				case WORKFLOW_0:
-				/* After display saved IP address over two times, turn on DHCP function */
-					if ( !bUseDhcp && num > (ContentLength << 1) ) {
-						bUseDhcp = 1;
-					/* Set the 'dHCP.  ' message to roller buffer */
-						PreBuffer[0] = 0x3d;
-						PreBuffer[1] = 0x37;
-						PreBuffer[2] = 0x4e;
-						PreBuffer[3] = 0xe7;
-						PreBuffer[4] = 0x00;
-						PreBuffer[5] = 0x00;
-						SetDisplayContent( (BYTE *)PreBuffer, 6 );
-					}
-				/* No break here */
-				default:
-					break;
-				}
-			}
-		/* 7-seg display part */
-			if ( WorkflowFlag == WORKFLOW_0 )
-			/* Show the IP address or 'dHCP.  ' on the 7-seg led roller */
-				ShowContent5DigitsLedRoller( num );
-			else
-			/* Show the '-0-' to '-f-' message on the 7-seg led each loop */
-				Show5DigitLed(3, num % 0x10);
-		/* */
+		else if ( init_pin == InitPinIsNotopen ) {
 			num++;
-			delay_msec = 0;
+			num %= 6;
+			init_pin = InitPinIsOpen;
 		}
+		SHOW_2DASH_5DIGITLED( num );
 	/* */
 		Delay2(1);
 	}
