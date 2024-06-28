@@ -2,12 +2,12 @@
  * @file AGENT.C
  * @author Benjamin Ming Yang (b98204032@gmail.com) in Department of Geology of National Taiwan University
  * @brief
- * @version 0.1
  * @date 2022-12-30
  *
  * @copyright Copyright (c) 2022
  *
  */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <ctype.h>
@@ -327,7 +327,7 @@ static int EnrichBlockZero( void )
 			*r_opmode &= ~OPMODE_BITS_MODE_DHCP;
 		/* Write the local DHCP setting to the recv. block zero setting */
 			*r_opmode |= l_opmode & OPMODE_BITS_MODE_DHCP;
-		/* After the operaion, swap back the word */
+		/* After the operaion, swap the word back */
 			SWAP_WORD_ASM( *r_opmode );
 
 			return NORMAL;

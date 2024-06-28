@@ -2,12 +2,12 @@
  * @file FTP.C
  * @author Benjamin Ming Yang (b98204032@gmail.com) in Department of Geology of National Taiwan University
  * @brief
- * @version 0.1
  * @date 2022-12-21
  *
  * @copyright Copyright (c) 2022
  *
  */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -24,7 +24,7 @@ static int ReceiveTCP( const int, const int );
 static int ParseFTPResp( void );
 static int ProcessPASVResp( void );
 
-/* External variable for TCPIP error condition. NOTICE! it is different from standard errno.h. */
+/* External variable for TCP/IP error condition. NOTICE! it is different from standard errno.h. */
 extern int errno;
 /* */
 #define INTERNAL_BUF_SIZE  256
@@ -47,8 +47,8 @@ static volatile int PasvSock = -1;
  * @param user example: "Admin", 20 bytes max.
  * @param password example: "pass", 20 bytes max.
  * @return int
- * @retval FTP_SUCCESS(0), Success.
- * @retval FTP_ERROR(-1) Error, can not connect to the FTP server
+ * @retval FTP_SUCCESS(0) - Success.
+ * @retval FTP_ERROR(-1)  - Error, can not connect to the FTP server
  */
 int FTPConnect( const char *host, const uint port, const char *user, const char *password )
 {

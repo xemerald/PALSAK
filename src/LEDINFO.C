@@ -2,7 +2,6 @@
  * @file LEDINFO.C
  * @author Benjamin Ming Yang (b98204032@gmail.com) in Department of Geology of National Taiwan University
  * @brief
- * @version 0.1
  * @date 2022-12-22
  *
  * @copyright Copyright (c) 2022

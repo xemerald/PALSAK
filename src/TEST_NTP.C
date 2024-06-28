@@ -1,3 +1,13 @@
+/**
+ * @file TEST_NTP.C
+ * @author Benjamin Ming Yang (b98204032@gmail.com) in Department of Geology of National Taiwan University
+ * @brief
+ * @date 2023-01-10
+ *
+ * @copyright Copyright (c) 2023
+ *
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>

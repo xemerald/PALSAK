@@ -1,3 +1,12 @@
+/**
+ * @file SPTIME.C
+ * @author Benjamin Ming Yang (b98204032@gmail.com) in Department of Geology of National Taiwan University
+ * @brief
+ * @date 2023-02-06
+ *
+ * @copyright Copyright (c) 2023
+ *
+ */
 
 #include <stdlib.h>
 #include <stdio.h>

@@ -2,7 +2,6 @@
  * @file PALSAK.C
  * @author Benjamin Ming Yang (b98204032@gmail.com) in Department of Geology of National Taiwan University
  * @brief
- * @version 0.1
  * @date 2022-12-22
  *
  * @copyright Copyright (c) 2022
@@ -80,7 +79,10 @@ static int  ResetProgram( void );
 #define LOOP_TRANSMIT_COMMAND(_COMM) \
 		while ( TransmitCommand( (_COMM) ) != NORMAL && (!ReadInitPin() || ResetProgram()) )
 
-/* Main function, entry */
+/**
+ * @brief Main function, entry
+ *
+ */
 void main( void )
 {
 /* Initialization for u7186EX's general library */
@@ -134,7 +136,7 @@ void main( void )
 	if ( InitControlSocket( NULL ) == ERROR )
 		goto err_return;
 /*
- * Checking the segment of palert disk. If the result is not consisten with expectation,
+ * Checking the segment of palert disk. If the result is not consistent with expectation,
  * then resetting the segment of palert disk
  */
 	if ( CheckPalertDisk( CHECK, 1000 ) == ERROR ) {
@@ -522,13 +524,13 @@ static int SwitchDHCPorStatic( const uint msec )
 	return NORMAL;
 }
 
-/*
- *  TransmitCommand() - Transmitting control command.
- *  argument:
- *    comm - The pointer to the string of command.
- *  return:
- *    ERROR(-1) - It didn't receive the response properly.
- *    NORMAL(0) - It has been processed properly.
+/**
+ * @brief Transmitting control command.
+ *
+ * @param comm The pointer to the string of command.
+ * @return int
+ * @retval ERROR(-1) - It didn't receive the response properly.
+ * @retval NORMAL(0) - It has been processed properly.
  */
 static int TransmitCommand( const char *comm )
 {
@@ -565,14 +567,14 @@ static int TransmitCommand( const char *comm )
 	return NORMAL;
 }
 
-/*
- *  TransmitDataByCommand() - Transmitting data bytes by command line.
- *  argument:
- *    data        - The pointer to the data beginning.
- *    data_length - The length of data bytes.
- *  return:
- *    ERROR(-1) - It didn't receive the response properly.
- *    NORMAL(0) - It has been received properly.
+/**
+ * @brief Transmitting data bytes by command line.
+ *
+ * @param data The pointer to the data beginning.
+ * @param data_length The length of data bytes.
+ * @return int
+ * @retval ERROR(-1) - It didn't receive the response properly.
+ * @retval NORMAL(0) - It has been received properly.
  */
 static int TransmitDataByCommand( const char *data, int data_length )
 {
@@ -621,14 +623,14 @@ static void ForceFlushSocket( int sock )
 	return;
 }
 
-/*
- *  ExtractResponse() - Extract the real data from the whole response.
- *  argument:
- *    buffer - The pointer to the whole raw response.
- *    length - The length of the real data in string.
- *  return:
- *    NULL  - It didn't find out the data.
- *    !NULL - The pointer to the real data string.
+/**
+ * @brief Extract the real data from the whole response.
+ *
+ * @param buffer The pointer to the whole raw response.
+ * @param length The length of the real data in string.
+ * @return char*
+ * @retval NULL  - It didn't find out the data.
+ * @retval !NULL - The pointer to the real data string.
  */
 static char *ExtractResponse( char far *buffer, const uint length )
 {
@@ -980,15 +982,14 @@ static int CheckPalertDisk( const int mode, const uint msec )
 	return NORMAL;
 }
 
-/*
- *  UploadPalertFirmware() - Upload the firmware of Palert store in disk b &
- *                           the auto execute batch file to the Palert on the
- *                           other end of the ethernet cable.
- *  argument:
- *    msec - The waiting delay of display in msecond.
- *  return:
- *    NORMAL(0) - The uploading process is successful.
- *    ERROR(-1) - Something happened when uploading.
+/**
+ * @brief Upload the firmware of Palert store in disk b & the auto execute batch file to the Palert on the
+ *        other end of the ethernet cable.
+ *
+ * @param msec The waiting delay of display in msecond.
+ * @return int
+ * @retval NORMAL(0) - The uploading process is successful.
+ * @retval ERROR(-1) - Something happened when uploading.
  */
 static int UploadPalertFirmware( const uint msec )
 {
@@ -1131,16 +1132,15 @@ static int AgentCommand( const char *comm, const uint msec )
 	return NORMAL;
 }
 
-/*
- *  UploadFileData() - Parsing the file that pointed by the pointer and
- *                     uploading to the Palert on the other end of ethernet
- *                     wire by command line method.
- *  argument:
- *    disk    - The uploadind target disk.
- *    fileptr - The waiting delay of display in msecond.
- *  return:
- *    NORMAL(0) - The uploading process is successful.
- *    ERROR(-1) - Something happened when uploading or file is not existed.
+/**
+ * @brief Parsing the file that pointed by the pointer and uploading to the Palert on the other end of ethernet
+ *        wire by command line method.
+ *
+ * @param disk The uploadind target disk.
+ * @param fileptr The waiting delay of display in msecond.
+ * @return int
+ * @retval NORMAL(0) - The uploading process is successful.
+ * @retval ERROR(-1) - Something happened when uploading or file is not existed.
  */
 static int UploadFileData( const int disk, const FILE_DATA far *fileptr )
 {
