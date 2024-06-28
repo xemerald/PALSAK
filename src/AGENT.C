@@ -317,10 +317,18 @@ static int EnrichBlockZero( void )
 	) {
 	/* Then fetch the DHCP setting & keep it */
 		if ( !EE_MultiRead(0, EEPROM_OPMODE_ADDR, EEPROM_OPMODE_LENGTH, (char *)&l_opmode) ) {
+		/*
+		 * 'cause the value stored within EEPROM in Big-Endian and the program is under Little-Endian.
+		 * Here, we need a swap for the words first then continue the operation.
+		 */
+			SWAP_WORD_ASM( l_opmode );
+			SWAP_WORD_ASM( *r_opmode );
 		/* Just in case, turn the recv. block zero setting to disable DHCP function */
 			*r_opmode &= ~OPMODE_BITS_MODE_DHCP;
 		/* Write the local DHCP setting to the recv. block zero setting */
 			*r_opmode |= l_opmode & OPMODE_BITS_MODE_DHCP;
+		/* After the operaion, swap back the word */
+			SWAP_WORD_ASM( *r_opmode );
 
 			return NORMAL;
 		}
