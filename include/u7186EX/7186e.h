@@ -19,7 +19,7 @@ typedef unsigned long DWORD;
 
 #define    NoError	    0
 #define    InitPinIsOpen    0
-#define    InitPinIsNotopen 1
+#define    InitPinIsNotOpen 1
 #define    QueueIsEmpty     0
 #define    QueueIsNotEmpty  1
 #define    PortError	   -1
@@ -38,14 +38,14 @@ typedef unsigned long DWORD;
 #define    CheckSumError   -14
 #define    ChannelError    -15
 /*[2007/03/14] #define    BaudrateError   -16 */
-#define    BaudrateError	BaudRateError   
+#define    BaudrateError	BaudRateError
 #define    TriggerLevelError   -17
 #define    DateError    -18
 #define    TimeError    -19
 #define    OutOfMemory	-20
 #define    TimeIsUp        1
 /*vic,[2007/7/24]*/
-#define    XEECLKError     -25 
+#define    XEECLKError     -25
 #define    XEESDAError     -26
 #define    XEEWPError      -27
 
@@ -129,7 +129,7 @@ int EE_MultiWrite_L(unsigned address,unsigned no,char *Data);
 int EE_MultiRead_L(unsigned address,unsigned no,char *Data);
 extern int const EE_Type;
 extern int const EE_BlockNo;
-extern int const EE_PageSize; 
+extern int const EE_PageSize;
 
 /* for system */
 extern unsigned long far *IntVect;
@@ -165,7 +165,7 @@ int CountDownTimerReadValue(int channel,unsigned long *value);
 void InstallUserTimer(void (*fun)(void));
 void InstallUserTimer1C(void (*fun)(void));
 
-/* StopWatch [­p®É½Xªí] */
+/* StopWatch [ï¿½pï¿½É½Xï¿½ï¿½] */
 
 #ifndef _T_STOPWATCH_
 #define _T_STOPWATCH_
@@ -175,7 +175,7 @@ typedef struct {
 } STOPWATCH;
 #endif
 
-/* CountDown Timer[­Ë¼Æ­p®É] */
+/* CountDown Timer[ï¿½Ë¼Æ­pï¿½ï¿½] */
 #ifndef _T_COUNTDOWNTIMER_
 #define _T_COUNTDOWNTIMER_
 typedef struct {
@@ -1251,7 +1251,7 @@ int _d2Print(const char *fmt,...);
 
 /*
  [2004/06/29] add
- [2007/11/15] change MAX_CMD_NO from 20 to 50. 
+ [2007/11/15] change MAX_CMD_NO from 20 to 50.
 */
 #define MAX_CMD_NO 50
 extern int Argc;
@@ -1329,7 +1329,7 @@ int SetDelayTimer(int no);
 The delay functions(Dealy()/Delay_1()/Delay_2() by default using system's timer 0.
 user can call SetDelayTimer(1); set it to use timer 1.
 
-return : 0 for using timer 0, 1 for using timer 1. 
+return : 0 for using timer 0, 1 for using timer 1.
 */
 int SetUserTimer(int no);
 /*
@@ -1337,15 +1337,15 @@ The user timer functions(InstallUserTimerFunction_us()/InstallUserTimerFunction_
  by default using system's timer 0.
 user can call SetUserTimer(1); set it to use timer 1.
 
-return : 0 for using timer 0, 1 for using timer 1. 
+return : 0 for using timer 0, 1 for using timer 1.
 */
 
-/* 
-[2005/07/05] add functions for the EEPROM(24LC16) on X-board 
-*/ 
+/*
+[2005/07/05] add functions for the EEPROM(24LC16) on X-board
+*/
 int XEE_Init(int clk_pin,int sda_pin,int wp_pin,int need_pullhigh);
 int XEE_InitByName(int Xboard);
-/*------------------------------------------------------------------*/ 
+/*------------------------------------------------------------------*/
 void XEE_WriteEnable(void);
 void XEE_WriteProtect(void);
 int XEE_RandomRead(int Block,int Addr);
@@ -1355,31 +1355,31 @@ int XEE_RandomWrite(int Block,int Addr,int Data);
 int XEE_MultiWrite(int Block,int Addr,int no,char *Data);
 int XEE_MultiWrite_A(int Block,int Addr,int no,char *Data);
 /*
-  The new X-board library will call these functions. 
-  At X-board initial function must call XEE_Init() or XEE_InitByName() first. 
-  Then call other functions XEE_nnnn() like EE2_nnnn() or EE3_nnnn(). 
+  The new X-board library will call these functions.
+  At X-board initial function must call XEE_Init() or XEE_InitByName() first.
+  Then call other functions XEE_nnnn() like EE2_nnnn() or EE3_nnnn().
 */
 
-#define _X201_	201 
-#define _X202_	202 
+#define _X201_	201
+#define _X202_	202
 #define _X203_	203
 #define _X205_	205
 #define _X206_	206
 
-#define _X300_	300 
-#define _X301_	301 
-#define _X302_	302 
-#define _X303_	303 
-#define _X304_	304 
-#define _X305_	305 
-#define _X306_	306 
-#define _X308_	308 
-#define _X309_	309 
-#define _X310_	310 
-#define _X314_	314 
+#define _X300_	300
+#define _X301_	301
+#define _X302_	302
+#define _X303_	303
+#define _X304_	304
+#define _X305_	305
+#define _X306_	306
+#define _X308_	308
+#define _X309_	309
+#define _X310_	310
+#define _X314_	314
 
 /*
-  [2006/02/07] Add functions for write/delete file 
+  [2006/02/07] Add functions for write/delete file
   Please refer to the file:"OS7_file.txt"
 */
 int OS7_DeleteAllFile(int disk);
@@ -1405,9 +1405,9 @@ void CRC16_AddDataN(unsigned char far *data,unsigned length);
 int CRC16_MakeTable(void);
 
 /*
-[2006/10/18] Add functions for CRC-16 used by Modbus/RTU 
+[2006/10/18] Add functions for CRC-16 used by Modbus/RTU
 */
-extern unsigned Modbus_CRC16; 
+extern unsigned Modbus_CRC16;
 void Modbus_CRC16_Set(unsigned val);
 #define Modbus_CRC16_Reset()	Modbus_CRC16_Set(0xFFFF)
 unsigned Modbus_CRC16_Read(void);
@@ -1416,7 +1416,7 @@ int Modbus_CRC16_Push(void);
 int Modbus_CRC16_Pop(void);
 
 /*
-[2006/10/18] Add functions for swap data byte order. 
+[2006/10/18] Add functions for swap data byte order.
 */
 int SwapShort(unsigned data);
 /*
@@ -1449,7 +1449,7 @@ int GetHighRamMode(void);
 void SetHighRam(int mode);
 
 /*
-[2007/07/06] Add functions for the NAME/VER/DATE of the library. 
+[2007/07/06] Add functions for the NAME/VER/DATE of the library.
 */
 unsigned GetOsLibVersion(void); /* the same as GetLibVersion(). */
 char *GetOsLibDate(void);
@@ -1473,21 +1473,21 @@ extern long lLostDataNo_8;
 */
 void InstallNewTimer(void);
 void RestoreNewTimer(void);
-extern char Int9Flag; 
+extern char Int9Flag;
 extern char Int1cFlag;
 /*
 Int9Flag : default value is 1;
 When Int9Flag != 0, the new timer ISR will call INT 9 every time.
-If the program does not using INT 9, set Int9Flag to 0 will get better performance.  
+If the program does not using INT 9, set Int9Flag to 0 will get better performance.
 
 Int1cFlag : default value is 1;
 When Int1cFlag != 0, the new timer ISR will call INT 0x1c every 55 ms.
-If the program does not using INT 0x1C, set Int1cFlag to 0 will get better performance.  
+If the program does not using INT 0x1C, set Int1cFlag to 0 will get better performance.
 
 */
 
 /* [2009/08/31] add */
-extern int UartType_[COM_PORT_NO]; 
+extern int UartType_[COM_PORT_NO];
 /*
 188: 80188/186 CPU internal UART
 550: 16c550
@@ -1506,8 +1506,8 @@ void Delay1(unsigned ms);
 /*
 	Delay time unit = 1 ms
 	Delay0() and Delay1() are the same as Delay(),but
-	Delay0() will use Timer 0, 
-	Delay1() will use Timer 1. 
+	Delay0() will use Timer 0,
+	Delay1() will use Timer 1.
 */
 void Delay0_1(unsigned ms);
 void Delay1_1(unsigned ms);
@@ -1515,20 +1515,20 @@ void Delay2_1(unsigned ms);
 /*
 	Delay time unit = 0.1 ms
 	Delay0_1() and Delay1_1() are the same as Delay_1(),but
-	Delay0_1() will use Timer 0, 
-	Delay1_1() will use Timer 1. 
-	Delay2_1() will use Timer 2. [2011/12/07] add 
+	Delay0_1() will use Timer 0,
+	Delay1_1() will use Timer 1.
+	Delay2_1() will use Timer 2. [2011/12/07] add
 */
 
 void Delay0_2(unsigned ms);
 void Delay1_2(unsigned ms);
-void Delay2_2(unsigned ms); 
+void Delay2_2(unsigned ms);
 /*
 	Delay time unit = 0.01 ms
 	Delay0_2() and Delay1_2() are the same as Delay_2(),but
-	Delay0_2() will use Timer 0,  
-	Delay1_2() will use Timer 1. 
-	Delay2_2() will use Timer 2. [2011/12/07] add 
+	Delay0_2() will use Timer 0,
+	Delay1_2() will use Timer 1.
+	Delay2_2() will use Timer 2. [2011/12/07] add
 */
 
 void Delay2(unsigned ms);
@@ -1537,7 +1537,7 @@ void Delay2(unsigned ms);
 	Delay2() like Delay() but it use Timer 2.
 	If the program only use Delay2(), it can use two timer ISRs by call
 	(InstallUserTimer0Function_ms() or InstallUserTimer0Function_us() )
-	and 
+	and
 	(InstallUserTimer1Function_us() or InstallUserTimer1Function_us() )
 */
 
@@ -1561,7 +1561,7 @@ int CsvStrToArg(char *cmd);
 char str[]="0,1,2,3,4,5,6";
 
 CsvStrToArg(str);
---> 
+-->
 Argc=7,
 Argv[0]="0";(=str)(str[1]=0)
 Argv[1]="1";(=str+2)
