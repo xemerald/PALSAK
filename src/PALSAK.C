@@ -378,9 +378,13 @@ static int InitDHCP( const uint msec )
 static void SwitchWorkflow( const uint msec )
 {
 	uchar init_pin = InitPinIsOpen;
+	uchar cts_pin  = 0;
 	uint  num = 0;
-	uint  delay_msec = msec;
+	uint  init_delay_msec;
+	uint  cts_delay_msec;
 
+/* */
+	SetRtsActive_1();
 /* Show the "-0-" message on the 7-seg led */
 	SHOW_2DASH_5DIGITLED( num );
 /*
@@ -391,19 +395,37 @@ static void SwitchWorkflow( const uint msec )
 	while ( bEthernetLinkOk == 0x00 ) {
 	/* Detect the init. pin condition for switching to the updating firmware func. */
 		if ( ReadInitPin() ) {
-			init_pin = InitPinIsNotopen;
+			init_pin = InitPinIsNotOpen;
+			init_delay_msec = 100;
 		}
-		else if ( init_pin == InitPinIsNotopen ) {
+		else if ( init_pin == InitPinIsNotOpen && !init_delay_msec ) {
 			num++;
 			num %= 6;
 			init_pin = InitPinIsOpen;
+			SHOW_2DASH_5DIGITLED( num );
 		}
-		SHOW_2DASH_5DIGITLED( num );
+
+		if ( GetCtsStatus_1() ) {
+			cts_pin = 1;
+			cts_delay_msec = 100;
+		}
+		else if ( cts_pin == 1 && !cts_delay_msec ) {
+			num--;
+			num %= 6;
+			cts_pin = 0;
+			SHOW_2DASH_5DIGITLED( num );
+		}
 	/* */
+		if ( init_delay_msec )
+			init_delay_msec--;
+		if ( cts_delay_msec )
+			cts_delay_msec--;
+
 		Delay2(1);
 	}
 /* One more waiting for stablization of the connection */
 	Delay2(msec);
+	SetRtsInactive_1();
 
 	return;
 }
