@@ -187,11 +187,9 @@ extern "C" {
  *
  */
 #define SWAP_WORD_ASM(__WORD) \
-		_asm { \
-			mov ax, word ptr (__WORD) \
-			xchg al, ah \
-			mov word ptr (__WORD), ax \
-		}
+		(_AX = (__WORD); \
+		_asm xchg al, ah; \
+		(__WORD) = _AX;)
 
 #ifdef __cplusplus
 }
