@@ -307,7 +307,8 @@ static int BroadcastResp( char *resp, const uint msec )
  */
 static int EnrichBlockZero( void )
 {
-	BYTE opmode[EEPROM_OPMODE_LENGTH];
+	WORD  l_opmode;
+	WORD *r_opmode = (WORD *)&BlockZero[EEPROM_OPMODE_ADDR];
 
 /* Those information should always be keep, include the device serial & correction value */
 	if (
@@ -315,8 +316,12 @@ static int EnrichBlockZero( void )
 		!EE_MultiRead(0, EEPROM_CVALUE_ADDR, EEPROM_CVALUE_LENGTH, (char *)&BlockZero[EEPROM_CVALUE_ADDR])
 	) {
 	/* Then fetch the DHCP setting & keep it */
-		if ( !EE_MultiRead(0, EEPROM_OPMODE_ADDR, EEPROM_OPMODE_LENGTH, (char *)opmode) ) {
-			BlockZero[EEPROM_OPMODE_ADDR + 1] |= opmode[1] & OPMODE_BITS_MODE_DHCP;
+		if ( !EE_MultiRead(0, EEPROM_OPMODE_ADDR, EEPROM_OPMODE_LENGTH, (char *)&l_opmode) ) {
+		/* Just in case, turn the recv. block zero setting to disable DHCP function */
+			*r_opmode &= ~OPMODE_BITS_MODE_DHCP;
+		/* Write the local DHCP setting to the recv. block zero setting */
+			*r_opmode |= l_opmode & OPMODE_BITS_MODE_DHCP;
+
 			return NORMAL;
 		}
 	}

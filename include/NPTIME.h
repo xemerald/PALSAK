@@ -36,7 +36,7 @@ extern "C" {
  */
 #define EPOCH_DIFF_JAN1970   2208988800UL
 /* */
-#define ONE_CLOCK_STEP_USEC  500L     /* One step for clock in usec & it should not larger than 50000 & less than 100 */
+#define ONE_CLOCK_STEP_USEC  500L     /* One step for clock in usec & it should not larger than 5000 & less than 10 */
 #define ABS_HALF_CLOCK_STEP  250L     /* Half step for clock in usec & it should be always larger than 0 */
 #define STEP_TIMES_IN_EPOCH  2000L    /* ABS(ONE_EPOCH_USEC / CLOCK_STEP_USEC) */
 #define L_CLOCK_PRECISION    -10      /* Precision of the local clock, in seconds to the nearest power of two */

@@ -77,8 +77,8 @@ extern "C" {
 /* Temporary Palert Network setting storage information */
 #define EEPROM_NETWORK_SET_BLOCK   0x02
 #define EEPROM_NETWORK_TMP_ADDR    0x00
-#define EEPROM_NETWORK_DEF_ADDR    0x10
-#define EEPROM_NETWORK_SET_LENGTH  12
+#define EEPROM_NETWORK_DEF_ADDR    0x18
+#define EEPROM_NETWORK_SET_LENGTH  18
 /* */
 #define EEPROM_BYTE_PER_LINE  8
 #define EEPROM_SET_END_ADDR   0x70

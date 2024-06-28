@@ -49,13 +49,13 @@ static int  InitDHCP( const uint );
 static void SwitchWorkflow( const uint );
 static int  SwitchDHCPorStatic( const uint );
 
-static int TransmitCommand( const char * );
-static int TransmitDataByCommand( const char *, int );
-static void ForceFlushSocket( int );
+static int   TransmitCommand( const char * );
+static int   TransmitDataByCommand( const char *, int );
+static void  ForceFlushSocket( int );
 static char *ExtractResponse( char *, const uint );
 
-static int GetPalertMac( const uint );
-static int GetPalertNetworkSetting( const uint );
+static int GetPalertMAC( const uint );
+static int GetPalertNetworkConfig( const uint );
 static int SetPalertNetwork( const uint );
 static int CheckServerConnect( const uint );
 static int CheckPalertDisk( const int, const uint );
@@ -159,7 +159,7 @@ void main( void )
  * Fetching the network setting of palert & save it.
  */
 	if ( WorkflowFlag & STRATEGY_GET_NET ) {
-		if ( GetPalertNetworkSetting( 1000 ) == ERROR )
+		if ( GetPalertNetworkConfig( 1000 ) == ERROR )
 			goto err_return;
 	/* Show the 'Good' on the 7-seg led */
 		SHOW_GOOD_5DIGITLED();
@@ -208,7 +208,7 @@ void main( void )
 /* If it shows the MAC flag, just get the MAC and show it */
 	if ( WorkflowFlag & STRATEGY_CHK_MAC ) {
 	/* Show the MAC of the Palert */
-		if ( GetPalertMac( 2000 ) == ERROR )
+		if ( GetPalertMAC( 2000 ) == ERROR )
 			goto err_return;
 	}
 
@@ -244,6 +244,7 @@ static void SetNetworkConfig( uint set )
 		SetIp((uchar *)&PreBuffer[0]);
 		SetMask((uchar *)&PreBuffer[4]);
 		SetGateway((uchar *)&PreBuffer[8]);
+		SetEid((uchar *)&PreBuffer[12]);
 	}
 
 	return;
@@ -345,7 +346,7 @@ static int InitDHCP( const uint msec )
 /* Re-initialization for network interface library */
 	if ( NetStart() < 0 )
 		return ERROR;
-/* Wait for the network interface ready, it might be shoter */
+/* Wait for the network interface ready, it might be shorter */
 	YIELD();
 	Delay2(5);
 /* */
@@ -649,17 +650,16 @@ static char *ExtractResponse( char far *buffer, const uint length )
 	return pos;
 }
 
-/*
- *  GetPalertMac() - Get the MAC address of Palert(u7186EX) on the other
- *                   end of the ethernet cable. Then show it on the 7-seg
- *                   led.
- *  argument:
- *    msec - The waiting delay of display in msecond.
- *  return:
- *    NORMAL(0) - The MAC address of Palert has been requested successfully.
- *    ERROR(-1) - Something wrong when requesting.
+/**
+ * @brief Get the MAC address of Palert(u7186EX) on the other end of the ethernet cable.
+ *        Then show it on the 7-seg led.
+ *
+ * @param msec The waiting delay of display in msecond.
+ * @return int
+ * @retval NORMAL(0) - The MAC address of Palert has been requested successfully.
+ * @retval ERROR(-1) - Something wrong when requesting.
  */
-static int GetPalertMac( const uint msec )
+static int GetPalertMAC( const uint msec )
 {
 	uint  page = 0;
 	uint  delay_msec = msec;
@@ -686,12 +686,12 @@ static int GetPalertMac( const uint msec )
 }
 
 /**
- * @brief Get the Palert Network Setting & save to EEPROM block 2
+ * @brief Get the Palert Network Setting & MAC address, then save to EEPROM block 2
  *
  * @param msec
  * @return int
  */
-static int GetPalertNetworkSetting( const uint msec )
+static int GetPalertNetworkConfig( const uint msec )
 {
 	char *pos;
 
@@ -718,6 +718,18 @@ static int GetPalertNetworkSetting( const uint msec )
 		return ERROR;
 /* Parsing the Gateway address to bytes */
 	sscanf(pos, "%hu.%hu.%hu.%hu", (uchar *)&PreBuffer[8], (uchar *)&PreBuffer[9], (uchar *)&PreBuffer[10], (uchar *)&PreBuffer[11]);
+
+/* Send out the MAC address request command */
+	LOOP_TRANSMIT_COMMAND( "mac" );
+/* Extract the MAC address from the raw response */
+	if ( (pos = ExtractResponse( RecvBuffer, MAC_STRING )) == NULL )
+		return ERROR;
+/* Parsing the MAC address to bytes */
+	sscanf(
+		pos, "%hx:%hx:%hx:%hx:%hx:%hx",
+		(uchar *)&PreBuffer[12], (uchar *)&PreBuffer[13], (uchar *)&PreBuffer[14],
+		(uchar *)&PreBuffer[15], (uchar *)&PreBuffer[16], (uchar *)&PreBuffer[17]
+	);
 
 /* */
 	EE_WriteEnable();
@@ -916,17 +928,14 @@ static int CheckServerConnect( const uint msec )
 	return NORMAL;
 }
 
-/*
- *  CheckPalertDisk() - Checking the disk size of Palert on the other
- *                      end of the ethernet cable and show on the
- *                      7-seg led.
- *  argument:
- *    mode - There are two kinds of mode, Check(0) & Reset(1).
- *    msec - The waiting delay of display in msecond.
- *  return:
- *    NORMAL(0) - The disk size of the Palert is correct.
- *    ERROR(-1) - The disk size of the Palert is wrong or something
- *                happened when requesting.
+/**
+ * @brief Checking the disk size of Palert on the other end of the ethernet cable and show on the 7-seg led.
+ *
+ * @param mode There are two kinds of mode, Check(0) & Reset(1).
+ * @param msec The waiting delay of display in msecond.
+ * @return int
+ * @retval NORMAL(0) - The disk size of the Palert is correct.
+ * @retval ERROR(-1) - The disk size of the Palert is wrong or something happened when requesting.
  */
 static int CheckPalertDisk( const int mode, const uint msec )
 {

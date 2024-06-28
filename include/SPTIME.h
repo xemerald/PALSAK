@@ -34,7 +34,7 @@ extern "C" {
  */
 #define EPOCH_DIFF_JAN1970   2208988800UL
 /* */
-#define ONE_CLOCK_STEP_FRAC  32     /* One step for clock in frac & it should not larger than 32768 & less than 128 */
+#define ONE_CLOCK_STEP_FRAC  32     /* One step for clock in frac & it should not larger than 256 & less than 2 */
 #define ABS_HALF_CLOCK_STEP  16     /* Half step for clock in frac & it should be always larger than 0 */
 #define STEP_TIMES_IN_EPOCH  2048   /* ABS(ONE_EPOCH_FRAC / ONE_CLOCK_STEP_FRAC) */
 #define L_CLOCK_PRECISION    -10    /* Precision of the local clock, in seconds to the nearest power of two */

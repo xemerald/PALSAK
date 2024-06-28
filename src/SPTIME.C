@@ -378,7 +378,7 @@ int NTPProcess( void )
 				first_time       = 1;
 			}
 			else {
-			/* Just in case & avoid the CorrectTimeStep whould be too large or being negative */
+			/* Just in case & avoid the CorrectTimeStep would be too large or being negative */
 				if ( labs(CompensateFrac += compensate[0]) >= HALF_EPOCH_FRAC )
 					return SYSTIME_ERROR;
 			/* */
