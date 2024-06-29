@@ -621,7 +621,7 @@ static char *ExtractResponse( char far *buffer, const uint length )
  * @brief Get the MAC address of Palert(u7186EX) on the other end of the ethernet cable.
  *        Then show it on the 7-seg led.
  *
- * @param msec The waiting delay of display in msecond.
+ * @param msec The waiting delay for return in msecond.
  * @return int
  * @retval NORMAL(0) - The MAC address of Palert has been requested successfully.
  * @retval ERROR(-1) - Something wrong when requesting.
@@ -629,7 +629,6 @@ static char *ExtractResponse( char far *buffer, const uint length )
 static int GetPalertMAC( const uint msec )
 {
 	uint  page = 0;
-	uint  delay_msec = msec;
 	char *pos;
 
 /* Send out the MAC address request command */
@@ -641,13 +640,14 @@ static int GetPalertMAC( const uint msec )
 /* Parsing the MAC address with hex format into Display content buffer */
 	EncodeAddrDisplayContent( pos );
 /* Show on the 7-seg led */
-	ShowContent5DigitsLedPage( page );
 	BUTTONS_LASTCOUNT_RESET();
 	do {
-		if ( GetInitButtonPressCount() )
-			ShowContent5DigitsLedPage( ++page );
+		if ( GetInitButtonPressCount() || !page )
+			ShowContent5DigitsLedPage( page++ );
 		Delay2(10);
 	} while ( !GetCtsButtonPressCount() );
+/* */
+	Delay2(msec);
 
 	return NORMAL;
 }
@@ -1086,10 +1086,12 @@ static int AgentCommand( const char *comm, const uint msec )
 			EncodeAddrDisplayContent( _data );
 		/* Real show on the 7-seg led */
 			page = 0;
+			BUTTONS_LASTCOUNT_RESET();
 			do {
-				ShowContent5DigitsLedPage( page++ );
-				Delay2(msec);
-			} while ( page < ContentPages );
+				if ( GetInitButtonPressCount() || !page )
+					ShowContent5DigitsLedPage( page++ );
+				Delay2(10);
+			} while ( !GetCtsButtonPressCount() );
 		}
 	/* Move the pointer to the next data */
 		pos += CVALUE_STRING + 1;
