@@ -78,7 +78,10 @@ static void FatalError( const int );
 static int  ResetProgram( void );
 
 #define LOOP_TRANSMIT_COMMAND(_COMM) \
-		while ( TransmitCommand( (_COMM) ) != NORMAL && (!ReadInitPin() || ResetProgram()) )
+		{ \
+			BUTTONS_LASTCOUNT_RESET(); \
+			while ( TransmitCommand( (_COMM) ) != NORMAL && ((!GetInitButtonPressCount() && !GetCtsButtonPressCount()) || ResetProgram()) ); \
+		}
 
 /**
  * @brief Main function, entry
@@ -96,7 +99,10 @@ void main( void )
 /* Wait for the network interface ready, it might be shorter */
 	YIELD();
 	Delay2(5);
-/* Wait until the network connection is on, each func will wait for around 5 sec.(0.312 * 16)*/
+/* */
+	ButtonServiceInit();
+	BUTTONS_SERVICE_START();
+/* Wait until the network connection is on */
 	SwitchWorkflow( 500 );
 
 /* If it shows the UPD flag (Workflow 0), just return after finishing */
@@ -224,6 +230,8 @@ normal_return:
 	closesocket(SockRecv);
 /* Terminate the network interface */
 	Nterm();
+/* */
+	BUTTONS_SERVICE_STOP();
 	return;
 err_return:
 /* Show the 'ERROR' on the 7-seg led */
@@ -396,8 +404,7 @@ static void SwitchWorkflow( const uint msec )
 	Show5DigitLed(4, flow_num % 10);
 	Show5DigitLedSeg(5, 0);
 /* */
-	ButtonServiceInit();
-	BUTTONS_SERVICE_START();
+	BUTTONS_LASTCOUNT_RESET();
 /*
  * External variables for network linking status :
  * After testing, when network is real connected,
@@ -422,7 +429,6 @@ static void SwitchWorkflow( const uint msec )
 /* */
 	WorkflowFlag = workflows[flow_num];
 /* One more waiting for stablization of the connection */
-	BUTTONS_SERVICE_STOP();
 	Delay2(msec);
 
 	return;
@@ -636,12 +642,10 @@ static int GetPalertMAC( const uint msec )
 	EncodeAddrDisplayContent( pos );
 /* Show on the 7-seg led */
 	do {
-		if ( ++delay_msec >= msec ) {
+		if ( GetInitButtonPressCount() )
 			ShowContent5DigitsLedPage( page++ );
-			delay_msec = 0;
-		}
-		Delay2(1);
-	} while ( !ReadInitPin() );
+		Delay2(10);
+	} while ( !GetCtsButtonPressCount() );
 
 	return NORMAL;
 }
@@ -729,6 +733,7 @@ static int SetPalertNetwork( const uint msec )
 	/* Show the fetched IP on the 7-seg led roller once */
 		ParseNetinfoToRoller( str_ptr, (BYTE *)&PreBuffer[0], (BYTE *)&PreBuffer[4], (BYTE *)&PreBuffer[8] );
 	/* */
+		BUTTONS_LASTCOUNT_RESET();
 		while ( bEthernetLinkOk == 0x00 ) {
 		/* */
 			if ( ++delay_msec >= msec ) {
@@ -736,7 +741,7 @@ static int SetPalertNetwork( const uint msec )
 				delay_msec = 0;
 			}
 		/* */
-			if ( ReadInitPin() )
+			if ( GetCtsButtonPressCount() )
 				return NORMAL;
 			Delay2(1);
 		}

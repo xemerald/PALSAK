@@ -15,12 +15,12 @@
 
 /* */
 volatile uchar InitPressCount;
+volatile uchar InitPressLastCount;
 volatile uchar CtsPressCount;
+volatile uchar CtsPressLastCount;
 /* */
 static uchar InitPinStatus;
-static uchar InitPressLastCount;
 static uchar CtsPinStatus;
-static uchar CtsPressLastCount;
 
 /**
  * @brief
