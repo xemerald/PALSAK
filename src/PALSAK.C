@@ -405,7 +405,7 @@ static void SwitchWorkflow( const uint msec )
  */
 	while ( bEthernetLinkOk == 0x00 ) {
 	/* Detect the button condition for switching work flow */
-		if ( (tmp = GetInitButtonPressCount()) || (tmp = GetCtsButtonPressCount(), tmp = -tmp) ) {
+		if ( (tmp = GetInitButtonPressCount()) || ((tmp = GetCtsButtonPressCount()) && (tmp = -tmp)) ) {
 			flow_num += tmp;
 		/* */
 			if ( tmp > 0 )
