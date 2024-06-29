@@ -19,8 +19,8 @@ extern "C" {
 #include "./include/u7186EX/7186e.h"
 
 /* The checking result of func. */
-#define PIN_IS_OPEN      0
-#define PIN_IS_NOT_OPEN  1
+#define PIN_IS_OPEN   0
+#define PIN_IS_CLOSE  1
 /* */
 #define BUTTONS_SERVICE_START() \
 		{ SetRtsActive_1(); InstallUserTimer0Function_ms(50, ButtonService); }
