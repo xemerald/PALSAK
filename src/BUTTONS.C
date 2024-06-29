@@ -14,13 +14,13 @@
 #include "./include/BUTTONS.h"
 
 /* */
-uchar InitPressCount;
-uchar CtsPressCount;
+volatile uchar InitPressCount;
+volatile uchar CtsPressCount;
 /* */
-static uchar InitPinStatus;
-static uchar InitPressLastCount;
-static uchar CtsPinStatus;
-static uchar CtsPressLastCount;
+static volatile uchar InitPinStatus;
+static volatile uchar InitPressLastCount;
+static volatile uchar CtsPinStatus;
+static volatile uchar CtsPressLastCount;
 
 /**
  * @brief

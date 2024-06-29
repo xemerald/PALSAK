@@ -30,8 +30,8 @@ extern "C" {
 /*
  *
  */
-extern uchar InitPressCount;
-extern uchar CtsPressCount;
+extern volatile uchar InitPressCount;
+extern volatile uchar CtsPressCount;
 
 /*
  *
