@@ -17,10 +17,10 @@
 volatile uchar InitPressCount;
 volatile uchar CtsPressCount;
 /* */
-static volatile uchar InitPinStatus;
-static volatile uchar InitPressLastCount;
-static volatile uchar CtsPinStatus;
-static volatile uchar CtsPressLastCount;
+static uchar InitPinStatus;
+static uchar InitPressLastCount;
+static uchar CtsPinStatus;
+static uchar CtsPressLastCount;
 
 /**
  * @brief
@@ -31,7 +31,7 @@ void ButtonService( void )
 	if ( ReadInitPin() ) {
 		InitPinStatus = PIN_IS_NOT_OPEN;
 	}
-	else if ( InitPinStatus ) {
+	else if ( InitPinStatus == PIN_IS_NOT_OPEN ) {
 		InitPressCount++;
 		InitPinStatus = PIN_IS_OPEN;
 	}
@@ -39,7 +39,7 @@ void ButtonService( void )
 	if ( GetCtsStatus_1() ) {
 		CtsPinStatus = PIN_IS_NOT_OPEN;
 	}
-	else if ( CtsPinStatus ) {
+	else if ( CtsPinStatus == PIN_IS_NOT_OPEN  ) {
 		CtsPressCount++;
 		CtsPinStatus = PIN_IS_OPEN;
 	}
@@ -70,13 +70,14 @@ void ButtonServiceInit( void )
  */
 uchar GetInitButtonPressCount( void )
 {
-	uchar result = 0;
+	uchar result = InitPressCount;
 
-	result = InitPressCount;
 	if ( result > InitPressLastCount )
 		InitPressLastCount = result - InitPressLastCount;
 	else if ( result < InitPressLastCount )
 		InitPressLastCount = (0xff - InitPressLastCount) + result + 1;
+	else
+		return 0;
 /* */
 	_asm {
 		mov al, byte ptr InitPressLastCount
@@ -94,13 +95,14 @@ uchar GetInitButtonPressCount( void )
  */
 uchar GetCtsButtonPressCount( void )
 {
-	uchar result = 0;
+	uchar result = CtsPressCount;
 
-	result = CtsPressCount;
 	if ( result > CtsPressLastCount )
 		CtsPressLastCount = result - CtsPressLastCount;
 	else if ( result < CtsPressLastCount )
 		CtsPressLastCount = (0xff - CtsPressLastCount) + result + 1;
+	else
+		return 0;
 /* */
 	_asm {
 		mov al, byte ptr CtsPressLastCount
