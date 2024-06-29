@@ -29,19 +29,19 @@ static uchar CtsPressLastCount;
 void ButtonService( void )
 {
 	if ( ReadInitPin() ) {
-		InitPinStatus = PIN_IS_NOT_OPEN;
+		InitPinStatus = PIN_IS_CLOSE;
 	}
-	else if ( InitPinStatus == PIN_IS_NOT_OPEN ) {
+	else if ( InitPinStatus == PIN_IS_CLOSE ) {
 		InitPressCount++;
 		InitPinStatus = PIN_IS_OPEN;
 	}
 
-	if ( GetCtsStatus_1() ) {
-		CtsPinStatus = PIN_IS_NOT_OPEN;
-	}
-	else if ( CtsPinStatus == PIN_IS_NOT_OPEN  ) {
-		CtsPressCount++;
+	if ( !GetCtsStatus_1() ) {
 		CtsPinStatus = PIN_IS_OPEN;
+	}
+	else if ( CtsPinStatus == PIN_IS_OPEN ) {
+		CtsPressCount++;
+		CtsPinStatus = PIN_IS_CLOSE;
 	}
 
 	return;
@@ -58,7 +58,7 @@ void ButtonServiceInit( void )
 	InitPinStatus  = PIN_IS_OPEN;
 /* */
 	CtsPressCount = CtsPressLastCount = 0;
-	CtsPinStatus  = PIN_IS_OPEN;
+	CtsPinStatus  = PIN_IS_CLOSE;
 
 	return;
 }

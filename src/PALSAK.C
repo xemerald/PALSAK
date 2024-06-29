@@ -378,15 +378,15 @@ static int InitDHCP( const uint msec )
  */
 static void SwitchWorkflow( const uint msec )
 {
-	uchar flow_num = WORKFLOW_0;
-	char  tmp;
+	uchar flow_num = WORKFLOW_1;
+	int   tmp;
 #define X(a, b) b,
 	uchar workflows[] = {
 		WORKFLOWS_TABLE
 	};
 #undef X
 
-/* Show the " F.  " message on the 7-seg led */
+/* Show the " F.XX " message on the 7-seg led */
 	Show5DigitLedSeg(1, 0);
 	Show5DigitLedWithDot(2, 0x0F);
 	Show5DigitLed(3, flow_num >= 10 ? flow_num / 10 : 0);
@@ -402,25 +402,25 @@ static void SwitchWorkflow( const uint msec )
  */
 	while ( bEthernetLinkOk == 0x00 ) {
 	/* Detect the button condition for switching work flow */
-		if ( (tmp = GetInitButtonPressCount()) || (tmp = -GetCtsButtonPressCount())) {
+		if ( (tmp = GetInitButtonPressCount()) || (tmp = -GetCtsButtonPressCount()) ) {
 			flow_num += tmp;
 		/* */
 			if ( tmp > 0 )
 				flow_num %= WORKFLOW_COUNT;
 			else if ( flow_num >= WORKFLOW_COUNT )
-				flow_num = WORKFLOW_0;
-			/* */
+				flow_num = WORKFLOW_COUNT - 1;
+		/* */
 			Show5DigitLed(3, flow_num >= 10 ? flow_num / 10 : 0);
 			Show5DigitLed(4, flow_num % 10);
 		}
-
-		Delay2(10);
+	/* */
+		Delay2(5);
 	}
 /* */
 	WorkflowFlag = workflows[flow_num];
 /* One more waiting for stablization of the connection */
-	Delay2(msec);
 	BUTTONS_SERVICE_STOP();
+	Delay2(msec);
 
 	return;
 }
