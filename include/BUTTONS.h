@@ -21,17 +21,18 @@ extern "C" {
 /* The checking result of func. */
 #define PIN_IS_OPEN   0
 #define PIN_IS_CLOSE  1
-/* */
-#define BUTTONS_SERVICE_START() \
-		{ SetRtsActive_1(); InstallUserTimer1Function_ms(50, ButtonService); }
-#define BUTTONS_SERVICE_STOP() \
-		{ StopUserTimer1Fun(); SetRtsInactive_1(); }
 
 /*
  *
  */
 extern volatile uchar InitPressCount;
+extern volatile uchar InitPressLastCount;
 extern volatile uchar CtsPressCount;
+extern volatile uchar CtsPressLastCount;
+
+/* */
+#define BUTTONS_LASTCOUNT_RESET() \
+		{ InitPressLastCount = InitPressCount; CtsPressLastCount = CtsPressLastCount; }
 
 /*
  *
@@ -40,6 +41,12 @@ void  ButtonService( void );
 void  ButtonServiceInit( void );
 uchar GetInitButtonPressCount( void );
 uchar GetCtsButtonPressCount( void );
+
+/* */
+#define BUTTONS_SERVICE_START() \
+		{ SetRtsActive_1(); InstallUserTimer0Function_ms(50, ButtonService); }
+#define BUTTONS_SERVICE_STOP() \
+		{ StopUserTimer0Fun(); SetRtsInactive_1(); }
 
 #ifdef __cplusplus
 }
