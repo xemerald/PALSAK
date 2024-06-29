@@ -23,9 +23,9 @@ extern "C" {
 #define PIN_IS_CLOSE  1
 /* */
 #define BUTTONS_SERVICE_START() \
-		{ SetRtsActive_1(); InstallUserTimer0Function_ms(50, ButtonService); }
+		{ SetRtsActive_1(); InstallUserTimer1Function_ms(50, ButtonService); }
 #define BUTTONS_SERVICE_STOP() \
-		{ StopUserTimer0Fun(); SetRtsInactive_1(); }
+		{ StopUserTimer1Fun(); SetRtsInactive_1(); }
 
 /*
  *

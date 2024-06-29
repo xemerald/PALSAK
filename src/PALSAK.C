@@ -97,10 +97,13 @@ void main( void )
 	YIELD();
 	Delay2(5);
 /* Wait until the network connection is on, each func will wait for around 5 sec.(0.312 * 16)*/
-	SwitchWorkflow( 312 );
+	SwitchWorkflow( 500 );
 
 /* If it shows the UPD flag (Workflow 0), just return after finishing */
 	if ( WorkflowFlag & STRATEGY_UPD_FW ) {
+	/* */
+		if ( SwitchDHCPorStatic( 400 ) == ERROR )
+			goto err_return;
 	/* */
 		if ( bUseDhcp && InitDHCP( 400 ) == ERROR )
 			goto err_return;
@@ -402,7 +405,7 @@ static void SwitchWorkflow( const uint msec )
  */
 	while ( bEthernetLinkOk == 0x00 ) {
 	/* Detect the button condition for switching work flow */
-		if ( (tmp = GetInitButtonPressCount()) || (tmp = -GetCtsButtonPressCount()) ) {
+		if ( (tmp = GetInitButtonPressCount()) || (tmp = GetCtsButtonPressCount(), tmp = -tmp) ) {
 			flow_num += tmp;
 		/* */
 			if ( tmp > 0 )
