@@ -641,9 +641,11 @@ static int GetPalertMAC( const uint msec )
 /* Parsing the MAC address with hex format into Display content buffer */
 	EncodeAddrDisplayContent( pos );
 /* Show on the 7-seg led */
+	ShowContent5DigitsLedPage( page );
+	BUTTONS_LASTCOUNT_RESET();
 	do {
 		if ( GetInitButtonPressCount() )
-			ShowContent5DigitsLedPage( page++ );
+			ShowContent5DigitsLedPage( ++page );
 		Delay2(10);
 	} while ( !GetCtsButtonPressCount() );
 
