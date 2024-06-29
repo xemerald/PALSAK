@@ -46,10 +46,10 @@ extern "C" {
 /* */
 #define DEFAULT_NTP_UDP_PORT  123
 /* */
-#define SYSTIME_INSTALL_TICKTIMER_FUNC(__FUNC) \
-		InstallUserTimer1Function_us((ulong)ONE_CLOCK_STEP_FRAC * 78125 / 512 + 1, (__FUNC))
-#define SYSTIME_STOP_TICKTIMER_FUNC() \
-		StopUserTimer1Fun();
+#define SYSTIME_SERVICE_START() \
+		InstallUserTimer1Function_us((ulong)ONE_CLOCK_STEP_FRAC * 78125 / 512 + 1, SysTimeService)
+#define SYSTIME_SERVICE_STOP() \
+		StopUserTimer1Fun()
 /*
  *
  */

@@ -20,6 +20,7 @@
 #include "./include/FILE.h"
 #include "./include/LEDINFO.h"
 #include "./include/NPTIME.h"
+#include "./include/BUTTONS.h"
 
 /* Main socket */
 static volatile int SockRecv = -1;
@@ -33,7 +34,7 @@ static char RecvBuffer[RECVBUF_SIZE];
 /* Output buffer */
 static char PreBuffer[PREBUF_SIZE];
 /* Workflow flag */
-static uchar WorkflowFlag = WORKFLOW_1;
+static uchar WorkflowFlag = 0;
 /* */
 static char  FTPHost[24] = { 0 };
 static uint  FTPPort     = 21;
@@ -377,55 +378,49 @@ static int InitDHCP( const uint msec )
  */
 static void SwitchWorkflow( const uint msec )
 {
-	uchar init_pin = InitPinIsOpen;
-	uchar cts_pin  = 0;
-	uint  num = 0;
-	uint  init_delay_msec;
-	uint  cts_delay_msec;
+	uchar flow_num = WORKFLOW_0;
+	char  tmp;
+#define X(a, b) b,
+	uchar workflows[] = {
+		WORKFLOWS_TABLE
+	};
+#undef X
 
+/* Show the " F.  " message on the 7-seg led */
+	Show5DigitLedSeg(1, 0);
+	Show5DigitLedWithDot(2, 0x0F);
+	Show5DigitLed(3, flow_num >= 10 ? flow_num / 10 : 0);
+	Show5DigitLed(4, flow_num % 10);
+	Show5DigitLedSeg(5, 0);
 /* */
-	SetRtsActive_1();
-/* Show the "-0-" message on the 7-seg led */
-	SHOW_2DASH_5DIGITLED( num );
+	ButtonServiceInit();
+	BUTTONS_SERVICE_START();
 /*
  * External variables for network linking status :
  * After testing, when network is real connected,
  * this number should be 0x40(64) or 0x01.
  */
 	while ( bEthernetLinkOk == 0x00 ) {
-	/* Detect the init. pin condition for switching to the updating firmware func. */
-		if ( ReadInitPin() ) {
-			init_pin = InitPinIsNotOpen;
-			init_delay_msec = 100;
-		}
-		else if ( init_pin == InitPinIsNotOpen && !init_delay_msec ) {
-			num++;
-			num %= 6;
-			init_pin = InitPinIsOpen;
-			SHOW_2DASH_5DIGITLED( num );
+	/* Detect the button condition for switching work flow */
+		if ( (tmp = GetInitButtonPressCount()) || (tmp = -GetCtsButtonPressCount())) {
+			flow_num += tmp;
+		/* */
+			if ( tmp > 0 )
+				flow_num %= WORKFLOW_COUNT;
+			else if ( flow_num >= WORKFLOW_COUNT )
+				flow_num = WORKFLOW_0;
+			/* */
+			Show5DigitLed(3, flow_num >= 10 ? flow_num / 10 : 0);
+			Show5DigitLed(4, flow_num % 10);
 		}
 
-		if ( GetCtsStatus_1() ) {
-			cts_pin = 1;
-			cts_delay_msec = 100;
-		}
-		else if ( cts_pin == 1 && !cts_delay_msec ) {
-			num--;
-			num %= 6;
-			cts_pin = 0;
-			SHOW_2DASH_5DIGITLED( num );
-		}
-	/* */
-		if ( init_delay_msec )
-			init_delay_msec--;
-		if ( cts_delay_msec )
-			cts_delay_msec--;
-
-		Delay2(1);
+		Delay2(10);
 	}
+/* */
+	WorkflowFlag = workflows[flow_num];
 /* One more waiting for stablization of the connection */
 	Delay2(msec);
-	SetRtsInactive_1();
+	BUTTONS_SERVICE_STOP();
 
 	return;
 }
@@ -829,7 +824,7 @@ static int CheckServerConnect( const uint msec )
 	ShowAll5DigitLedSeg( 0x00, 0x15, 0x11, 0xe7, 0x00 );
 /* Start the system time service */
 	SysTimeInit( TAIWAN_TIME_ZONE );
-	SYSTIME_INSTALL_TICKTIMER_FUNC( SysTimeService );
+	SYSTIME_SERVICE_START();
 	Delay2(msec);
 /* NTP server connection test */
 	sprintf(RecvBuffer, "%u.%u.%u.%u", (BYTE)PreBuffer[41], (BYTE)PreBuffer[43], (BYTE)PreBuffer[45], (BYTE)PreBuffer[47]);
@@ -846,7 +841,7 @@ static int CheckServerConnect( const uint msec )
 	NTPClose();
 	Delay2(1000);
 /* Close the system time service & ntp connection */
-	SYSTIME_STOP_TICKTIMER_FUNC();
+	SYSTIME_SERVICE_STOP();
 
 /* Show 'tCP.0.' on the 7-seg led */
 	ShowAll5DigitLedSeg( 0x00, 0x11, ShowData[0x0c], 0xe7, ShowData[0x00] | 0x80 );

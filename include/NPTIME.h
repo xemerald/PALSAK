@@ -48,9 +48,9 @@ extern "C" {
 /* */
 #define DEFAULT_NTP_UDP_PORT  123
 /* */
-#define SYSTIME_INSTALL_TICKTIMER_FUNC(__FUNC) \
-		InstallUserTimer1Function_us(ONE_CLOCK_STEP_USEC * 10, (__FUNC))
-#define SYSTIME_STOP_TICKTIMER_FUNC() \
+#define SYSTIME_SERVICE_START() \
+		InstallUserTimer1Function_us(ONE_CLOCK_STEP_USEC * 10, SysTimeService)
+#define SYSTIME_SERVICE_STOP() \
 		StopUserTimer1Fun();
 /*
  *

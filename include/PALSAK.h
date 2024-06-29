@@ -92,13 +92,21 @@ extern "C" {
  * @brief Workflow combaination
  *
  */
-#define WORKFLOW_0           STRATEGY_UPD_FW
-#define WORKFLOW_1           STRATEGY_CHK_MAC | STRATEGY_GET_NET
-#define WORKFLOW_2           STRATEGY_CHK_MAC | STRATEGY_GET_NET | STRATEGY_SET_EEP
-#define WORKFLOW_3           STRATEGY_CHK_MAC | STRATEGY_GET_NET | STRATEGY_SET_EEP | STRATEGY_UPL_FW
-#define WORKFLOW_4           STRATEGY_CHK_CN
-#define WORKFLOW_5           STRATEGY_CHK_MAC | STRATEGY_SET_NET
-#define WORKFLOW_6           STRATEGY_CHK_MAC | STRATEGY_GET_NET | STRATEGY_CHK_EEP
+#define WORKFLOWS_TABLE \
+	X(WORKFLOW_0    , STRATEGY_UPD_FW                                                         ) \
+	X(WORKFLOW_1    , STRATEGY_CHK_MAC | STRATEGY_GET_NET                                     ) \
+	X(WORKFLOW_2    , STRATEGY_CHK_MAC | STRATEGY_GET_NET | STRATEGY_SET_EEP                  ) \
+	X(WORKFLOW_3    , STRATEGY_CHK_MAC | STRATEGY_GET_NET | STRATEGY_SET_EEP | STRATEGY_UPL_FW) \
+	X(WORKFLOW_4    , STRATEGY_CHK_CN                                                         ) \
+	X(WORKFLOW_5    , STRATEGY_CHK_MAC | STRATEGY_SET_NET                                     ) \
+	X(WORKFLOW_6    , STRATEGY_CHK_MAC | STRATEGY_GET_NET | STRATEGY_CHK_EEP                  ) \
+	X(WORKFLOW_COUNT, 0                                                                       )
+
+#define X(a, b) a,
+typedef enum {
+	WORKFLOWS_TABLE
+} WORKFLOWS;
+#undef X
 
 /**
  * @brief The checking result of func.
