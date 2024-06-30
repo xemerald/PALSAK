@@ -68,12 +68,26 @@ extern "C" {
  * @brief String length of those responses from the other P-Alert
  *
  */
-#define MAC_STRING       17  /* Exclude the null-terminator */
-#define IPV4_STRING      15  /* Exclude the null-terminator */
-#define DABSIZE_STRING    2  /* Exclude the null-terminator */
-#define RSVSIZE_STRING    3  /* Exclude the null-terminator */
-#define PSERIAL_STRING   11  /* Exclude the null-terminator */
-#define CVALUE_STRING    35  /* Exclude the null-terminator */
+#define MAC_STRING        17  /* Exclude the null-terminator */
+#define IPV4_STRING       15  /* Exclude the null-terminator */
+#define DABSIZE_STRING     2  /* Exclude the null-terminator */
+#define RSVSIZE_STRING     3  /* Exclude the null-terminator */
+#define PSERIAL_STRING    11  /* Exclude the null-terminator */
+#define CVALUE_STRING     35  /* Exclude the null-terminator */
+#define NETCONFIG_FORMAT  "%03u.%03u.%03u.%03u-%02u  %03u.%03u.%03u.%03u  "
+
+#define DIGIT_LIMIT_TABLE \
+	X(DIGIT_LIMIT_TO_TWO   , '2') \
+	X(DIGIT_LIMIT_TO_THREE , '3') \
+	X(DIGIT_LIMIT_TO_FIVE  , '5') \
+	X(DIGIT_LIMIT_TO_NINE  , '9') \
+	X(DIGIT_LIMIT_COUNT    , '0')
+
+#define X(a, b) a,
+typedef enum {
+	DIGIT_LIMIT_TABLE
+} DIGIT_LIMITS;
+#undef X
 
 /**
  * @brief Workflow unit define

@@ -70,9 +70,12 @@ static int DownloadFirmware( const char * );
 static int ReadFileFTPInfo( const FILE_DATA far * );
 static int ReadFileBlockZero( const FILE_DATA far *, BYTE far *, size_t );
 
-static void ParseNetinfoToRoller( char *, const BYTE [], const BYTE [], const BYTE [] );
-static int  ConvertMask( ulong );
-static int  ConnectTCP( const char *, uint );
+static void  ParseNetConfigToRoller( char *, const BYTE [], const BYTE [], const BYTE [] );
+static void  ParseNetConfig( char *, BYTE [], BYTE [], BYTE [] );
+static int   ConvertMask( ulong );
+static ulong ConvertMaskBack( int );
+static char *EditNetConfig( char * );
+static int   ConnectTCP( const char *, uint );
 
 static void FatalError( const int );
 static int  ResetProgram( void );
@@ -368,7 +371,7 @@ static int InitDHCP( const uint msec )
 		YIELD();
 		if ( nets[0].DHCPserver && DHCPget(0, DhcpLeaseTime) >= 0 ) {
 		/* Show the fetched IP on the 7-seg led roller once */
-			ParseNetinfoToRoller( PreBuffer, NetHost->Iaddr.c, NetHost->Imask.c, NetGateway->Iaddr.c );
+			ParseNetConfigToRoller( PreBuffer, NetHost->Iaddr.c, NetHost->Imask.c, NetGateway->Iaddr.c );
 		/* */
 			for ( i = 0; i < ContentLength; i++ ) {
 				ShowContent5DigitsLedRoller( i );
@@ -386,11 +389,11 @@ static int InitDHCP( const uint msec )
 /**
  * @brief
  *
+ * @param msec
  */
 static void SwitchWorkflow( const uint msec )
 {
 	uchar flow_num = WORKFLOW_1;
-	int   tmp;
 #define X(a, b) b,
 	uchar workflows[] = {
 		WORKFLOWS_TABLE
@@ -410,15 +413,12 @@ static void SwitchWorkflow( const uint msec )
  * After testing, when network is real connected,
  * this number should be 0x40(64) or 0x01.
  */
-	while ( bEthernetLinkOk == 0x00 ) {
+	while ( bEthernetLinkOk == 0x00 || !GetCtsButtonPressCount() ) {
 	/* Detect the button condition for switching work flow */
-		if ( (tmp = GetInitButtonPressCount()) || (tmp = -GetCtsButtonPressCount()) ) {
-			flow_num += tmp;
+		if ( GetInitButtonPressCount() ) {
 		/* */
-			if ( tmp > 0 )
-				flow_num %= WORKFLOW_COUNT;
-			else if ( flow_num >= WORKFLOW_COUNT )
-				flow_num = WORKFLOW_COUNT - 1;
+			flow_num++;
+			flow_num %= WORKFLOW_COUNT;
 		/* */
 			Show5DigitLed(3, flow_num >= 10 ? flow_num / 10 : 0);
 			Show5DigitLed(4, flow_num % 10);
@@ -451,30 +451,40 @@ static int SwitchDHCPorStatic( const uint msec )
 	while ( bEthernetLinkOk != 0x00 )
 		Delay2(1);
 
+/* Set the 'dHCP.  ' message to the buffer */
+	PreBuffer[0] = 0x3d;
+	PreBuffer[1] = 0x37;
+	PreBuffer[2] = 0x4e;
+	PreBuffer[3] = 0xe7;
+	PreBuffer[4] = 0x00;
+	PreBuffer[5] = 0x00;
 /* Fetch the saved IP information from EEPROM */
 	GetIp((uchar *)&RecvBuffer[0]);
 	GetMask((uchar *)&RecvBuffer[4]);
 	GetGateway((uchar *)&RecvBuffer[8]);
 /* Show the saved IP information on the 7-seg led roller */
-	ParseNetinfoToRoller( PreBuffer, (BYTE *)&RecvBuffer[0], (BYTE *)&RecvBuffer[4], (BYTE *)&RecvBuffer[8] );
-/* Wait until ethernet plug in */
-	while ( bEthernetLinkOk == 0x00 ) {
+	ParseNetConfigToRoller( PreBuffer + 6, (BYTE *)&RecvBuffer[0], (BYTE *)&RecvBuffer[4], (BYTE *)&RecvBuffer[8] );
+/* */
+	BUTTONS_LASTCOUNT_RESET();
+/* Wait until ethernet plug in & press the cts button */
+	while ( bEthernetLinkOk == 0x00 || !GetCtsButtonPressCount() ) {
 	/* */
 		if ( ++delay_msec >= msec ) {
 			ShowContent5DigitsLedRoller( seq++ );
 			delay_msec = 0;
 		}
-	/* After display saved IP address over two times, turn on DHCP function */
-		if ( !bUseDhcp && seq > (ContentLength << 1) ) {
-			bUseDhcp = 1;
-		/* Set the 'dHCP.  ' message to roller buffer */
-			PreBuffer[0] = 0x3d;
-			PreBuffer[1] = 0x37;
-			PreBuffer[2] = 0x4e;
-			PreBuffer[3] = 0xe7;
-			PreBuffer[4] = 0x00;
-			PreBuffer[5] = 0x00;
-			SetDisplayContent( (BYTE *)PreBuffer, 6 );
+	/* Press the init button switch between DHCP & static IP */
+		if ( GetInitButtonPressCount() ) {
+			if ( !bUseDhcp ) {
+				bUseDhcp = 1;
+			/* Show the 'dHCP.  ' message on the 7-seg led roller */
+				SetDisplayContent( (BYTE *)PreBuffer, 6 );
+			}
+			else {
+				bUseDhcp = 0;
+			/* Show the saved IP information on the 7-seg led roller */
+				EncodeAddrDisplayContent( PreBuffer + 6 );
+			}
 		}
 		Delay2(1);
 	}
@@ -723,29 +733,31 @@ static int SetPalertNetwork( const uint msec )
 	uint  seq = 0;
 	uint  delay_msec = msec;
 	char *pos;
-	char *str_ptr = PreBuffer + EEPROM_NETWORK_SET_LENGTH + 1;
+	char * const str_ptr = PreBuffer + EEPROM_NETWORK_SET_LENGTH + 1;
 
 /* Read from EEPROM block 2 where the saved network setting within */
 	if ( !EE_MultiRead(EEPROM_NETWORK_SET_BLOCK, EEPROM_NETWORK_TMP_ADDR, EEPROM_NETWORK_SET_LENGTH, PreBuffer) ) {
 	/* Show 'U.PLUG.' on the 7-seg led */
 		ShowAll5DigitLedSeg( 0xbe, 0x67, 0x0e, 0x3e, 0xde );
-	/* */
+	/* Wait until ethernet unplug */
 		while ( bEthernetLinkOk != 0x00 )
 			Delay2(1);
 	/* Show the fetched IP on the 7-seg led roller once */
-		ParseNetinfoToRoller( str_ptr, (BYTE *)&PreBuffer[0], (BYTE *)&PreBuffer[4], (BYTE *)&PreBuffer[8] );
+		ParseNetConfigToRoller( str_ptr, (BYTE *)&PreBuffer[0], (BYTE *)&PreBuffer[4], (BYTE *)&PreBuffer[8] );
 	/* */
 		BUTTONS_LASTCOUNT_RESET();
 		while ( bEthernetLinkOk == 0x00 ) {
 		/* */
-			if ( ++delay_msec >= msec ) {
+			if ( (delay_msec += 10) >= msec ) {
 				ShowContent5DigitsLedRoller( seq++ );
 				delay_msec = 0;
 			}
 		/* */
-			if ( GetCtsButtonPressCount() )
-				return NORMAL;
-			Delay2(1);
+			if ( GetInitButtonPressCount() && GetCtsButtonPressCount() ) {
+				EditNetConfig( str_ptr );
+				ParseNetConfig( str_ptr, (BYTE *)&PreBuffer[0], (BYTE *)&PreBuffer[4], (BYTE *)&PreBuffer[8] );
+			}
+			Delay2(10);
 		}
 	/* Send out the IP address request command for following connection */
 		LOOP_TRANSMIT_COMMAND( "ip" );
@@ -1433,15 +1445,37 @@ err_return:
  * @param mask
  * @param gateway
  */
-static void ParseNetinfoToRoller( char *dest, const BYTE ip[4], const BYTE mask[4], const BYTE gateway[4] )
+static void ParseNetConfigToRoller( char *dest, const BYTE ip[4], const BYTE mask[4], const BYTE gateway[4] )
 {
 	sprintf(
-		dest, "%u.%u.%u.%u-%u  %u.%u.%u.%u  ",
+		dest, NETCONFIG_FORMAT,
 		ip[0], ip[1], ip[2], ip[3],
-		ConvertMask( *(long *)mask ),
+		ConvertMask( *(ulong *)mask ),
 		gateway[0], gateway[1], gateway[2], gateway[3]
 	);
 	EncodeAddrDisplayContent( dest );
+
+	return;
+}
+
+/**
+ * @brief
+ *
+ * @param ip
+ * @param mask
+ * @param gateway
+ */
+static void ParseNetConfig( char *src, BYTE ip[4], BYTE mask[4], BYTE gateway[4] )
+{
+	uchar _mask;
+
+	sscanf(
+		src, NETCONFIG_FORMAT,
+		&ip[0], &ip[1], &ip[2], &ip[3],
+		&_mask,
+		&gateway[0], &gateway[1], &gateway[2], &gateway[3]
+	);
+	//*(ulong *)mask = ConvertMaskBack( _mask );
 
 	return;
 }
@@ -1462,6 +1496,119 @@ static int ConvertMask( ulong mask )
 	}
 
 	return result;
+}
+
+/**
+ * @brief
+ *
+ * @param mask
+ * @return ulong
+ */
+static ulong ConvertMaskBack( int mask )
+{
+	ulong result  = 0;
+	BYTE  _mask   = 0x80;
+	BYTE *_result = (BYTE *)&result;
+
+	while ( mask ) {
+		*_result |= _mask;
+		if ( (_mask >>= 1) == 0 ) {
+			_mask = 0x80;
+			_result++;
+		}
+		mask--;
+	}
+
+	return result;
+}
+
+/**
+ * @brief
+ *
+ * @param dest
+ * @return char*
+ */
+static char *EditNetConfig( char *dest )
+{
+	uchar i = 0, j = 0;
+	uchar limit_idx = DIGIT_LIMIT_TO_TWO;
+#define X(a, b) b,
+	char limits[] = {
+		DIGIT_LIMIT_TABLE
+	};
+#undef X
+
+/* */
+	BUTTONS_LASTCOUNT_RESET();
+	do {
+		ShowContent5DigitsLedRoller( i - j );
+	/* */
+		if ( GetInitButtonPressCount() ) {
+		/* */
+			if ( GetCtsButtonPressCount() )
+				break;
+		/* */
+			dest[i]++;
+		/* Digits limitation condition */
+			if ( dest[i] > limits[limit_idx] )
+				dest[i] = '0';
+		/* */
+			EncodeAddrDisplayContent( dest );
+		}
+	/* */
+		if ( GetCtsButtonPressCount() ) {
+		/* */
+			if ( GetInitButtonPressCount() )
+				break;
+		/* */
+			if ( dest[i++] >= limits[limit_idx] ) {
+				switch ( limit_idx ) {
+				case DIGIT_LIMIT_TO_TWO: case DIGIT_LIMIT_TO_FIVE:
+					limit_idx = DIGIT_LIMIT_TO_FIVE;
+					break;
+				case DIGIT_LIMIT_TO_THREE:
+					limit_idx = DIGIT_LIMIT_TO_TWO;
+					break;
+				default:
+					break;
+				}
+			/* */
+				if ( dest[i] > limits[limit_idx] ) {
+					dest[i] = limits[limit_idx];
+					EncodeAddrDisplayContent( dest );
+				}
+			}
+			else {
+				limit_idx = DIGIT_LIMIT_TO_NINE;
+			}
+		/* */
+			switch ( dest[i] ) {
+			case '.':
+				j++;
+			case ' ':
+				limit_idx = DIGIT_LIMIT_TO_TWO;
+				break;
+			case '-':
+				limit_idx = DIGIT_LIMIT_TO_THREE;
+				break;
+			default:
+				break;
+			}
+		/* */
+			while ( !isdigit(dest[i]) ) {
+				if ( dest[i] == '\0' ) {
+					i = j = 0;
+				}
+				else {
+					i++;
+				}
+			}
+		}
+	/* */
+		Delay2(10);
+	} while ( 1 );
+
+	return dest;
 }
 
 /**
