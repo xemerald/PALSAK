@@ -52,7 +52,7 @@ static int  SwitchDHCPorStatic( const uint );
 static int   TransmitCommand( const char * );
 static int   TransmitDataByCommand( const char *, int );
 static void  ForceFlushSocket( int );
-static char *ExtractResponse( char *, const uint );
+static char far *ExtractResponse( char *, const uint );
 
 static int GetPalertMAC( const uint );
 static int GetPalertNetworkConfig( const uint );
@@ -70,11 +70,11 @@ static int DownloadFirmware( const char * );
 static int ReadFileFTPInfo( const FILE_DATA far * );
 static int ReadFileBlockZero( const FILE_DATA far *, BYTE far *, size_t );
 
-static void  ParseNetConfigToRoller( char *, const BYTE [], const BYTE [], const BYTE [] );
-static void  ParseNetConfig( char *, BYTE [], BYTE [], BYTE [] );
+static void  ParseNetConfigToRoller( char far *, const BYTE far [], const BYTE far [], const BYTE far [] );
+static void  ParseNetConfig( char far *, BYTE far [], BYTE far [], BYTE far [] );
 static int   ConvertMask( ulong );
 static ulong ConvertMaskBack( int );
-static char *EditNetConfig( char * );
+static char far *EditNetConfig( char far * );
 static int   ConnectTCP( const char *, uint );
 
 static void FatalError( const int );
@@ -463,7 +463,7 @@ static int SwitchDHCPorStatic( const uint msec )
 	GetMask((uchar *)&RecvBuffer[4]);
 	GetGateway((uchar *)&RecvBuffer[8]);
 /* Show the saved IP information on the 7-seg led roller */
-	ParseNetConfigToRoller( PreBuffer + 6, (BYTE *)&RecvBuffer[0], (BYTE *)&RecvBuffer[4], (BYTE *)&RecvBuffer[8] );
+	ParseNetConfigToRoller( PreBuffer + 6, (BYTE far *)&RecvBuffer[0], (BYTE far *)&RecvBuffer[4], (BYTE far *)&RecvBuffer[8] );
 /* */
 	BUTTONS_LASTCOUNT_RESET();
 /* Wait until ethernet plug in & press the cts button */
@@ -478,7 +478,7 @@ static int SwitchDHCPorStatic( const uint msec )
 			if ( !bUseDhcp ) {
 				bUseDhcp = 1;
 			/* Show the 'dHCP.  ' message on the 7-seg led roller */
-				SetDisplayContent( (BYTE *)PreBuffer, 6 );
+				SetDisplayContent( (BYTE far *)PreBuffer, 6 );
 			}
 			else {
 				bUseDhcp = 0;
@@ -607,7 +607,7 @@ static void ForceFlushSocket( int sock )
  * @retval NULL  - It didn't find out the data.
  * @retval !NULL - The pointer to the real data string.
  */
-static char *ExtractResponse( char far *buffer, const uint length )
+static char far *ExtractResponse( char far *buffer, const uint length )
 {
 	char far *pos = NULL;
 
@@ -639,7 +639,7 @@ static char *ExtractResponse( char far *buffer, const uint length )
 static int GetPalertMAC( const uint msec )
 {
 	uint  page = 0;
-	char *pos;
+	char far *pos;
 
 /* Send out the MAC address request command */
 	LOOP_TRANSMIT_COMMAND( "mac" );
@@ -670,7 +670,7 @@ static int GetPalertMAC( const uint msec )
  */
 static int GetPalertNetworkConfig( const uint msec )
 {
-	char *pos;
+	char far *pos;
 
 /* Send out the IP address request command */
 	LOOP_TRANSMIT_COMMAND( "ip" );
@@ -732,8 +732,8 @@ static int SetPalertNetwork( const uint msec )
 {
 	uint  seq = 0;
 	uint  delay_msec = msec;
-	char *pos;
-	char * const str_ptr = PreBuffer + EEPROM_NETWORK_SET_LENGTH + 1;
+	char far *pos;
+	char far * const str_ptr = PreBuffer + EEPROM_NETWORK_SET_LENGTH + 1;
 
 /* Read from EEPROM block 2 where the saved network setting within */
 	if ( !EE_MultiRead(EEPROM_NETWORK_SET_BLOCK, EEPROM_NETWORK_TMP_ADDR, EEPROM_NETWORK_SET_LENGTH, PreBuffer) ) {
@@ -743,7 +743,7 @@ static int SetPalertNetwork( const uint msec )
 		while ( bEthernetLinkOk != 0x00 )
 			Delay2(1);
 	/* Show the fetched IP on the 7-seg led roller once */
-		ParseNetConfigToRoller( str_ptr, (BYTE *)&PreBuffer[0], (BYTE *)&PreBuffer[4], (BYTE *)&PreBuffer[8] );
+		ParseNetConfigToRoller( str_ptr, (BYTE far *)&PreBuffer[0], (BYTE far *)&PreBuffer[4], (BYTE far *)&PreBuffer[8] );
 	/* */
 		BUTTONS_LASTCOUNT_RESET();
 		while ( bEthernetLinkOk == 0x00 ) {
@@ -755,7 +755,7 @@ static int SetPalertNetwork( const uint msec )
 		/* */
 			if ( GetInitButtonPressCount() && GetCtsButtonPressCount() ) {
 				EditNetConfig( str_ptr );
-				ParseNetConfig( str_ptr, (BYTE *)&PreBuffer[0], (BYTE *)&PreBuffer[4], (BYTE *)&PreBuffer[8] );
+				ParseNetConfig( str_ptr, (BYTE far *)&PreBuffer[0], (BYTE far *)&PreBuffer[4], (BYTE far *)&PreBuffer[8] );
 			}
 			Delay2(10);
 		}
@@ -780,7 +780,7 @@ static int SetPalertNetwork( const uint msec )
 		if ( (pos = ExtractResponse( RecvBuffer, IPV4_STRING )) == NULL )
 			return ERROR;
 	/* Parsing the IP address to bytes & compare it with storage data */
-		sscanf(pos, "%hu.%hu.%hu.%hu", (BYTE *)&str_ptr[0], (BYTE *)&str_ptr[1], (BYTE *)&str_ptr[2], (BYTE *)&str_ptr[3]);
+		sscanf(pos, "%hu.%hu.%hu.%hu", &str_ptr[0], &str_ptr[1], &str_ptr[2], &str_ptr[3]);
 		if ( memcmp(&PreBuffer[0], &str_ptr[0], 4) )
 			return ERROR;
 
@@ -796,7 +796,7 @@ static int SetPalertNetwork( const uint msec )
 		if ( (pos = ExtractResponse( RecvBuffer, IPV4_STRING )) == NULL )
 			return ERROR;
 	/* Parsing the Mask to bytes & compare it with storage data */
-		sscanf(pos, "%hu.%hu.%hu.%hu", (BYTE *)&str_ptr[0], (BYTE *)&str_ptr[1], (BYTE *)&str_ptr[2], (BYTE *)&str_ptr[3]);
+		sscanf(pos, "%hu.%hu.%hu.%hu", &str_ptr[0], &str_ptr[1], &str_ptr[2], &str_ptr[3]);
 		if ( memcmp(&PreBuffer[4], &str_ptr[0], 4) )
 			return ERROR;
 
@@ -812,7 +812,7 @@ static int SetPalertNetwork( const uint msec )
 		if ( (pos = ExtractResponse( RecvBuffer, IPV4_STRING )) == NULL )
 			return ERROR;
 	/* Parsing the Gateway address to bytes & compare it with storage data */
-		sscanf(pos, "%hu.%hu.%hu.%hu", (BYTE *)&str_ptr[0], (BYTE *)&str_ptr[1], (BYTE *)&str_ptr[2], (BYTE *)&str_ptr[3]);
+		sscanf(pos, "%hu.%hu.%hu.%hu", &str_ptr[0], &str_ptr[1], &str_ptr[2], &str_ptr[3]);
 		if ( memcmp(&PreBuffer[8], &str_ptr[0], 4) )
 			return ERROR;
 	/* */
@@ -836,7 +836,7 @@ static int CheckServerConnect( const uint msec )
 	int sock = -1;
 
 /* Reading the config file for servers information */
-	if ( ReadFileBlockZero( GetFileInfoByName_AB(DISKA, "block_0.ini"), (BYTE *)PreBuffer, PREBUF_SIZE ) == ERROR )
+	if ( ReadFileBlockZero( GetFileInfoByName_AB(DISKA, "block_0.ini"), (BYTE far *)PreBuffer, PREBUF_SIZE ) == ERROR )
 		return ERROR;
 /* */
 	if ( ReadFileFTPInfo( GetFileInfoByName_AB(DISKA, "ftp_info.ini") ) == ERROR )
@@ -1020,7 +1020,7 @@ static int AgentCommand( const char *comm, const uint msec )
 /* Show 'F. b.0. ' on the 7-seg led */
 	ShowAll5DigitLedSeg( ShowData[0x0f] | 0x80, 0x00, ShowData[0x0b] | 0x80, ShowData[0x00] | 0x80, 0x00 );
 /* */
-	if ( ReadFileBlockZero( GetFileInfoByName_AB(DISKA, "block_0.ini"), (BYTE *)PreBuffer, PREBUF_SIZE ) == ERROR )
+	if ( ReadFileBlockZero( GetFileInfoByName_AB(DISKA, "block_0.ini"), (BYTE far *)PreBuffer, PREBUF_SIZE ) == ERROR )
 		return ERROR;
 	Delay2(msec);
 /* Execute the remote agent */
@@ -1128,7 +1128,7 @@ static int UploadFileData( const int disk, const FILE_DATA far *fileptr )
 	uint  block;
 	uint  blockall;
 	ulong addrindex = 0;
-	BYTE *out_ptr = (BYTE *)PreBuffer;
+	BYTE far *out_ptr = (BYTE far *)PreBuffer;
 
 /* Checking this opened file is file or not, and check the size of this file */
 	if ( fileptr == NULL || fileptr->mark != 0x7188 || fileptr->size <= 0 )
@@ -1445,12 +1445,12 @@ err_return:
  * @param mask
  * @param gateway
  */
-static void ParseNetConfigToRoller( char *dest, const BYTE ip[4], const BYTE mask[4], const BYTE gateway[4] )
+static void ParseNetConfigToRoller( char far *dest, const BYTE far ip[4], const BYTE far mask[4], const BYTE far gateway[4] )
 {
 	sprintf(
 		dest, NETCONFIG_FORMAT,
 		ip[0], ip[1], ip[2], ip[3],
-		ConvertMask( *(ulong *)mask ),
+		ConvertMask( *(ulong far *)mask ),
 		gateway[0], gateway[1], gateway[2], gateway[3]
 	);
 	EncodeAddrDisplayContent( dest );
@@ -1465,17 +1465,17 @@ static void ParseNetConfigToRoller( char *dest, const BYTE ip[4], const BYTE mas
  * @param mask
  * @param gateway
  */
-static void ParseNetConfig( char *src, BYTE ip[4], BYTE mask[4], BYTE gateway[4] )
+static void ParseNetConfig( char far *src, BYTE far *ip, BYTE far *mask, BYTE far *gateway )
 {
-	uchar _mask;
+	uchar _mask[2];
 
 	sscanf(
-		src, NETCONFIG_FORMAT,
+		src, "%u.%u.%u.%u-%u %u.%u.%u.%u ",
 		&ip[0], &ip[1], &ip[2], &ip[3],
-		&_mask,
+		_mask,
 		&gateway[0], &gateway[1], &gateway[2], &gateway[3]
 	);
-	//*(ulong *)mask = ConvertMaskBack( _mask );
+	*(ulong far *)mask = ConvertMaskBack( _mask[0] );
 
 	return;
 }
@@ -1510,6 +1510,12 @@ static ulong ConvertMaskBack( int mask )
 	BYTE  _mask   = 0x80;
 	BYTE *_result = (BYTE *)&result;
 
+/* */
+	if ( mask >= 32 )
+		return (ulong)0xffffffff;
+	else if ( mask < 0 )
+		mask = 0;
+/* */
 	while ( mask ) {
 		*_result |= _mask;
 		if ( (_mask >>= 1) == 0 ) {
@@ -1528,7 +1534,7 @@ static ulong ConvertMaskBack( int mask )
  * @param dest
  * @return char*
  */
-static char *EditNetConfig( char *dest )
+static char far *EditNetConfig( char far *dest )
 {
 	uchar i = 0, j = 0;
 	uchar limit_idx = DIGIT_LIMIT_TO_TWO;
@@ -1573,7 +1579,7 @@ static char *EditNetConfig( char *dest )
 					break;
 				}
 			/* */
-				if ( dest[i] > limits[limit_idx] ) {
+				if ( isdigit(dest[i]) && dest[i] > limits[limit_idx] ) {
 					dest[i] = limits[limit_idx];
 					EncodeAddrDisplayContent( dest );
 				}
