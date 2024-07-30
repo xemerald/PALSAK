@@ -70,21 +70,24 @@ void main( void )
 	}
 /* */
 	memset(BlockZero, 0xff, EEPROM_SET_TOTAL_LENGTH);
-	while ( RecvBlockZeroData( 250 ) != NORMAL )
-		if ( ++ret >= NETWORK_OPERATION_RETRY )
-			goto err_return;
-/* */
 	memset(RecvBuffer, 0, RECVBUF_SIZE);
 /* */
-	if ( !EnrichBlockZero() && !RecvCommand( 250 ) ) {
+	if ( !RecvCommand( 250 ) ) {
 	/* */
 		switch ( SwitchCommand() ) {
 		case STRATEGY_WRITE_DEFAULT:
-			if ( WriteDefSetting() )
+		/* */
+			while ( RecvBlockZeroData( 250 ) != NORMAL )
+				if ( ++ret >= NETWORK_OPERATION_RETRY )
+					goto err_return;
+		/* */
+			if ( EnrichBlockZero() || WriteDefSetting() )
 				goto err_return;
 			break;
 		case STRATEGY_CHECK_CONSISTENCY:
 		/* */
+			if ( EnrichBlockZero() )
+				goto err_return;
 			ret = CheckConsistency_Serial();
 			if ( ret < 0 || (ret > 0 && OverrideFactory_Serial()) )
 				goto err_return;

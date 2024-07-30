@@ -1025,37 +1025,40 @@ static int AgentCommand( const char *comm, const uint msec )
 	Delay2(msec);
 /* Execute the remote agent */
 	LOOP_TRANSMIT_COMMAND( "runr" );
-/* Send the Block zero data to the agent */
-	do {
-		if ( TransmitDataByCommand( PreBuffer, EEPROM_SET_TOTAL_LENGTH + 2 ) == NORMAL ) {
-		/* Show the '-S-' message on the 7-seg led */
-			if ( RecvBuffer[0] == ACK || RecvBuffer[0] == 0 ) {
-				break;
-			}
-		/* If receiving "Not ack", retry three times */
-			else if ( RecvBuffer[0] == NAK ) {
-				if ( ++i < NETWORK_OPERATION_RETRY ) {
-					Delay2(250);
-					continue;
-				}
-			}
-		}
-	/* Something wrong, goto error return */
-		return ERROR;
-	} while ( 1 );
 /* Sending the command to remote agent */
 	LOOP_TRANSMIT_COMMAND( comm );
-	if ( !strncmp(comm, "setdef", 6) )
+	if ( !strncmp(comm, "setdef", 6) ) {
 	/* Show 'S. def.' on the 7-seg led */
 		ShowAll5DigitLedSeg( ShowData[0x05] | 0x80, 0x00, ShowData[0x0d], ShowData[0x0e], ShowData[0x0f] | 0x80 );
-	else if ( !strncmp(comm, "check", 5) )
+		Delay2(msec);
+	/* Send the Block zero data to the agent */
+		do {
+			if ( TransmitDataByCommand( PreBuffer, EEPROM_SET_TOTAL_LENGTH + 2 ) == NORMAL ) {
+			/* Show the '-S-' message on the 7-seg led */
+				if ( RecvBuffer[0] == ACK || RecvBuffer[0] == 0 ) {
+					break;
+				}
+			/* If receiving "Not ack", retry three times */
+				else if ( RecvBuffer[0] == NAK ) {
+					if ( ++i < NETWORK_OPERATION_RETRY ) {
+						Delay2(250);
+						continue;
+					}
+				}
+			}
+		/* Something wrong, goto error return */
+			return ERROR;
+		} while ( 1 );
+	}
+	else if ( !strncmp(comm, "check", 5) ) {
 	/* Show 'C. Con.' on the 7-seg led */
 		ShowAll5DigitLedSeg( ShowData[0x0c] | 0x80, 0x00, ShowData[0x0c], 0x1d, 0x95 );
-	else
+		Delay2(msec);
+	}
+	else {
 	/* Unknown command */
 		return ERROR;
-/* */
-	Delay2(msec);
+	}
 
 /* Extract the remote palert serial from the raw response */
 	if ( (pos = ExtractResponse( RecvBuffer, PSERIAL_STRING )) == NULL )
