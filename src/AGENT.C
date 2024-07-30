@@ -260,13 +260,14 @@ static int RecvCommand( const uint msec )
 			if ( *(bufptr - 1) == '\r' ) {
 				*(bufptr - 1) = '\n';
 				*bufptr = '\0';
+				bufptr++;
 				break;
 			}
 		}
 	} while ( 1 );
 /* Broadcasting the ack. command to others */
-	RecvBuffer[0] = ACK;
-	sendto(SockSend, RecvBuffer, 1, 0, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
+	*bufptr = ACK;
+	sendto(SockSend, bufptr, 1, 0, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
 
 	return NORMAL;
 }
