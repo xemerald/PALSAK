@@ -72,7 +72,6 @@ void main( void )
 	if ( !RecvCommand( 250 ) ) {
 	/* */
 		memset(BlockZero, 0xff, EEPROM_SET_TOTAL_LENGTH);
-		memset(RecvBuffer, 0, RECVBUF_SIZE);
 	/* */
 		switch ( SwitchCommand() ) {
 		case STRATEGY_WRITE_DEFAULT:
@@ -199,6 +198,8 @@ static int RecvBlockZeroData( const uint msec )
 	if ( CRC16_MakeTable() )
 		return ERROR;
 	CRC16_Reset();
+/* Flush the input buffer */
+	memset(bufptr, 0, RECVBUF_SIZE);
 	do {
 	/* Show the "-L-" message on the 7-seg led */
 		SHOW_2DASH_5DIGITLED( 0 );
