@@ -69,10 +69,10 @@ void main( void )
 		return;
 	}
 /* */
-	memset(BlockZero, 0xff, EEPROM_SET_TOTAL_LENGTH);
-	memset(RecvBuffer, 0, RECVBUF_SIZE);
-/* */
 	if ( !RecvCommand( 250 ) ) {
+	/* */
+		memset(BlockZero, 0xff, EEPROM_SET_TOTAL_LENGTH);
+		memset(RecvBuffer, 0, RECVBUF_SIZE);
 	/* */
 		switch ( SwitchCommand() ) {
 		case STRATEGY_WRITE_DEFAULT:
@@ -264,6 +264,9 @@ static int RecvCommand( const uint msec )
 			}
 		}
 	} while ( 1 );
+/* Broadcasting the ack. command to others */
+	RecvBuffer[0] = ACK;
+	sendto(SockSend, RecvBuffer, 1, 0, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
 
 	return NORMAL;
 }
