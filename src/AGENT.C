@@ -33,18 +33,18 @@ static struct sockaddr_in TransmitAddr;
 /* Input buffer */
 static char RecvBuffer[RECVBUF_SIZE];
 /* */
-static int InitBroadcastNetwork( void );
-static int RecvBlockZeroData( const uint );
-static int RecvCommand( const uint );
-static int SwitchCommand( void );
-static int BroadcastResp( char *, const uint );
-static int EnrichBlockZero( void );
-static int EnrichSurveyResp( void );
-static int WriteDefSetting( void );
-static int CheckConsistency_Serial( void );
-static int CheckConsistency_CValue( void );
-static int OverrideFactory_Serial( void );
-static int OverrideFactory_CValue( void );
+static int   InitBroadcastNetwork( void );
+static int   RecvBlockZeroData( const uint );
+static char *RecvCommand( const uint );
+static int   SwitchCommand( const char * );
+static int   BroadcastResp( char *, const uint   );
+static int   EnrichBlockZero( void );
+static int   EnrichSurveyResp( void );
+static int   WriteDefSetting( void );
+static int   CheckConsistency_Serial( void );
+static int   CheckConsistency_CValue( void );
+static int   OverrideFactory_Serial( void );
+static int   OverrideFactory_CValue( void );
 
 /**
  * @brief
@@ -52,7 +52,8 @@ static int OverrideFactory_CValue( void );
  */
 void main( void )
 {
-	int ret = 0;
+	int   ret = 0;
+	char *comm;
 /* */
 	InitLib();
 	Init5DigitLed();
@@ -69,12 +70,14 @@ void main( void )
 		return;
 	}
 /* */
-	if ( !RecvCommand( 250 ) ) {
+	if ( (comm = RecvCommand( 250 )) ) {
 	/* */
 		memset(BlockZero, 0xff, EEPROM_SET_TOTAL_LENGTH);
 	/* */
-		switch ( SwitchCommand() ) {
-		case STRATEGY_WRITE_DEFAULT:
+		switch ( SwitchCommand( comm ) ) {
+		case AGENT_COMMAND_WBLOCK0:
+		/* */
+			sendto(SockSend, RecvBuffer, 1, MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
 		/* */
 			while ( RecvBlockZeroData( 250 ) != NORMAL )
 				if ( ++ret >= NETWORK_OPERATION_RETRY )
@@ -83,7 +86,7 @@ void main( void )
 			if ( EnrichBlockZero() || WriteDefSetting() )
 				goto err_return;
 			break;
-		case STRATEGY_CHECK_CONSISTENCY:
+		case AGENT_COMMAND_CHECK:
 		/* */
 			if ( EnrichBlockZero() )
 				goto err_return;
@@ -94,6 +97,15 @@ void main( void )
 			ret = CheckConsistency_CValue();
 			if ( ret < 0 || (ret > 0 && OverrideFactory_CValue()) )
 				goto err_return;
+		/* */
+			EnrichSurveyResp();
+			BroadcastResp( RecvBuffer, 250 );
+			break;
+		case AGENT_COMMAND_CORRECT:
+			break;
+		case AGENT_COMMAND_DHCP:
+			break;
+		case AGENT_COMMAND_QUIT:
 			break;
 		default:
 		/* Unknown command from master */
@@ -103,9 +115,7 @@ void main( void )
 	else {
 		goto err_return;
 	}
-/* */
-	EnrichSurveyResp();
-	BroadcastResp( RecvBuffer, 250 );
+
 	SHOW_GOOD_5DIGITLED();
 	Delay2(2000);
 
@@ -224,7 +234,7 @@ static int RecvBlockZeroData( const uint msec )
 		RecvBuffer[0] = NAK;
 	}
 /* Broadcasting the command to others */
-	sendto(SockSend, RecvBuffer, 1, 0, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
+	sendto(SockSend, RecvBuffer, 1, MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
 
 	return RecvBuffer[0] == ACK ? NORMAL : ERROR;
 }
@@ -235,11 +245,12 @@ static int RecvBlockZeroData( const uint msec )
  * @param msec
  * @return int
  */
-static int RecvCommand( const uint msec )
+static char *RecvCommand( const uint msec )
 {
 	int   ret = 0;
 	int   fromlen = sizeof(struct sockaddr);
 	int   remain = RECVBUF_SIZE - 1;
+	char *result = NULL;
 	char *bufptr = RecvBuffer;
 	struct sockaddr_in _addr;
 
@@ -258,19 +269,17 @@ static int RecvCommand( const uint msec )
 		else {
 			bufptr += ret;
 			remain -= ret;
+		/* Once received the carriage return, exit the loop */
 			if ( *(bufptr - 1) == '\r' ) {
-				*(bufptr - 1) = '\n';
-				*bufptr = '\0';
-				bufptr++;
+				result = RecvBuffer;
 				break;
 			}
 		}
 	} while ( 1 );
-/* Broadcasting the ack. command to others */
-	*bufptr = ACK;
-	sendto(SockSend, bufptr, 1, 0, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
+/* Replace the carriage return with the null terminator */
+	*(bufptr - 1) = '\0';
 
-	return NORMAL;
+	return result;
 }
 
 /**
@@ -278,19 +287,35 @@ static int RecvCommand( const uint msec )
  *
  * @return int
  */
-static int SwitchCommand( void )
+static int SwitchCommand( const char *comm )
 {
-	char *bufptr;
+	int i;
+/***/
+#define X(a, b, c) b,
+	char *agent_comm[] = {
+		AGENT_COMMANDS_TABLE
+	};
+#undef X
+/***/
+#define X(a, b, c) c,
+	int comm_len[] = {
+		AGENT_COMMANDS_TABLE
+	};
+#undef X
 
 /* Trim the input string from left */
-	for ( bufptr = RecvBuffer; isspace(*bufptr) && *bufptr; bufptr++ );
+	for ( ; isspace(*comm) && *comm; comm++ );
 /* Switch the function by input command */
-	if ( !strncmp(bufptr, "setdef", 6) )
-		return STRATEGY_WRITE_DEFAULT;
-	else if ( !strncmp(bufptr, "check", 5) )
-		return STRATEGY_CHECK_CONSISTENCY;
+	for ( i = 0; i < AGENT_COMMAND_COUNT; i++ ) {
+		if ( !strncmp(comm, agent_comm[i], comm_len[i]) ) {
+		/* */
+			for ( comm += comm_len[i]; isspace(*comm) && *comm; comm++ );
+		/* */
+			break;
+		}
+	}
 
-	return STRATEGY_NONE;
+	return i;
 }
 
 /**
@@ -302,7 +327,7 @@ static int SwitchCommand( void )
 static int BroadcastResp( char *resp, const uint msec )
 {
 /* Broadcasting the command to others */
-	sendto(SockSend, resp, strlen(resp), 0, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
+	sendto(SockSend, resp, strlen(resp), MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
 	Delay2(msec);
 
 	return NORMAL;

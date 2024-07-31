@@ -77,6 +77,7 @@ static ulong ConvertMaskBack( int );
 static char far *EditNetConfig( char far * );
 static int   ConnectTCP( const char *, uint );
 
+static int  SwitchAgentCommand( const char * );
 static void FatalError( const int );
 static int  ResetProgram( void );
 
@@ -1011,26 +1012,43 @@ static int UploadPalertFirmware( const uint msec )
  */
 static int AgentCommand( const char *comm, const uint msec )
 {
+	const char *sub_comm = comm;
+	const int agent_comm = SwitchAgentCommand( sub_comm );
+
 	char *pos;
 	char *data  = PreBuffer;
 	char *_data = data + 32;
 	uint  page;
 	uchar i = 0;
 
-/* Show 'F. b.0. ' on the 7-seg led */
-	ShowAll5DigitLedSeg( ShowData[0x0f] | 0x80, 0x00, ShowData[0x0b] | 0x80, ShowData[0x00] | 0x80, 0x00 );
-/* */
-	if ( ReadFileBlockZero( GetFileInfoByName_AB(DISKA, "block_0.ini"), (BYTE far *)PreBuffer, PREBUF_SIZE ) == ERROR )
-		return ERROR;
-	Delay2(msec);
 /* Execute the remote agent */
 	LOOP_TRANSMIT_COMMAND( "runr" );
+/* */
+	switch ( agent_comm ) {
+	case AGENT_COMMAND_WBLOCK0:
+	/* Show 'F. b.0. ' on the 7-seg led */
+		ShowAll5DigitLedSeg( ShowData[0x0f] | 0x80, 0x00, ShowData[0x0b] | 0x80, ShowData[0x00] | 0x80, 0x00 );
+	/* */
+		if ( ReadFileBlockZero( GetFileInfoByName_AB(DISKA, "block_0.ini"), (BYTE far *)PreBuffer, PREBUF_SIZE ) == ERROR )
+			return ERROR;
+		Delay2(msec);
+	/* Show 'S. b.0. ' on the 7-seg led */
+		ShowAll5DigitLedSeg( ShowData[0x05] | 0x80, 0x00, ShowData[0x0b] | 0x80, ShowData[0x00] | 0x80, 0x00 );
+		Delay2(msec);
+		break;
+	case AGENT_COMMAND_CHECK:
+	/* Show 'C. Con.' on the 7-seg led */
+		ShowAll5DigitLedSeg( ShowData[0x0c] | 0x80, 0x00, ShowData[0x0c], 0x1d, 0x95 );
+		Delay2(msec);
+	default:
+	/* Unknown command */
+		return ERROR;
+		break;
+	}
 /* Sending the command to remote agent */
 	LOOP_TRANSMIT_COMMAND( comm );
-	if ( !strncmp(comm, "setdef", 6) ) {
-	/* Show 'S. def.' on the 7-seg led */
-		ShowAll5DigitLedSeg( ShowData[0x05] | 0x80, 0x00, ShowData[0x0d], ShowData[0x0e], ShowData[0x0f] | 0x80 );
-		Delay2(msec);
+	switch ( agent_comm ) {
+	case AGENT_COMMAND_WBLOCK0:
 	/* Send the Block zero data to the agent */
 		do {
 			if ( TransmitDataByCommand( PreBuffer, EEPROM_SET_TOTAL_LENGTH + 2 ) == NORMAL ) {
@@ -1049,67 +1067,70 @@ static int AgentCommand( const char *comm, const uint msec )
 		/* Something wrong, goto error return */
 			return ERROR;
 		} while ( 1 );
-	}
-	else if ( !strncmp(comm, "check", 5) ) {
-	/* Show 'C. Con.' on the 7-seg led */
-		ShowAll5DigitLedSeg( ShowData[0x0c] | 0x80, 0x00, ShowData[0x0c], 0x1d, 0x95 );
-		Delay2(msec);
-	}
-	else {
+		break;
+	case AGENT_COMMAND_CHECK:
+		if ( !strncmp(sub_comm, "serial", 6) ) {
+		/* Extract the remote palert serial from the raw response */
+			if ( (pos = ExtractResponse( RecvBuffer, PSERIAL_STRING )) == NULL )
+				return ERROR;
+		/* Show the serial on the 7-seg led */
+			ShowAll5DigitLedSeg( ShowData[pos[0] - '0'], ShowData[pos[1] - '0'], ShowData[pos[2] - '0'], ShowData[pos[3] - '0'], ShowData[pos[4] - '0'] | 0x80 );
+			Delay2(msec);
+		/* Compare the applied serial & factory serial */
+			sscanf(pos, "%5s:%5s", data, _data);
+			if ( strncmp(data, _data, 5) ) {
+			/* Show 'S.diff.' on the 7-seg led */
+				ShowAll5DigitLedSeg( ShowData[0x05] | 0x80, ShowData[0x0d], 0x04, ShowData[0x0f], ShowData[0x0f] | 0x80 );
+				Delay2(msec);
+			}
+		/* Move the pointer to the next data */
+			pos += PSERIAL_STRING + 1;
+		}
+		else if ( !strncmp(sub_comm, "cvalue", 6) ) {
+		/* Extract the remote 1g & 0g corr value from the raw response */
+			for ( i = 0; i < 2; i++ ) {
+				if ( (pos = ExtractResponse( pos, CVALUE_STRING )) == NULL )
+					return ERROR;
+			/* Parse the value to strings for comparasion */
+				sscanf(pos, "%17s:%17s", data, _data);
+				if ( strncmp(data, _data, 17) ) {
+				/* Show 'CX.dif.' on the 7-seg led */
+					ShowAll5DigitLedSeg( ShowData[0x0c], ShowData[i == 0 ? 0x01 : 0x00] | 0x80, ShowData[0x0d], 0x04, ShowData[0x0f] | 0x80 );
+					Delay2(msec);
+				/* Parse the value to bytes & rearrange for display */
+					sscanf(
+						pos, "%2hx-%2hx-%2hx-%2hx-%2hx-%2hx:%2hx-%2hx-%2hx-%2hx-%2hx-%2hx",
+						&data[0], &data[1], &data[2], &data[3], &data[4], &data[5],
+						&data[6], &data[7], &data[8], &data[9], &data[10], &data[11]
+					);
+					sprintf(
+						_data, "%2.2x:%2.2x%2.2x:%2.2x%2.2x:%2.2x%2.2x:%2.2x%2.2x:%2.2x%2.2x:%2.2x",
+						(BYTE)data[0], (BYTE)data[6], (BYTE)data[1], (BYTE)data[7], (BYTE)data[2], (BYTE)data[8],
+						(BYTE)data[3], (BYTE)data[9], (BYTE)data[4], (BYTE)data[10], (BYTE)data[5], (BYTE)data[11]
+					);
+				/* */
+					EncodeAddrDisplayContent( _data );
+				/* Real show on the 7-seg led */
+					page = 0;
+					BUTTONS_LASTCOUNT_RESET();
+					do {
+						if ( GetInitButtonPressCount() || !page )
+							ShowContent5DigitsLedPage( page++ );
+						Delay2(10);
+					} while ( !GetCtsButtonPressCount() );
+				}
+			/* Move the pointer to the next data */
+				pos += CVALUE_STRING + 1;
+			}
+		}
+		else {
+			return ERROR;
+		}
+		break;
+	default:
 	/* Unknown command */
 		return ERROR;
-	}
-
-/* Extract the remote palert serial from the raw response */
-	if ( (pos = ExtractResponse( RecvBuffer, PSERIAL_STRING )) == NULL )
-		return ERROR;
-/* Show the serial on the 7-seg led */
-	ShowAll5DigitLedSeg( ShowData[pos[0] - '0'], ShowData[pos[1] - '0'], ShowData[pos[2] - '0'], ShowData[pos[3] - '0'], ShowData[pos[4] - '0'] | 0x80 );
-	Delay2(msec);
-/* Compare the applied serial & factory serial */
-	sscanf(pos, "%5s:%5s", data, _data);
-	if ( strncmp(data, _data, 5) ) {
-	/* Show 'S.diff.' on the 7-seg led */
-		ShowAll5DigitLedSeg( ShowData[0x05] | 0x80, ShowData[0x0d], 0x04, ShowData[0x0f], ShowData[0x0f] | 0x80 );
-		Delay2(msec);
-	}
-/* Move the pointer to the next data */
-	pos += PSERIAL_STRING + 1;
-
-/* Extract the remote 1g & 0g corr value from the raw response */
-	for ( i = 0; i < 2; i++ ) {
-		if ( (pos = ExtractResponse( pos, CVALUE_STRING )) == NULL )
-			return ERROR;
-	/* Parse the value to strings for comparasion */
-		sscanf(pos, "%17s:%17s", data, _data);
-		if ( strncmp(data, _data, 17) ) {
-		/* Show 'CX.dif.' on the 7-seg led */
-			ShowAll5DigitLedSeg( ShowData[0x0c], ShowData[i == 0 ? 0x01 : 0x00] | 0x80, ShowData[0x0d], 0x04, ShowData[0x0f] | 0x80 );
-			Delay2(msec);
-		/* Parse the value to bytes & rearrange for display */
-			sscanf(
-				pos, "%2hx-%2hx-%2hx-%2hx-%2hx-%2hx:%2hx-%2hx-%2hx-%2hx-%2hx-%2hx",
-				&data[0], &data[1], &data[2], &data[3], &data[4], &data[5],
-				&data[6], &data[7], &data[8], &data[9], &data[10], &data[11]
-			);
-			sprintf(
-				_data, "%2.2x:%2.2x%2.2x:%2.2x%2.2x:%2.2x%2.2x:%2.2x%2.2x:%2.2x%2.2x:%2.2x",
-				(BYTE)data[0], (BYTE)data[6], (BYTE)data[1], (BYTE)data[7], (BYTE)data[2], (BYTE)data[8],
-				(BYTE)data[3], (BYTE)data[9], (BYTE)data[4], (BYTE)data[10], (BYTE)data[5], (BYTE)data[11]
-			);
-		/* */
-			EncodeAddrDisplayContent( _data );
-		/* Real show on the 7-seg led */
-			page = 0;
-			BUTTONS_LASTCOUNT_RESET();
-			do {
-				if ( GetInitButtonPressCount() || !page )
-					ShowContent5DigitsLedPage( page++ );
-				Delay2(10);
-			} while ( !GetCtsButtonPressCount() );
-		}
-	/* Move the pointer to the next data */
-		pos += CVALUE_STRING + 1;
+		break;
 	}
 
 	return NORMAL;
@@ -1619,6 +1640,43 @@ static char far *EditNetConfig( char far *dest )
 
 	return dest;
 }
+
+/**
+ * @brief
+ *
+ * @return int
+ */
+static int SwitchAgentCommand( const char *comm )
+{
+	int i;
+/***/
+#define X(a, b, c) b,
+	char *agent_comm[] = {
+		AGENT_COMMANDS_TABLE
+	};
+#undef X
+/***/
+#define X(a, b, c) c,
+	int comm_len[] = {
+		AGENT_COMMANDS_TABLE
+	};
+#undef X
+
+/* Trim the input string from left */
+	for ( ; isspace(*comm) && *comm; comm++ );
+/* Switch the function by input command */
+	for ( i = 0; i < AGENT_COMMAND_COUNT; i++ ) {
+		if ( !strncmp(comm, agent_comm[i], comm_len[i]) ) {
+		/* */
+			for ( comm += comm_len[i]; isspace(*comm) && *comm; comm++ );
+		/* */
+			break;
+		}
+	}
+
+	return i;
+}
+
 
 /**
  * @brief

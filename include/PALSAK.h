@@ -122,6 +122,25 @@ typedef enum {
 } WORKFLOWS;
 #undef X
 
+
+/**
+ * @brief Agent commands
+ *
+ */
+#define AGENT_COMMANDS_TABLE \
+	X(AGENT_COMMAND_WBLOCK0, "wblock0"   , 7) \
+	X(AGENT_COMMAND_CHECK  , "check %s"  , 5) \
+	X(AGENT_COMMAND_CORRECT, "correct %s", 7) \
+	X(AGENT_COMMAND_DHCP   , "dhcp %s"   , 4) \
+	X(AGENT_COMMAND_QUIT   , "quit"      , 4) \
+	X(AGENT_COMMAND_COUNT  , "count"     , 5)
+
+#define X(a, b, c) a,
+typedef enum {
+	AGENT_COMMANDS_TABLE
+} AGENT_COMMANDS;
+#undef X
+
 /**
  * @brief The checking result of func.
  *
