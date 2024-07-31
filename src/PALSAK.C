@@ -207,7 +207,7 @@ void main( void )
 	if ( WorkflowFlag & STRATEGY_SET_EEP ) {
 		if ( UploadFileData( DISK_RAM, GetFileInfoByName_AB(DISKA, "AGENT.EXE") ) )
 			goto err_return;
-		if ( AgentCommand( "setdef", 2000 ) == ERROR )
+		if ( AgentCommand( "wblock0", 2000 ) == ERROR )
 			goto err_return;
 	/* */
 		ForceFlushSocket( SockRecv );
@@ -1032,9 +1032,6 @@ static int AgentCommand( const char *comm, const uint msec )
 		if ( ReadFileBlockZero( GetFileInfoByName_AB(DISKA, "block_0.ini"), (BYTE far *)PreBuffer, PREBUF_SIZE ) == ERROR )
 			return ERROR;
 		Delay2(msec);
-	/* Show 'S. b.0. ' on the 7-seg led */
-		ShowAll5DigitLedSeg( ShowData[0x05] | 0x80, 0x00, ShowData[0x0b] | 0x80, ShowData[0x00] | 0x80, 0x00 );
-		Delay2(msec);
 		break;
 	case AGENT_COMMAND_CHECK:
 	/* Show 'C. Con.' on the 7-seg led */
@@ -1049,6 +1046,8 @@ static int AgentCommand( const char *comm, const uint msec )
 	LOOP_TRANSMIT_COMMAND( comm );
 	switch ( agent_comm ) {
 	case AGENT_COMMAND_WBLOCK0:
+	/* Show 'S. b.0. ' on the 7-seg led */
+		ShowAll5DigitLedSeg( ShowData[0x05] | 0x80, 0x00, ShowData[0x0b] | 0x80, ShowData[0x00] | 0x80, 0x00 );
 	/* Send the Block zero data to the agent */
 		do {
 			if ( TransmitDataByCommand( PreBuffer, EEPROM_SET_TOTAL_LENGTH + 2 ) == NORMAL ) {
