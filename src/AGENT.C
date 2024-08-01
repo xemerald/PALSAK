@@ -18,11 +18,6 @@
 #include "./include/PALSAK.h"
 #include "./include/LEDINFO.h"
 
-/* */
-#define STRATEGY_NONE               0x00
-#define STRATEGY_WRITE_DEFAULT      0x01
-#define STRATEGY_CHECK_CONSISTENCY  0x02
-
 /* EEPROM Block 0 filling */
 static BYTE BlockZero[EEPROM_SET_TOTAL_LENGTH];
 /* Main socket */
@@ -76,7 +71,7 @@ void main( void )
 	/* */
 		switch ( SwitchCommand( comm ) ) {
 		case AGENT_COMMAND_WBLOCK0:
-		/* */
+		/* Send a byte to notify the master that here is ready for receiving data */
 			sendto(SockSend, RecvBuffer, 1, MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
 		/* */
 			while ( RecvBlockZeroData( 250 ) != NORMAL )
@@ -86,22 +81,23 @@ void main( void )
 			if ( EnrichBlockZero() || WriteDefSetting() )
 				goto err_return;
 			break;
-		case AGENT_COMMAND_CHECK:
+		case AGENT_COMMAND_CHECKCON:
 		/* */
-			if ( EnrichBlockZero() )
+			if ( EnrichSurveyResp() )
 				goto err_return;
-			ret = CheckConsistency_Serial();
-			if ( ret < 0 || (ret > 0 && OverrideFactory_Serial()) )
-				goto err_return;
-		/* */
-			ret = CheckConsistency_CValue();
-			if ( ret < 0 || (ret > 0 && OverrideFactory_CValue()) )
-				goto err_return;
-		/* */
-			EnrichSurveyResp();
 			BroadcastResp( RecvBuffer, 250 );
 			break;
 		case AGENT_COMMAND_CORRECT:
+		/* */
+			if ( EnrichBlockZero() )
+				goto err_return;
+			if ( !strncmp(comm, "serial", 6) )
+				OverrideFactory_Serial();
+			else if ( !strncmp(comm, "cvalue", 6) )
+				OverrideFactory_CValue();
+			else
+				goto err_return;
+		/* */
 			break;
 		case AGENT_COMMAND_DHCP:
 			break;
@@ -446,9 +442,9 @@ static int CheckConsistency_Serial( void )
 	if ( !EE_MultiRead(1, EEPROM_SERIAL_ADDR, EEPROM_SERIAL_LENGTH, (char *)serial) ) {
 	/* */
 		if ( BlockZero[EEPROM_SERIAL_ADDR] == serial[0] && BlockZero[EEPROM_SERIAL_ADDR + 1] == serial[1] )
-			return 0;
-		else
 			return 1;
+		else
+			return 0;
 	/* */
 	}
 
@@ -467,9 +463,9 @@ static int CheckConsistency_CValue( void )
 /* */
 	if ( !EE_MultiRead(1, EEPROM_CVALUE_ADDR, EEPROM_CVALUE_LENGTH, (char *)cvalue) ) {
 		if ( !memcmp(&BlockZero[EEPROM_CVALUE_ADDR], cvalue, EEPROM_CVALUE_LENGTH) )
-			return 0;
-		else
 			return 1;
+		else
+			return 0;
 	}
 
 	return ERROR;

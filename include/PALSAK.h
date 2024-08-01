@@ -57,7 +57,7 @@ extern "C" {
 #define NETWORK_OPERATION_RETRY  3
 
 /**
- * @brief The size of the buffer used to received the data from broadcast
+ * @name The size of the buffer used to received the data from broadcast
  *
  */
 #define COMMBUF_SIZE     32
@@ -65,7 +65,7 @@ extern "C" {
 #define PREBUF_SIZE      512
 
 /**
- * @brief String length of those responses from the other P-Alert
+ * @name String length of those responses from the other P-Alert
  *
  */
 #define MAC_STRING        17  /* Exclude the null-terminator */
@@ -76,6 +76,19 @@ extern "C" {
 #define CVALUE_STRING     35  /* Exclude the null-terminator */
 #define NETCONFIG_FORMAT  "%03u.%03u.%03u.%03u-%02u  %03u.%03u.%03u.%03u  "
 
+/**
+ * @name
+ *
+ */
+#define BLOCK_0_FILE_NAME    "block_0.ini"
+#define FTP_INFO_FILE_NAME   "ftp_info.ini"
+#define AGENT_EXE_FILE_NAME  "AGENT.EXE"
+#define AUTOEXEC_FILE_NAME   "autoexec.bat"
+
+/**
+ * @brief
+ *
+ */
 #define DIGIT_LIMIT_TABLE \
 	X(DIGIT_LIMIT_TO_TWO   , '2') \
 	X(DIGIT_LIMIT_TO_THREE , '3') \
@@ -93,28 +106,28 @@ typedef enum {
  * @brief Workflow unit define
  *
  */
-#define STRATEGY_CHK_MAC     0x01
-#define STRATEGY_UPL_FW      0x02
-#define STRATEGY_GET_NET     0x04
-#define STRATEGY_SET_NET     0x08
-#define STRATEGY_SET_EEP     0x10
-#define STRATEGY_CHK_EEP     0x20
-#define STRATEGY_CHK_CN      0x40
-#define STRATEGY_UPD_FW      0x80
+#define STRATEGY_CHK_MAC     0x0001
+#define STRATEGY_UPL_FW      0x0002
+#define STRATEGY_GET_NET     0x0004
+#define STRATEGY_SET_NET     0x0008
+#define STRATEGY_WRT_BL0     0x0010
+#define STRATEGY_CHK_CON     0x0020
+#define STRATEGY_CHK_CN      0x0040
+#define STRATEGY_UPD_FW      0x0080
 
 /**
  * @brief Workflow combaination
  *
  */
 #define WORKFLOWS_TABLE \
-	X(WORKFLOW_0    , STRATEGY_UPD_FW                                                         ) \
-	X(WORKFLOW_1    , STRATEGY_CHK_MAC | STRATEGY_GET_NET                                     ) \
-	X(WORKFLOW_2    , STRATEGY_CHK_MAC | STRATEGY_GET_NET | STRATEGY_SET_EEP                  ) \
-	X(WORKFLOW_3    , STRATEGY_CHK_MAC | STRATEGY_GET_NET | STRATEGY_SET_EEP | STRATEGY_UPL_FW) \
-	X(WORKFLOW_4    , STRATEGY_CHK_CN                                                         ) \
-	X(WORKFLOW_5    , STRATEGY_CHK_MAC | STRATEGY_SET_NET                                     ) \
-	X(WORKFLOW_6    , STRATEGY_CHK_MAC | STRATEGY_GET_NET | STRATEGY_CHK_EEP                  ) \
-	X(WORKFLOW_COUNT, 0                                                                       )
+	X(WORKFLOW_0    , STRATEGY_UPD_FW                                                          ) \
+	X(WORKFLOW_1    , STRATEGY_CHK_MAC | STRATEGY_GET_NET                                      ) \
+	X(WORKFLOW_2    , STRATEGY_CHK_MAC | STRATEGY_GET_NET | STRATEGY_WRT_BL0 | STRATEGY_CHK_CON) \
+	X(WORKFLOW_3    , STRATEGY_CHK_MAC | STRATEGY_GET_NET | STRATEGY_WRT_BL0 | STRATEGY_UPL_FW ) \
+	X(WORKFLOW_4    , STRATEGY_CHK_CN                                                          ) \
+	X(WORKFLOW_5    , STRATEGY_CHK_MAC | STRATEGY_SET_NET                                      ) \
+	X(WORKFLOW_6    , STRATEGY_CHK_MAC | STRATEGY_GET_NET | STRATEGY_CHK_CON                   ) \
+	X(WORKFLOW_COUNT, 0                                                                        )
 
 #define X(a, b) a,
 typedef enum {
@@ -128,12 +141,12 @@ typedef enum {
  *
  */
 #define AGENT_COMMANDS_TABLE \
-	X(AGENT_COMMAND_WBLOCK0, "wblock0"   , 7) \
-	X(AGENT_COMMAND_CHECK  , "check %s"  , 5) \
-	X(AGENT_COMMAND_CORRECT, "correct %s", 7) \
-	X(AGENT_COMMAND_DHCP   , "dhcp %s"   , 4) \
-	X(AGENT_COMMAND_QUIT   , "quit"      , 4) \
-	X(AGENT_COMMAND_COUNT  , "count"     , 5)
+	X(AGENT_COMMAND_WBLOCK0 , "wblock0"   , 7) \
+	X(AGENT_COMMAND_CHECKCON, "checkcon"  , 8) \
+	X(AGENT_COMMAND_CORRECT , "correct %s", 7) \
+	X(AGENT_COMMAND_DHCP    , "dhcp %s"   , 4) \
+	X(AGENT_COMMAND_QUIT    , "quit"      , 4) \
+	X(AGENT_COMMAND_COUNT   , "count"     , 5)
 
 #define X(a, b, c) a,
 typedef enum {
