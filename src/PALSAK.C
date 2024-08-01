@@ -1037,9 +1037,11 @@ static int AgentCommand( const char *comm, const uint msec )
 	case AGENT_COMMAND_CHECKCON:
 	/* Show 'C. Con.' on the 7-seg led */
 		ShowAll5DigitLedSeg( ShowData[0x0c] | 0x80, 0x00, ShowData[0x0c], 0x1d, 0x95 );
+		break;
 	case AGENT_COMMAND_QUIT:
 	/* Show 'End A.' on the 7-seg led */
 		ShowAll5DigitLedSeg( ShowData[0x0e], 0x15, ShowData[0x0d], 0x00, ShowData[0x0a] | 0x80 );
+		break;
 	default:
 	/* Unknown command */
 		return ERROR;
