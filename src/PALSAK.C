@@ -595,6 +595,8 @@ static void ForceFlushSocket( int sock )
 /* Flush the receiving buffer from client, just in case */
 	for ( i = 0; i < NETWORK_OPERATION_RETRY; i++ )
 		while ( recvfrom(sock, RecvBuffer, RECVBUF_SIZE, MSG_OOB, (struct sockaddr *)&_addr, &fromlen) > 0 );
+/* */
+	Delay2(2000);
 
 	return;
 }
@@ -1023,7 +1025,7 @@ static int AgentCommand( const char *comm, const uint msec )
 
 /* Execute the remote agent */
 	LOOP_TRANSMIT_COMMAND( "runr" );
-/* */
+/* Prepare for each command */
 	switch ( agent_comm ) {
 	case AGENT_COMMAND_WBLOCK0:
 	/* Show 'F. b.0. ' on the 7-seg led */
@@ -1031,19 +1033,23 @@ static int AgentCommand( const char *comm, const uint msec )
 	/* */
 		if ( ReadFileBlockZero( GetFileInfoByName_AB(DISKA, "block_0.ini"), (BYTE far *)PreBuffer, PREBUF_SIZE ) == ERROR )
 			return ERROR;
-		Delay2(msec);
 		break;
 	case AGENT_COMMAND_CHECK:
 	/* Show 'C. Con.' on the 7-seg led */
 		ShowAll5DigitLedSeg( ShowData[0x0c] | 0x80, 0x00, ShowData[0x0c], 0x1d, 0x95 );
-		Delay2(msec);
+	case AGENT_COMMAND_QUIT:
+	/* Show 'End A.' on the 7-seg led */
+		ShowAll5DigitLedSeg( ShowData[0x0e], 0x15, ShowData[0x0d], 0x00, ShowData[0x0a] | 0x80 );
 	default:
 	/* Unknown command */
 		return ERROR;
-		break;
 	}
+/* */
+	Delay2(msec);
+
 /* Sending the command to remote agent */
 	LOOP_TRANSMIT_COMMAND( comm );
+
 	switch ( agent_comm ) {
 	case AGENT_COMMAND_WBLOCK0:
 	/* Show 'S. b.0. ' on the 7-seg led */
@@ -1051,7 +1057,7 @@ static int AgentCommand( const char *comm, const uint msec )
 	/* Send the Block zero data to the agent */
 		do {
 			if ( TransmitDataByCommand( PreBuffer, EEPROM_SET_TOTAL_LENGTH + 2 ) == NORMAL ) {
-			/* Show the '-S-' message on the 7-seg led */
+			/* */
 				if ( RecvBuffer[0] == ACK || RecvBuffer[0] == 0 ) {
 					break;
 				}
@@ -1066,6 +1072,8 @@ static int AgentCommand( const char *comm, const uint msec )
 		/* Something wrong, goto error return */
 			return ERROR;
 		} while ( 1 );
+	/* */
+		Delay2(msec);
 		break;
 	case AGENT_COMMAND_CHECK:
 		if ( !strncmp(sub_comm, "serial", 6) ) {
@@ -1126,10 +1134,13 @@ static int AgentCommand( const char *comm, const uint msec )
 			return ERROR;
 		}
 		break;
+	case AGENT_COMMAND_QUIT:
+	/* */
+		Delay2(msec);
+		break;
 	default:
 	/* Unknown command */
 		return ERROR;
-		break;
 	}
 
 	return NORMAL;
