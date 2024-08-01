@@ -34,7 +34,7 @@ static char RecvBuffer[RECVBUF_SIZE];
 /* Output buffer */
 static char PreBuffer[PREBUF_SIZE];
 /* Workflow flag */
-static uchar WorkflowFlag = 0;
+static WORD WorkflowFlag = 0;
 /* */
 static char  FTPHost[24] = { 0 };
 static uint  FTPPort     = 21;
@@ -118,7 +118,7 @@ void main( void )
 		if ( bUseDhcp && InitDHCP( 400 ) == ERROR )
 			goto err_return;
 	/* */
-		if ( ReadFileFTPInfo( GetFileInfoByName_AB(DISKA, "ftp_info.ini") ) == ERROR )
+		if ( ReadFileFTPInfo( GetFileInfoByName_AB(DISKA, FTP_INFO_FILE_NAME) ) == ERROR )
 			goto err_return;
 	/* */
 		if ( CheckFirmwareVer( PreBuffer, 2000 ) == ERROR || (strlen(PreBuffer) && DownloadFirmware( PreBuffer ) == ERROR) )
@@ -204,8 +204,8 @@ void main( void )
 		Delay2(1000);
 	}
 /* */
-	if ( WorkflowFlag & STRATEGY_SET_EEP ) {
-		if ( UploadFileData( DISK_RAM, GetFileInfoByName_AB(DISKA, "AGENT.EXE") ) )
+	if ( WorkflowFlag & STRATEGY_WRT_BL0 ) {
+		if ( UploadFileData( DISK_RAM, GetFileInfoByName_AB(DISKA, AGENT_EXE_FILE_NAME) ) )
 			goto err_return;
 		if ( AgentCommand( "wblock0", 2000 ) == ERROR )
 			goto err_return;
@@ -213,10 +213,10 @@ void main( void )
 		ForceFlushSocket( SockRecv );
 	}
 /* */
-	if ( WorkflowFlag & STRATEGY_CHK_EEP ) {
-		if ( UploadFileData( DISK_RAM, GetFileInfoByName_AB(DISKA, "AGENT.EXE") ) )
+	if ( WorkflowFlag & STRATEGY_CHK_CON ) {
+		if ( UploadFileData( DISK_RAM, GetFileInfoByName_AB(DISKA, AGENT_EXE_FILE_NAME) ) )
 			goto err_return;
-		if ( AgentCommand( "check", 2000 ) == ERROR )
+		if ( AgentCommand( "checkcon", 2000 ) == ERROR )
 			goto err_return;
 	/* */
 		ForceFlushSocket( SockRecv );
@@ -396,7 +396,7 @@ static void SwitchWorkflow( const uint msec )
 {
 	uchar flow_num = WORKFLOW_1;
 #define X(a, b) b,
-	uchar workflows[] = {
+	WORD workflows[] = {
 		WORKFLOWS_TABLE
 	};
 #undef X
@@ -839,10 +839,10 @@ static int CheckServerConnect( const uint msec )
 	int sock = -1;
 
 /* Reading the config file for servers information */
-	if ( ReadFileBlockZero( GetFileInfoByName_AB(DISKA, "block_0.ini"), (BYTE far *)PreBuffer, PREBUF_SIZE ) == ERROR )
+	if ( ReadFileBlockZero( GetFileInfoByName_AB(DISKA, BLOCK_0_FILE_NAME), (BYTE far *)PreBuffer, PREBUF_SIZE ) == ERROR )
 		return ERROR;
 /* */
-	if ( ReadFileFTPInfo( GetFileInfoByName_AB(DISKA, "ftp_info.ini") ) == ERROR )
+	if ( ReadFileFTPInfo( GetFileInfoByName_AB(DISKA, FTP_INFO_FILE_NAME) ) == ERROR )
 		return ERROR;
 
 /* Show 'ntP.' on the 7-seg led */
@@ -996,7 +996,7 @@ static int UploadPalertFirmware( const uint msec )
 	Delay2(msec);
 
 /* Start to upload the auto batch file */
-	if ( UploadFileData( DISKA, GetFileInfoByName_AB(DISKA, "autoexec.bat") ) )
+	if ( UploadFileData( DISKA, GetFileInfoByName_AB(DISKA, AUTOEXEC_FILE_NAME) ) )
 		return ERROR;
 /* Show 'Fin. b' on the 7-seg led */
 	ShowAll5DigitLedSeg( ShowData[0x0f], 0x04, 0x95, 0x00, ShowData[0x0b] );
@@ -1031,10 +1031,10 @@ static int AgentCommand( const char *comm, const uint msec )
 	/* Show 'F. b.0. ' on the 7-seg led */
 		ShowAll5DigitLedSeg( ShowData[0x0f] | 0x80, 0x00, ShowData[0x0b] | 0x80, ShowData[0x00] | 0x80, 0x00 );
 	/* */
-		if ( ReadFileBlockZero( GetFileInfoByName_AB(DISKA, "block_0.ini"), (BYTE far *)PreBuffer, PREBUF_SIZE ) == ERROR )
+		if ( ReadFileBlockZero( GetFileInfoByName_AB(DISKA, BLOCK_0_FILE_NAME), (BYTE far *)PreBuffer, PREBUF_SIZE ) == ERROR )
 			return ERROR;
 		break;
-	case AGENT_COMMAND_CHECK:
+	case AGENT_COMMAND_CHECKCON:
 	/* Show 'C. Con.' on the 7-seg led */
 		ShowAll5DigitLedSeg( ShowData[0x0c] | 0x80, 0x00, ShowData[0x0c], 0x1d, 0x95 );
 	case AGENT_COMMAND_QUIT:
@@ -1049,7 +1049,7 @@ static int AgentCommand( const char *comm, const uint msec )
 
 /* Sending the command to remote agent */
 	LOOP_TRANSMIT_COMMAND( comm );
-
+/* */
 	switch ( agent_comm ) {
 	case AGENT_COMMAND_WBLOCK0:
 	/* Show 'S. b.0. ' on the 7-seg led */
@@ -1075,64 +1075,58 @@ static int AgentCommand( const char *comm, const uint msec )
 	/* */
 		Delay2(msec);
 		break;
-	case AGENT_COMMAND_CHECK:
-		if ( !strncmp(sub_comm, "serial", 6) ) {
-		/* Extract the remote palert serial from the raw response */
-			if ( (pos = ExtractResponse( RecvBuffer, PSERIAL_STRING )) == NULL )
-				return ERROR;
-		/* Show the serial on the 7-seg led */
-			ShowAll5DigitLedSeg( ShowData[pos[0] - '0'], ShowData[pos[1] - '0'], ShowData[pos[2] - '0'], ShowData[pos[3] - '0'], ShowData[pos[4] - '0'] | 0x80 );
+	case AGENT_COMMAND_CHECKCON:
+	/* Extract the remote palert serial from the raw response */
+		if ( (pos = ExtractResponse( RecvBuffer, PSERIAL_STRING )) == NULL )
+			return ERROR;
+	/* Show the serial on the 7-seg led */
+		ShowAll5DigitLedSeg( ShowData[pos[0] - '0'], ShowData[pos[1] - '0'], ShowData[pos[2] - '0'], ShowData[pos[3] - '0'], ShowData[pos[4] - '0'] | 0x80 );
+		Delay2(msec);
+	/* Compare the applied serial & factory serial */
+		sscanf(pos, "%5s:%5s", data, _data);
+		if ( strncmp(data, _data, 5) ) {
+		/* Show 'S.diff.' on the 7-seg led */
+			ShowAll5DigitLedSeg( ShowData[0x05] | 0x80, ShowData[0x0d], 0x04, ShowData[0x0f], ShowData[0x0f] | 0x80 );
 			Delay2(msec);
-		/* Compare the applied serial & factory serial */
-			sscanf(pos, "%5s:%5s", data, _data);
-			if ( strncmp(data, _data, 5) ) {
-			/* Show 'S.diff.' on the 7-seg led */
-				ShowAll5DigitLedSeg( ShowData[0x05] | 0x80, ShowData[0x0d], 0x04, ShowData[0x0f], ShowData[0x0f] | 0x80 );
+		}
+	/* Move the pointer to the next data */
+		pos += PSERIAL_STRING + 1;
+	/* Extract the remote 1g & 0g corr value from the raw response */
+		for ( i = 0; i < 2; i++ ) {
+			if ( (pos = ExtractResponse( pos, CVALUE_STRING )) == NULL )
+				return ERROR;
+		/* Parse the value to strings for comparasion */
+			sscanf(pos, "%17s:%17s", data, _data);
+			if ( strncmp(data, _data, 17) ) {
+			/* Show 'CX.dif.' on the 7-seg led */
+				ShowAll5DigitLedSeg( ShowData[0x0c], ShowData[i == 0 ? 0x01 : 0x00] | 0x80, ShowData[0x0d], 0x04, ShowData[0x0f] | 0x80 );
 				Delay2(msec);
+			/* Parse the value to bytes & rearrange for display */
+				sscanf(
+					pos, "%2hx-%2hx-%2hx-%2hx-%2hx-%2hx:%2hx-%2hx-%2hx-%2hx-%2hx-%2hx",
+					&data[0], &data[1], &data[2], &data[3], &data[4], &data[5],
+					&data[6], &data[7], &data[8], &data[9], &data[10], &data[11]
+				);
+				sprintf(
+					_data, "%2.2x:%2.2x%2.2x:%2.2x%2.2x:%2.2x%2.2x:%2.2x%2.2x:%2.2x%2.2x:%2.2x",
+					(BYTE)data[0], (BYTE)data[6], (BYTE)data[1], (BYTE)data[7], (BYTE)data[2], (BYTE)data[8],
+					(BYTE)data[3], (BYTE)data[9], (BYTE)data[4], (BYTE)data[10], (BYTE)data[5], (BYTE)data[11]
+				);
+			/* */
+				EncodeAddrDisplayContent( _data );
+			/* Real show on the 7-seg led */
+				page = 0;
+				BUTTONS_LASTCOUNT_RESET();
+				do {
+					if ( GetInitButtonPressCount() || !page )
+						ShowContent5DigitsLedPage( page++ );
+					Delay2(10);
+				} while ( !GetCtsButtonPressCount() );
 			}
 		/* Move the pointer to the next data */
-			pos += PSERIAL_STRING + 1;
+			pos += CVALUE_STRING + 1;
 		}
-		else if ( !strncmp(sub_comm, "cvalue", 6) ) {
-		/* Extract the remote 1g & 0g corr value from the raw response */
-			for ( i = 0; i < 2; i++ ) {
-				if ( (pos = ExtractResponse( pos, CVALUE_STRING )) == NULL )
-					return ERROR;
-			/* Parse the value to strings for comparasion */
-				sscanf(pos, "%17s:%17s", data, _data);
-				if ( strncmp(data, _data, 17) ) {
-				/* Show 'CX.dif.' on the 7-seg led */
-					ShowAll5DigitLedSeg( ShowData[0x0c], ShowData[i == 0 ? 0x01 : 0x00] | 0x80, ShowData[0x0d], 0x04, ShowData[0x0f] | 0x80 );
-					Delay2(msec);
-				/* Parse the value to bytes & rearrange for display */
-					sscanf(
-						pos, "%2hx-%2hx-%2hx-%2hx-%2hx-%2hx:%2hx-%2hx-%2hx-%2hx-%2hx-%2hx",
-						&data[0], &data[1], &data[2], &data[3], &data[4], &data[5],
-						&data[6], &data[7], &data[8], &data[9], &data[10], &data[11]
-					);
-					sprintf(
-						_data, "%2.2x:%2.2x%2.2x:%2.2x%2.2x:%2.2x%2.2x:%2.2x%2.2x:%2.2x%2.2x:%2.2x",
-						(BYTE)data[0], (BYTE)data[6], (BYTE)data[1], (BYTE)data[7], (BYTE)data[2], (BYTE)data[8],
-						(BYTE)data[3], (BYTE)data[9], (BYTE)data[4], (BYTE)data[10], (BYTE)data[5], (BYTE)data[11]
-					);
-				/* */
-					EncodeAddrDisplayContent( _data );
-				/* Real show on the 7-seg led */
-					page = 0;
-					BUTTONS_LASTCOUNT_RESET();
-					do {
-						if ( GetInitButtonPressCount() || !page )
-							ShowContent5DigitsLedPage( page++ );
-						Delay2(10);
-					} while ( !GetCtsButtonPressCount() );
-				}
-			/* Move the pointer to the next data */
-				pos += CVALUE_STRING + 1;
-			}
-		}
-		else {
-			return ERROR;
-		}
+
 		break;
 	case AGENT_COMMAND_QUIT:
 	/* */
@@ -1659,13 +1653,13 @@ static char far *EditNetConfig( char far *dest )
 static int SwitchAgentCommand( const char *comm )
 {
 	int i;
-/***/
+/* */
 #define X(a, b, c) b,
 	char *agent_comm[] = {
 		AGENT_COMMANDS_TABLE
 	};
 #undef X
-/***/
+/* */
 #define X(a, b, c) c,
 	int comm_len[] = {
 		AGENT_COMMANDS_TABLE
