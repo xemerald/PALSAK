@@ -51,7 +51,7 @@ void ButtonService( void )
  * @brief
  *
  */
-void ButtonServiceInit( void )
+void InitButtonService( void )
 {
 /* */
 	InitPressCount = InitPressLastCount = 0;

@@ -17,8 +17,8 @@ extern "C" {
 #include "./include/u7186EX/7186e.h"
 
 /* The macro to showing " - - " on the 7-seg led */
-#define SHOW_2DASH_5DIGITLED(SEQ) \
-		ShowAll5DigitLedSeg(0, SeqMark[(SEQ)], 0, SeqMark[(SEQ)], 0)
+#define SHOW_2DASH_5DIGITLED(SEQ, DATA) \
+		ShowAll5DigitLedSeg(0, SeqMark[(SEQ)], DATA, SeqMark[(SEQ)], 0)
 
 /* Display "Good." on the 7-seg led */
 #define SHOW_GOOD_5DIGITLED() \
@@ -39,10 +39,10 @@ extern uint ContentLength;
 extern uint ContentPages;
 
 /* */
-void ShowAll5DigitLedSeg( BYTE, BYTE, BYTE, BYTE, BYTE );
-void ShowProg5DigitsLed( ulong, const ulong );
-void ShowContent5DigitsLedPage( uint );
-void ShowContent5DigitsLedRoller( uint );
+void  ShowAll5DigitLedSeg( BYTE, BYTE, BYTE, BYTE, BYTE );
+void  ShowProg5DigitsLed( ulong, const ulong );
+void  ShowContent5DigitsLedPage( uint );
+void  ShowContent5DigitsLedRoller( uint );
 BYTE *SetDisplayContent( const BYTE *, uint );
 BYTE *EncodeAddrDisplayContent( const char * );
 

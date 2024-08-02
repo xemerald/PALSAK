@@ -38,14 +38,14 @@ extern volatile uchar CtsPressLastCount;
  *
  */
 void  ButtonService( void );
-void  ButtonServiceInit( void );
+void  InitButtonService( void );
 uchar GetInitButtonPressCount( void );
 uchar GetCtsButtonPressCount( void );
 
 /* */
-#define BUTTONS_SERVICE_START() \
+#define START_BUTTONS_SERVICE() \
 		{ SetRtsActive_1(); InstallUserTimer0Function_ms(50, ButtonService); }
-#define BUTTONS_SERVICE_STOP() \
+#define STOP_BUTTONS_SERVICE() \
 		{ StopUserTimer0Fun(); SetRtsInactive_1(); }
 
 #ifdef __cplusplus
