@@ -36,6 +36,8 @@ static char PreBuffer[PREBUF_SIZE];
 /* Workflow flag */
 static WORD WorkflowFlag = 0;
 /* */
+static uchar AgentFlag = 0;
+/* */
 static char  FTPHost[24] = { 0 };
 static uint  FTPPort     = 21;
 static char  FTPUser[24] = { 0 };
@@ -50,9 +52,9 @@ static void SwitchWorkflow( const uint );
 static int  SwitchDHCPorStatic( const uint );
 
 static int   TransmitCommand( const char * );
-static int   TransmitDataByCommand( const char *, int );
+static int   TransmitDataRaw( const char *, int );
 static void  ForceFlushSocket( int );
-static char far *ExtractResponse( char *, const uint );
+static char *ExtractResponse( char *, const uint );
 
 static int GetPalertMAC( const uint );
 static int GetPalertNetworkConfig( const uint );
@@ -77,7 +79,8 @@ static ulong ConvertMaskBack( int );
 static char far *EditNetConfig( char far * );
 static int   ConnectTCP( const char *, uint );
 
-static int  SwitchAgentCommand( const char * );
+static int  SwitchAgentCommand( const char ** );
+static int  ExecAgent( void );
 static void FatalError( const int );
 static int  ResetProgram( void );
 
@@ -104,10 +107,10 @@ void main( void )
 	YIELD();
 	Delay2(5);
 /* */
-	ButtonServiceInit();
-	BUTTONS_SERVICE_START();
+	InitButtonService();
+	START_BUTTONS_SERVICE();
 /* Wait until the network connection is on */
-	SwitchWorkflow( 500 );
+	SwitchWorkflow( 50 );
 
 /* If it shows the UPD flag (Workflow 0), just return after finishing */
 	if ( WorkflowFlag & STRATEGY_UPD_FW ) {
@@ -205,7 +208,7 @@ void main( void )
 	}
 /* */
 	if ( WorkflowFlag & STRATEGY_WRT_BL0 ) {
-		if ( UploadFileData( DISK_RAM, GetFileInfoByName_AB(DISKA, AGENT_EXE_FILE_NAME) ) )
+		if ( ExecAgent() )
 			goto err_return;
 		if ( AgentCommand( "wblock0", 2000 ) == ERROR )
 			goto err_return;
@@ -214,17 +217,23 @@ void main( void )
 	}
 /* */
 	if ( WorkflowFlag & STRATEGY_CHK_CON ) {
-		if ( UploadFileData( DISK_RAM, GetFileInfoByName_AB(DISKA, AGENT_EXE_FILE_NAME) ) )
+		if ( ExecAgent() )
 			goto err_return;
 		if ( AgentCommand( "checkcon", 2000 ) == ERROR )
 			goto err_return;
 	/* */
 		ForceFlushSocket( SockRecv );
 	}
+/* */
+	if ( AgentFlag && AgentCommand( "quit", 1000 ) == ERROR ) {
+		AgentFlag = 0;
+		goto err_return;
+	}
+
 /* If it shows the MAC flag, just get the MAC and show it */
 	if ( WorkflowFlag & STRATEGY_CHK_MAC ) {
 	/* Show the MAC of the Palert */
-		if ( GetPalertMAC( 2000 ) == ERROR )
+		if ( GetPalertMAC( 50 ) == ERROR )
 			goto err_return;
 	}
 
@@ -235,7 +244,7 @@ normal_return:
 /* Terminate the network interface */
 	Nterm();
 /* */
-	BUTTONS_SERVICE_STOP();
+	STOP_BUTTONS_SERVICE();
 	return;
 err_return:
 /* Show the 'ERROR' on the 7-seg led */
@@ -271,26 +280,27 @@ static void SetNetworkConfig( uint set )
 /**
  * @brief The initialization process of control socket.
  *
- * @param dotted
+ * @param dotted_ip
  * @return int
  * @retval 0 All of the socket we need are created.
  * @retval < 0 Something wrong when creating socket or setting up the operation mode.
  */
-static int InitControlSocket( const char *dotted )
+static int InitControlSocket( const char *dotted_ip )
 {
 	char optval = 1;
-	struct sockaddr_in _addr;
 
 /* Close the previous sockets for following process */
 	closesocket(SockSend);
 	closesocket(SockRecv);
+/* Flush the address struct */
+	memset(&TransmitAddr, 0, sizeof(struct sockaddr));
 /* */
-	if ( dotted != NULL ) {
+	if ( dotted_ip ) {
 	/* Terminate the network interface first */
 		Nterm();
 	/* We should set the Mask to zero, let all the packet skip the routing table */
-		_addr.sin_addr.s_addr = 0L;
-		SetMask((uchar *)&_addr.sin_addr.s_addr);
+		TransmitAddr.sin_addr.s_addr = 0L;
+		SetMask((uchar *)&TransmitAddr.sin_addr.s_addr);
 	/* Initialization for network interface library */
 		if ( NetStart() < 0 )
 			return ERROR;
@@ -300,41 +310,38 @@ static int InitControlSocket( const char *dotted )
 	Delay2(5);
 /* External variables for broadcast setting: Setup for accepting broadcast packet */
 	bAcceptBroadcast = 1;
-
 /* Create the sending socket */
-	if ( (SockSend = socket(PF_INET, SOCK_DGRAM, 0)) < 0 )
+	if (
+		(SockSend = socket(PF_INET, SOCK_DGRAM, 0)) < 0 ||
+	/* Set the socket to reuse the address */
+		setsockopt(SockSend, SOL_SOCKET, SO_DONTROUTE, &optval, sizeof(optval)) < 0 ||
+	/* Set the broadcast ability */
+		setsockopt(SockSend, SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval)) < 0
+	) {
 		return ERROR;
-/* Set the socket to reuse the address */
-	if ( setsockopt(SockSend, SOL_SOCKET, SO_DONTROUTE, &optval, sizeof(optval)) < 0 )
-		return ERROR;
-/* Set the broadcast ability */
-	if ( setsockopt(SockSend, SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval)) < 0 )
-		return ERROR;
+	}
 
 /* Create the receiving socket */
-	SockRecv = dotted != NULL ? SockSend : socket(PF_INET, SOCK_DGRAM, 0);
-	if ( SockRecv < 0 )
+	if (
+		(SockRecv = dotted_ip ? SockSend : socket(PF_INET, SOCK_DGRAM, 0)) < 0 ||
+	/* Set the socket to reuse the address */
+		setsockopt(SockRecv, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0
+	) {
 		return ERROR;
-
-/* Set the socket to reuse the address */
-	if ( setsockopt(SockRecv, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0 )
-		return ERROR;
+	}
 /* Bind the receiving socket to the port number 54321 or 12345 */
-	memset(&_addr, 0, sizeof(struct sockaddr));
-	_addr.sin_family = AF_INET;
-	_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	_addr.sin_port = htons(dotted != NULL ? CONTROL_BIND_PORT : LISTEN_PORT);
-	if ( bind(SockRecv, (struct sockaddr *)&_addr, sizeof(struct sockaddr)) < 0 )
+	TransmitAddr.sin_family = AF_INET;
+	TransmitAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	TransmitAddr.sin_port = htons(dotted_ip ? CONTROL_BIND_PORT : LISTEN_PORT);
+	if ( bind(SockRecv, (struct sockaddr *)&TransmitAddr, sizeof(struct sockaddr)) < 0 )
 		return ERROR;
 /* Set the timeout of receiving socket to 0.25 sec. */
 	SOCKET_RXTOUT(SockRecv, 250);
 
-/* Set the transmitting address info */
-	memset(&_addr, 0, sizeof(struct sockaddr));
-	_addr.sin_family = AF_INET;
-	_addr.sin_addr.s_addr = dotted != NULL ? inet_addr((char *)dotted) : htonl(INADDR_BROADCAST);
-	_addr.sin_port = htons(CONTROL_PORT);
-	TransmitAddr = _addr;
+/* Finally, really set the transmitting address info */
+	TransmitAddr.sin_family = AF_INET;
+	TransmitAddr.sin_addr.s_addr = dotted_ip ? inet_addr((char *)dotted_ip) : htonl(INADDR_BROADCAST);
+	TransmitAddr.sin_port = htons(CONTROL_PORT);
 
 	return NORMAL;
 }
@@ -402,11 +409,7 @@ static void SwitchWorkflow( const uint msec )
 #undef X
 
 /* Show the " F.XX " message on the 7-seg led */
-	Show5DigitLedSeg(1, 0);
-	Show5DigitLedWithDot(2, 0x0F);
-	Show5DigitLed(3, flow_num >= 10 ? flow_num / 10 : 0);
-	Show5DigitLed(4, flow_num % 10);
-	Show5DigitLedSeg(5, 0);
+	ShowAll5DigitLedSeg( 0x00, ShowData[0x0f] | 0x80, ShowData[flow_num / 10], ShowData[flow_num % 10], 0x00 );
 /* */
 	BUTTONS_LASTCOUNT_RESET();
 /*
@@ -414,23 +417,21 @@ static void SwitchWorkflow( const uint msec )
  * After testing, when network is real connected,
  * this number should be 0x40(64) or 0x01.
  */
-	while ( bEthernetLinkOk == 0x00 || !GetCtsButtonPressCount() ) {
+	while ( !bEthernetLinkOk || !GetCtsButtonPressCount() ) {
 	/* Detect the button condition for switching work flow */
 		if ( GetInitButtonPressCount() ) {
 		/* */
 			flow_num++;
 			flow_num %= WORKFLOW_COUNT;
 		/* */
-			Show5DigitLed(3, flow_num >= 10 ? flow_num / 10 : 0);
+			Show5DigitLed(3, flow_num / 10);
 			Show5DigitLed(4, flow_num % 10);
 		}
 	/* */
-		Delay2(5);
+		Delay2(msec);
 	}
 /* */
 	WorkflowFlag = workflows[flow_num];
-/* One more waiting for stablization of the connection */
-	Delay2(msec);
 
 	return;
 }
@@ -449,7 +450,7 @@ static int SwitchDHCPorStatic( const uint msec )
 /* Show 'U.PLUG.' on the 7-seg led */
 	ShowAll5DigitLedSeg( 0xbe, 0x67, 0x0e, 0x3e, 0xde );
 /* Wait until ethernet unplug */
-	while ( bEthernetLinkOk != 0x00 )
+	while ( bEthernetLinkOk )
 		Delay2(1);
 
 /* Set the 'dHCP.  ' message to the buffer */
@@ -457,8 +458,7 @@ static int SwitchDHCPorStatic( const uint msec )
 	PreBuffer[1] = 0x37;
 	PreBuffer[2] = 0x4e;
 	PreBuffer[3] = 0xe7;
-	PreBuffer[4] = 0x00;
-	PreBuffer[5] = 0x00;
+	PreBuffer[4] = PreBuffer[5] = 0x00;
 /* Fetch the saved IP information from EEPROM */
 	GetIp((uchar *)&RecvBuffer[0]);
 	GetMask((uchar *)&RecvBuffer[4]);
@@ -468,7 +468,7 @@ static int SwitchDHCPorStatic( const uint msec )
 /* */
 	BUTTONS_LASTCOUNT_RESET();
 /* Wait until ethernet plug in & press the cts button */
-	while ( bEthernetLinkOk == 0x00 || !GetCtsButtonPressCount() ) {
+	while ( !bEthernetLinkOk || !GetCtsButtonPressCount() ) {
 	/* */
 		if ( ++delay_msec >= msec ) {
 			ShowContent5DigitsLedRoller( seq++ );
@@ -510,41 +510,22 @@ static int SwitchDHCPorStatic( const uint msec )
  */
 static int TransmitCommand( const char *comm )
 {
-	int   ret = 0;
-	uchar trycount = 0;
-
-	struct sockaddr_in _addr;
-	int fromlen = sizeof(struct sockaddr);
-
 /* Show the '-S-' message on the 7-seg led */
-	SHOW_2DASH_5DIGITLED( 0 );
-	Show5DigitLed(3, 5);
-/* Flush the receiving buffer from client, just in case */
-	while ( recvfrom(SockRecv, RecvBuffer, RECVBUF_SIZE, 0, (struct sockaddr *)&_addr, &fromlen) > 0 );
+	SHOW_2DASH_5DIGITLED( 0, ShowData[0x05] );
 /* Appending the '\r' to the input command */
 	sprintf(CommBuffer, "%s\r", comm);
 /* Transmitting the command to others */
-	if ( sendto(SockSend, CommBuffer, strlen(CommBuffer), MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr)) <= 0 )
-		FatalError(2000);
-	Delay2(250);
-
-/* Flush the input buffer */
-	memset(RecvBuffer, 0, RECVBUF_SIZE);
+	if ( TransmitDataRaw( CommBuffer, strlen(CommBuffer) ) )
+		return ERROR;
 /* Show the '-L-' message on the 7-seg led */
 	Show5DigitLedSeg(3, 0x0e);
 	Delay2(250);
-/* Receiving the response from the palert */
-	while ( (ret = recvfrom(SockRecv, RecvBuffer, RECVBUF_SIZE - 1, 0, (struct sockaddr *)&_addr, &fromlen)) <= 0 ) {
-		if ( ++trycount >= NETWORK_OPERATION_RETRY )
-			return ERROR;
-	}
-	RecvBuffer[ret] = '\0';
 
 	return NORMAL;
 }
 
 /**
- * @brief Transmitting data bytes by command line.
+ * @brief Transmitting raw data bytes through sending socket.
  *
  * @param data The pointer to the data beginning.
  * @param data_length The length of data bytes.
@@ -552,9 +533,9 @@ static int TransmitCommand( const char *comm )
  * @retval ERROR(-1) - It didn't receive the response properly.
  * @retval NORMAL(0) - It has been received properly.
  */
-static int TransmitDataByCommand( const char *data, int data_length )
+static int TransmitDataRaw( const char *data, int data_length )
 {
-	int   ret = 0;
+	int   ret;
 	uchar trycount = 0;
 
 	struct sockaddr_in _addr;
@@ -592,7 +573,7 @@ static void ForceFlushSocket( int sock )
 
 /* Show 'FLUSH.' on the 7-seg led */
 	ShowAll5DigitLedSeg( ShowData[0x0f], 0x0e, 0x3e, ShowData[0x05], 0xb7 );
-/* Flush the receiving buffer from client, just in case */
+/* Flush the receiving buffer of the sock */
 	for ( i = 0; i < NETWORK_OPERATION_RETRY; i++ )
 		while ( recvfrom(sock, RecvBuffer, RECVBUF_SIZE, MSG_OOB, (struct sockaddr *)&_addr, &fromlen) > 0 );
 /* */
@@ -610,11 +591,11 @@ static void ForceFlushSocket( int sock )
  * @retval NULL  - It didn't find out the data.
  * @retval !NULL - The pointer to the real data string.
  */
-static char far *ExtractResponse( char far *buffer, const uint length )
+static char *ExtractResponse( char *buffer, const uint length )
 {
-	char far *pos = NULL;
+	char *pos = NULL;
 
-	if ( buffer != NULL ) {
+	if ( buffer ) {
 	/* Find out where is the '=', and skip all the following space or tab. */
 		pos = strchr(buffer, '=');
 		if ( pos ) {
@@ -642,7 +623,7 @@ static char far *ExtractResponse( char far *buffer, const uint length )
 static int GetPalertMAC( const uint msec )
 {
 	uint  page = 0;
-	char far *pos;
+	char *pos;
 
 /* Send out the MAC address request command */
 	LOOP_TRANSMIT_COMMAND( "mac" );
@@ -657,10 +638,8 @@ static int GetPalertMAC( const uint msec )
 	do {
 		if ( GetInitButtonPressCount() || !page )
 			ShowContent5DigitsLedPage( page++ );
-		Delay2(10);
+		Delay2(msec);
 	} while ( !GetCtsButtonPressCount() );
-/* */
-	Delay2(msec);
 
 	return NORMAL;
 }
@@ -673,7 +652,7 @@ static int GetPalertMAC( const uint msec )
  */
 static int GetPalertNetworkConfig( const uint msec )
 {
-	char far *pos;
+	char *pos;
 
 /* Send out the IP address request command */
 	LOOP_TRANSMIT_COMMAND( "ip" );
@@ -743,13 +722,13 @@ static int SetPalertNetwork( const uint msec )
 	/* Show 'U.PLUG.' on the 7-seg led */
 		ShowAll5DigitLedSeg( 0xbe, 0x67, 0x0e, 0x3e, 0xde );
 	/* Wait until ethernet unplug */
-		while ( bEthernetLinkOk != 0x00 )
+		while ( bEthernetLinkOk )
 			Delay2(1);
 	/* Show the fetched IP on the 7-seg led roller once */
 		ParseNetConfigToRoller( str_ptr, (BYTE far *)&PreBuffer[0], (BYTE far *)&PreBuffer[4], (BYTE far *)&PreBuffer[8] );
 	/* */
 		BUTTONS_LASTCOUNT_RESET();
-		while ( bEthernetLinkOk == 0x00 ) {
+		while ( !bEthernetLinkOk ) {
 		/* */
 			if ( (delay_msec += 10) >= msec ) {
 				ShowContent5DigitsLedRoller( seq++ );
@@ -767,7 +746,7 @@ static int SetPalertNetwork( const uint msec )
 	/* Extract the IP address from the raw response & connect to it */
 		if ( (pos = ExtractResponse( RecvBuffer, IPV4_STRING )) == NULL )
 			return ERROR;
-		if ( InitControlSocket( pos ) == ERROR )
+		if ( InitControlSocket( pos ) )
 			return ERROR;
 	/* One more carriage return to flush the broadcast record */
 		LOOP_TRANSMIT_COMMAND( "" );
@@ -819,7 +798,7 @@ static int SetPalertNetwork( const uint msec )
 		if ( memcmp(&PreBuffer[8], &str_ptr[0], 4) )
 			return ERROR;
 	/* */
-		if ( InitControlSocket( NULL ) == ERROR )
+		if ( InitControlSocket( NULL ) )
 			return ERROR;
 
 		return NORMAL;
@@ -839,11 +818,12 @@ static int CheckServerConnect( const uint msec )
 	int sock = -1;
 
 /* Reading the config file for servers information */
-	if ( ReadFileBlockZero( GetFileInfoByName_AB(DISKA, BLOCK_0_FILE_NAME), (BYTE far *)PreBuffer, PREBUF_SIZE ) == ERROR )
+	if (
+		ReadFileBlockZero( GetFileInfoByName_AB(DISKA, BLOCK_0_FILE_NAME), (BYTE far *)PreBuffer, PREBUF_SIZE ) ||
+		ReadFileFTPInfo( GetFileInfoByName_AB(DISKA, FTP_INFO_FILE_NAME) )
+	) {
 		return ERROR;
-/* */
-	if ( ReadFileFTPInfo( GetFileInfoByName_AB(DISKA, FTP_INFO_FILE_NAME) ) == ERROR )
-		return ERROR;
+	}
 
 /* Show 'ntP.' on the 7-seg led */
 	ShowAll5DigitLedSeg( 0x00, 0x15, 0x11, 0xe7, 0x00 );
@@ -859,12 +839,11 @@ static int CheckServerConnect( const uint msec )
 	else {
 	/* If we can get the offset from ntp server, then write it into HW(RTC) timer */
 		SHOW_GOOD_5DIGITLED();
-		Delay2(1000);
 		SysTimeToHWTime( TAIWAN_TIME_ZONE );
 	}
 /* This one second delay is for waiting RTC write-in */
 	NTPClose();
-	Delay2(1000);
+	Delay2(msec + 1000);
 /* Close the system time service & ntp connection */
 	SYSTIME_SERVICE_STOP();
 
@@ -873,12 +852,10 @@ static int CheckServerConnect( const uint msec )
 	Delay2(msec);
 /* TCP server 0 connection test */
 	sprintf(RecvBuffer, "%u.%u.%u.%u", (BYTE)PreBuffer[28], (BYTE)PreBuffer[29], (BYTE)PreBuffer[30], (BYTE)PreBuffer[31] );
-	if ( (sock = ConnectTCP( RecvBuffer, 502 )) == ERROR ) {
+	if ( (sock = ConnectTCP( RecvBuffer, 502 )) == ERROR )
 		SHOW_ERROR_5DIGITLED();
-	}
-	else {
+	else
 		SHOW_GOOD_5DIGITLED();
-	}
 	Delay2(msec);
 	closesocket(sock);
 /* Show 'tCP.1.' on the 7-seg led */
@@ -886,12 +863,10 @@ static int CheckServerConnect( const uint msec )
 	Delay2(msec);
 /* TCP server 1 connection test */
 	sprintf(RecvBuffer, "%u.%u.%u.%u", (BYTE)PreBuffer[32], (BYTE)PreBuffer[33], (BYTE)PreBuffer[34], (BYTE)PreBuffer[35] );
-	if ( (sock = ConnectTCP( RecvBuffer, 502 )) == ERROR ) {
+	if ( (sock = ConnectTCP( RecvBuffer, 502 )) == ERROR )
 		SHOW_ERROR_5DIGITLED();
-	}
-	else {
+	else
 		SHOW_GOOD_5DIGITLED();
-	}
 	Delay2(msec);
 	closesocket(sock);
 
@@ -899,12 +874,10 @@ static int CheckServerConnect( const uint msec )
 	ShowAll5DigitLedSeg( 0x00, ShowData[0x0f], 0x11, 0xe7, 0x00 );
 	Delay2(msec);
 /* FW(FTP) server connection test by using the checking firmware function */
-	if ( CheckFirmwareVer( PreBuffer, 2000 ) == ERROR ) {
+	if ( CheckFirmwareVer( PreBuffer, 2000 ) )
 		SHOW_ERROR_5DIGITLED();
-	}
-	else {
+	else
 		SHOW_GOOD_5DIGITLED();
-	}
 	Delay2(msec);
 	FTPClose();
 
@@ -1015,7 +988,7 @@ static int UploadPalertFirmware( const uint msec )
 static int AgentCommand( const char *comm, const uint msec )
 {
 	const char *sub_comm = comm;
-	const int agent_comm = SwitchAgentCommand( sub_comm );
+	const int agent_comm = SwitchAgentCommand( &sub_comm );
 
 	char *pos;
 	char *data  = PreBuffer;
@@ -1023,15 +996,13 @@ static int AgentCommand( const char *comm, const uint msec )
 	uint  page;
 	uchar i = 0;
 
-/* Execute the remote agent */
-	LOOP_TRANSMIT_COMMAND( "runr" );
 /* Prepare for each command */
 	switch ( agent_comm ) {
 	case AGENT_COMMAND_WBLOCK0:
 	/* Show 'F. b.0. ' on the 7-seg led */
 		ShowAll5DigitLedSeg( ShowData[0x0f] | 0x80, 0x00, ShowData[0x0b] | 0x80, ShowData[0x00] | 0x80, 0x00 );
 	/* */
-		if ( ReadFileBlockZero( GetFileInfoByName_AB(DISKA, BLOCK_0_FILE_NAME), (BYTE far *)PreBuffer, PREBUF_SIZE ) == ERROR )
+		if ( ReadFileBlockZero( GetFileInfoByName_AB(DISKA, BLOCK_0_FILE_NAME), (BYTE far *)PreBuffer, PREBUF_SIZE ) )
 			return ERROR;
 		break;
 	case AGENT_COMMAND_CHECKCON:
@@ -1058,7 +1029,7 @@ static int AgentCommand( const char *comm, const uint msec )
 		ShowAll5DigitLedSeg( ShowData[0x05] | 0x80, 0x00, ShowData[0x0b] | 0x80, ShowData[0x00] | 0x80, 0x00 );
 	/* Send the Block zero data to the agent */
 		do {
-			if ( TransmitDataByCommand( PreBuffer, EEPROM_SET_TOTAL_LENGTH + 2 ) == NORMAL ) {
+			if ( !TransmitDataRaw( PreBuffer, EEPROM_SET_TOTAL_LENGTH + 2 ) ) {
 			/* */
 				if ( RecvBuffer[0] == ACK || RecvBuffer[0] == 0 ) {
 					break;
@@ -1228,7 +1199,7 @@ static int UploadFileData( const int disk, const FILE_DATA far *fileptr )
 	/* Sending by the command line method */
 		tmp = 0;
 		while ( 1 ) {
-			if ( TransmitDataByCommand( (char *)out_ptr, 260 ) == NORMAL ) {
+			if ( !TransmitDataRaw( (char *)out_ptr, 260 ) ) {
 				if ( RecvBuffer[0] == ACK || RecvBuffer[0] == 0 ) {
 					break;
 				}
@@ -1269,8 +1240,8 @@ static int CheckFirmwareVer( char *new_name, const uint msec )
 
 /* */
 	new_name[0] = '\0';
-	if ( FTPConnect( FTPHost, FTPPort, FTPUser, FTPPass ) == FTP_SUCCESS ) {
-		if ( FTPListDir( FTPPath, "plt*.exe", RecvBuffer, RECVBUF_SIZE ) == FTP_SUCCESS ) {
+	if ( !FTPConnect( FTPHost, FTPPort, FTPUser, FTPPass ) ) {
+		if ( !FTPListDir( FTPPath, "plt*.exe", RecvBuffer, RECVBUF_SIZE ) ) {
 		/* Here, we can access the FTP server, therefore the return should be normal at lease */
 			result = NORMAL;
 			if ( GetFileName_AB(DISKB, 0, new_name) < 0 ) {
@@ -1323,10 +1294,10 @@ static int DownloadFirmware( const char *target_name )
 	char result = ERROR;
 
 /* First, check the target_name is not null */
-	if ( target_name != NULL && strlen(target_name) ) {
+	if ( target_name && strlen(target_name) ) {
 		if ( GetFileNo_AB(DISKB) )
 			OS7_DeleteAllFile(DISKB);
-		if ( FTPRetrFile( FTPPath, target_name, target_name, DISKB ) == FTP_SUCCESS )
+		if ( !FTPRetrFile( FTPPath, target_name, target_name, DISKB ) )
 			result = NORMAL;
 	}
 /* Just close the connection */
@@ -1344,7 +1315,7 @@ static int DownloadFirmware( const char *target_name )
 static int ReadFileFTPInfo( const FILE_DATA far *fileptr )
 {
 /* */
-	if ( fileptr != NULL ) {
+	if ( fileptr ) {
 		GetFileStr( fileptr, "REMOTE_FTP_HOST", "127.0.0.1", FTPHost, sizeof(FTPHost) );
 		GetFileStr( fileptr, "REMOTE_FTP_PORT", "21", FTPUser, sizeof(FTPUser) );
 		FTPPort = atoi(FTPUser);
@@ -1377,7 +1348,7 @@ static int ReadFileBlockZero( const FILE_DATA far *fileptr, BYTE far *dest, size
 /* */
 	memset(dest, 0xff, EEPROM_SET_TOTAL_LENGTH);
 /* */
-	if ( fileptr != NULL && !CRC16_MakeTable() ) {
+	if ( fileptr && !CRC16_MakeTable() ) {
 		CRC16_Reset();
 		dest_size = 0;
 		while ( scan_pos < fileptr->size && dest < endptr ) {
@@ -1548,7 +1519,7 @@ static ulong ConvertMaskBack( int mask )
 /* */
 	while ( mask ) {
 		*_result |= _mask;
-		if ( (_mask >>= 1) == 0 ) {
+		if ( !(_mask >>= 1) ) {
 			_mask = 0x80;
 			_result++;
 		}
@@ -1652,7 +1623,7 @@ static char far *EditNetConfig( char far *dest )
  *
  * @return int
  */
-static int SwitchAgentCommand( const char *comm )
+static int SwitchAgentCommand( const char **comm )
 {
 	int i;
 /* */
@@ -1669,12 +1640,12 @@ static int SwitchAgentCommand( const char *comm )
 #undef X
 
 /* Trim the input string from left */
-	for ( ; isspace(*comm) && *comm; comm++ );
+	for ( ; isspace(**comm) && **comm; *comm++ );
 /* Switch the function by input command */
 	for ( i = 0; i < AGENT_COMMAND_COUNT; i++ ) {
-		if ( !strncmp(comm, agent_comm[i], comm_len[i]) ) {
+		if ( !strncmp(*comm, agent_comm[i], comm_len[i]) ) {
 		/* */
-			for ( comm += comm_len[i]; isspace(*comm) && *comm; comm++ );
+			for ( *comm += comm_len[i]; isspace(**comm) && **comm; *comm++ );
 		/* */
 			break;
 		}
@@ -1683,6 +1654,26 @@ static int SwitchAgentCommand( const char *comm )
 	return i;
 }
 
+/**
+ * @brief
+ *
+ * @return int
+ */
+static int ExecAgent( void )
+{
+/* */
+	if ( !AgentFlag ) {
+	/* */
+		if ( UploadFileData( DISK_RAM, GetFileInfoByName_AB(DISKA, AGENT_EXE_FILE_NAME) ) )
+			return ERROR;
+	/* Execute the remote agent */
+		LOOP_TRANSMIT_COMMAND( "runr" );
+	/* */
+		AgentFlag = 1;
+	}
+
+	return NORMAL;
+}
 
 /**
  * @brief

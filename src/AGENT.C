@@ -31,7 +31,7 @@ static char RecvBuffer[RECVBUF_SIZE];
 static int   InitBroadcastNetwork( void );
 static int   RecvBlockZeroData( const uint );
 static char *RecvCommand( const uint );
-static int   SwitchCommand( const char * );
+static int   SwitchCommand( const char ** );
 static int   BroadcastResp( char *, const uint   );
 static int   EnrichBlockZero( void );
 static int   EnrichSurveyResp( void );
@@ -47,8 +47,9 @@ static int   OverrideFactory_CValue( void );
  */
 void main( void )
 {
-	int   ret = 0;
+	int   ret;
 	char *comm;
+
 /* */
 	InitLib();
 	Init5DigitLed();
@@ -64,17 +65,20 @@ void main( void )
 		Delay2(2000);
 		return;
 	}
-/* */
-	if ( (comm = RecvCommand( 250 )) ) {
+/* Main loop */
+	do {
+	/* */
+		comm = RecvCommand( 250 );
 	/* */
 		memset(BlockZero, 0xff, EEPROM_SET_TOTAL_LENGTH);
 	/* */
-		switch ( SwitchCommand( comm ) ) {
+		switch ( SwitchCommand( &comm ) ) {
 		case AGENT_COMMAND_WBLOCK0:
 		/* Send a byte to notify the master that here is ready for receiving data */
 			sendto(SockSend, RecvBuffer, 1, MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
 		/* */
-			while ( RecvBlockZeroData( 250 ) != NORMAL )
+			ret = 0;
+			while ( RecvBlockZeroData( 250 ) )
 				if ( ++ret >= NETWORK_OPERATION_RETRY )
 					goto err_return;
 		/* */
@@ -102,33 +106,40 @@ void main( void )
 		case AGENT_COMMAND_DHCP:
 			break;
 		case AGENT_COMMAND_QUIT:
+			comm = NULL;
 			break;
 		default:
 		/* Unknown command from master */
 			goto err_return;
 		}
-	}
-	else {
-		goto err_return;
-	}
+	/* */
+		SHOW_GOOD_5DIGITLED();
+		Delay2(2000);
+		continue;
 
-	SHOW_GOOD_5DIGITLED();
-	Delay2(2000);
+	err_return:
+	/* If go into error condition, there will an "Error" reps. And show the 'ERROR' on the 7-seg led */
+		strcat(RecvBuffer, "\rError\n");
+		BroadcastResp( RecvBuffer, 250 );
+		SHOW_ERROR_5DIGITLED();
+		Delay2(2000);
 
-normal_return:
+	} while( comm );
+
+end_proc:
+/* */
+	strcat(RecvBuffer, "\rBye\n");
+	BroadcastResp( RecvBuffer, 250 );
+	ShowAll5DigitLedSeg(0x00, ShowData[0x0e], 0x15, ShowData[0x0d] | 0x80, 0x00);
 /* Close the sockets */
 	closesocket(SockRecv);
 	closesocket(SockSend);
 /* Terminate the network interface */
 	Nterm();
-	return;
-err_return:
-/* If go into error condition, there will an "Error" reps. And show the 'ERROR' on the 7-seg led */
-	strcat(RecvBuffer, "\rError\n");
-	BroadcastResp( RecvBuffer, 250 );
-	SHOW_ERROR_5DIGITLED();
 	Delay2(2000);
-	goto normal_return;
+
+	return;
+
 }
 
 /**
@@ -208,8 +219,7 @@ static int RecvBlockZeroData( const uint msec )
 	memset(bufptr, 0, RECVBUF_SIZE);
 	do {
 	/* Show the "-L-" message on the 7-seg led */
-		SHOW_2DASH_5DIGITLED( 0 );
-		Show5DigitLedSeg(3, 0x0e);
+		SHOW_2DASH_5DIGITLED( 0, 0x0e );
 	/* Receiving the command from the master & show the "-O-" message */
 		if ( (ret = recvfrom(SockRecv, (char *)bufptr, remain, 0, (struct sockaddr *)&_addr, &fromlen)) <= 0 ) {
 			Show5DigitLed(3, 0x00);
@@ -254,8 +264,7 @@ static char *RecvCommand( const uint msec )
 	memset(bufptr, 0, RECVBUF_SIZE);
 	do {
 	/* Show the "-L-" message on the 7-seg led */
-		SHOW_2DASH_5DIGITLED( 0 );
-		Show5DigitLedSeg(3, 0x0e);
+		SHOW_2DASH_5DIGITLED( 0, 0x0e );
 		Delay2(msec);
 	/* Receiving the command from the master & show the "-O-" message */
 		if ( (ret = recvfrom(SockRecv, bufptr, remain, 0, (struct sockaddr *)&_addr, &fromlen)) <= 0 ) {
@@ -283,7 +292,7 @@ static char *RecvCommand( const uint msec )
  *
  * @return int
  */
-static int SwitchCommand( const char *comm )
+static int SwitchCommand( const char **comm )
 {
 	int i;
 /***/
@@ -300,12 +309,12 @@ static int SwitchCommand( const char *comm )
 #undef X
 
 /* Trim the input string from left */
-	for ( ; isspace(*comm) && *comm; comm++ );
+	for ( ; isspace(**comm) && **comm; *comm++ );
 /* Switch the function by input command */
 	for ( i = 0; i < AGENT_COMMAND_COUNT; i++ ) {
-		if ( !strncmp(comm, agent_comm[i], comm_len[i]) ) {
+		if ( !strncmp(*comm, agent_comm[i], comm_len[i]) ) {
 		/* */
-			for ( comm += comm_len[i]; isspace(*comm) && *comm; comm++ );
+			for ( *comm += comm_len[i]; isspace(**comm) && **comm; *comm++ );
 		/* */
 			break;
 		}

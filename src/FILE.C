@@ -28,7 +28,7 @@ ulong FileSeek( const FILE_DATA far *fileptr, const char mark, const uint order,
 	char far *c_ptr;
 
 /* */
-	if ( fileptr != NULL ) {
+	if ( fileptr ) {
 		c_ptr = (char far *)AddFarPtrLong(fileptr->addr, start);
 		while ( start++ < (fileptr->size - 1) ) {
 			if ( *c_ptr == mark && _order++ == order )
@@ -57,7 +57,7 @@ char *GetFileStr( const FILE_DATA far *fileptr, const char *key, const char *def
 	char  buf[32]  = { 0 };
 
 /* */
-	if ( fileptr == NULL )
+	if ( !fileptr )
 		goto def_return;
 /* */
 	memset(dest, 0, dest_size);
