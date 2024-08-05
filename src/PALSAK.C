@@ -27,8 +27,6 @@ static volatile int SockRecv = -1;
 static volatile int SockSend = -1;
 /* Global address info, expecially for transmitting command */
 static struct sockaddr_in TransmitAddr;
-/* Command buffer */
-static char CommBuffer[COMMBUF_SIZE];
 /* Input buffer */
 static char RecvBuffer[RECVBUF_SIZE];
 /* Output buffer */
@@ -36,7 +34,11 @@ static char PreBuffer[PREBUF_SIZE];
 /* Workflow flag */
 static WORD WorkflowFlag = 0;
 /* */
-static uchar AgentFlag = 0;
+static struct agent_flag {
+	uchar is_exec : 1;
+	uchar dhcp    : 1;
+	uchar dummy   : 6;
+} AgentFlag;
 /* */
 static char  FTPHost[24] = { 0 };
 static uint  FTPPort     = 21;
@@ -81,6 +83,7 @@ static int   ConnectTCP( const char *, uint );
 
 static int  SwitchAgentCommand( const char ** );
 static int  ExecAgent( void );
+static int  SwitchRemoteDHCP( const uint );
 static void FatalError( const int );
 static int  ResetProgram( void );
 
@@ -109,6 +112,7 @@ void main( void )
 /* */
 	InitButtonService();
 	START_BUTTONS_SERVICE();
+	memset(&AgentFlag, 0, sizeof(AgentFlag));
 /* Wait until the network connection is on */
 	SwitchWorkflow( 50 );
 
@@ -243,8 +247,19 @@ void main( void )
 		ForceFlushSocket( SockRecv );
 	}
 /* */
-	if ( AgentFlag && AgentCommand( "quit", 2000 ) == ERROR ) {
-		AgentFlag = 0;
+	if ( WorkflowFlag & STRATEGY_SET_DHCP ) {
+		if ( ExecAgent() )
+			goto err_return;
+		if ( AgentCommand( "dhcp", 2000 ) == ERROR )
+			goto err_return;
+		if ( SwitchRemoteDHCP( 50 ) == ERROR )
+			goto err_return;
+	/* */
+		ForceFlushSocket( SockRecv );
+	}
+/* */
+	if ( AgentFlag.is_exec && AgentCommand( "quit", 2000 ) == ERROR ) {
+		AgentFlag.is_exec = 0;
 		goto err_return;
 	}
 	else {
@@ -357,8 +372,8 @@ static int InitControlSocket( const char *dotted_ip )
 	TransmitAddr.sin_port = htons(dotted_ip ? CONTROL_BIND_PORT : LISTEN_PORT);
 	if ( bind(SockRecv, (struct sockaddr *)&TransmitAddr, sizeof(struct sockaddr)) < 0 )
 		return ERROR;
-/* Set the timeout of receiving socket to 0.25 sec. */
-	SOCKET_RXTOUT(SockRecv, 250);
+/* Set the timeout of receiving socket to 0.001 sec. */
+	SOCKET_RXTOUT(SockRecv, 1);
 
 /* Finally, really set the transmitting address info */
 	TransmitAddr.sin_family = AF_INET;
@@ -443,8 +458,7 @@ static void SwitchWorkflow( const uint msec )
 	/* Detect the button condition for switching work flow */
 		if ( GetInitButtonPressCount() ) {
 		/* */
-			flow_num++;
-			flow_num %= WORKFLOW_COUNT;
+			flow_num = ++flow_num % WORKFLOW_COUNT;
 		/* */
 			Show5DigitLed(3, flow_num / 10);
 			Show5DigitLed(4, flow_num % 10);
@@ -532,13 +546,19 @@ static int SwitchDHCPorStatic( const uint msec )
  */
 static int TransmitCommand( const char *comm )
 {
+	char comm_buf[COMMBUF_SIZE];
+
 /* Show the '-S-' message on the 7-seg led */
 	SHOW_2DASH_5DIGITLED( 0, ShowData[0x05] );
 /* Appending the '\r' to the input command */
-	sprintf(CommBuffer, "%s\r", comm);
+	sprintf(comm_buf, "%s\r", comm);
+/* Flush the receiving buffer from client, just in case */
+	while ( recvfrom(SockRecv, RecvBuffer, RECVBUF_SIZE, 0, NULL, NULL) > 0 );
+
 /* Transmitting the command to others */
-	if ( TransmitDataRaw( CommBuffer, strlen(CommBuffer) ) )
+	if ( TransmitDataRaw( comm_buf, strlen(comm_buf) ) )
 		return ERROR;
+
 /* Show the '-L-' message on the 7-seg led */
 	Show5DigitLedSeg(3, 0x0e);
 	Delay2(250);
@@ -560,22 +580,17 @@ static int TransmitDataRaw( const char *data, int data_length )
 	int   ret;
 	uchar trycount = 0;
 
-	struct sockaddr_in _addr;
-	int fromlen = sizeof(struct sockaddr);
-
-/* Flush the receiving buffer from client, just in case */
-	while ( SOCKET_HASDATA(SockRecv) )
-		recvfrom(SockRecv, RecvBuffer, RECVBUF_SIZE, 0, (struct sockaddr *)&_addr, &fromlen);
 /* Sending the data bytes by command line method */
 	if ( sendto(SockSend, (char *)data, data_length, MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr)) <= 0 )
 		FatalError(2000);
-
 /* Flush the input buffer */
 	memset(RecvBuffer, 0, RECVBUF_SIZE);
-/* Receiving the response from the palert */
-	while ( (ret = recvfrom(SockRecv, RecvBuffer, RECVBUF_SIZE, 0, (struct sockaddr *)&_addr, &fromlen)) <= 0 ) {
+/* Receiving the response from the other side */
+	while ( (ret = recvfrom(SockRecv, RecvBuffer, RECVBUF_SIZE, 0, NULL, NULL)) <= 0 ) {
 		if ( ++trycount >= NETWORK_OPERATION_RETRY )
 			return ERROR;
+	/* */
+		Delay2(250);
 	}
 	RecvBuffer[ret] = '\0';
 
@@ -589,17 +604,11 @@ static int TransmitDataRaw( const char *data, int data_length )
  */
 static void ForceFlushSocket( int sock )
 {
-	int   fromlen = sizeof(struct sockaddr);
-	struct sockaddr_in _addr;
-
 /* Show 'FLUSH.' on the 7-seg led */
 	ShowAll5DigitLedSeg( ShowData[0x0f], 0x0e, 0x3e, ShowData[0x05], 0xb7 );
-/* Directly flush the receiving buffer of the sock NETWORK_OPERATION_RETRY times */
-	recvfrom(sock, RecvBuffer, RECVBUF_SIZE, MSG_OOB, (struct sockaddr *)&_addr, &fromlen);
-	recvfrom(sock, RecvBuffer, RECVBUF_SIZE, MSG_OOB, (struct sockaddr *)&_addr, &fromlen);
-	recvfrom(sock, RecvBuffer, RECVBUF_SIZE, MSG_OOB, (struct sockaddr *)&_addr, &fromlen);
-/* */
-	Delay2(2000);
+/* Directly flush the receiving buffer of the sock until it is empty */
+	while ( recvfrom(sock, RecvBuffer, RECVBUF_SIZE, 0, NULL, NULL) > 0 )
+		Delay2(250);
 
 	return;
 }
@@ -1038,6 +1047,9 @@ static int AgentCommand( const char *comm, const uint msec )
 		else if ( !strncmp(sub_comm, "cvalue", 6) )
 			ShowAll5DigitLedSeg( ShowData[0x0c], 0x05 | 0x80, 0x00, ShowData[0x0c] | 0x80, 0x00 );
 		break;
+	case AGENT_COMMAND_DHCP:
+		ShowAll5DigitLedSeg( ShowData[0x0d], 0x37, ShowData[0x0c], 0xe7, 0x00 );
+		break;
 	case AGENT_COMMAND_QUIT:
 	/* Show 'End A.' on the 7-seg led */
 		ShowAll5DigitLedSeg( ShowData[0x0e], 0x15, ShowData[0x0d], 0x00, ShowData[0x0a] | 0x80 );
@@ -1130,6 +1142,21 @@ static int AgentCommand( const char *comm, const uint msec )
 		}
 
 		break;
+	case AGENT_COMMAND_DHCP:
+	/* Extract the remote DHCP state from the raw response */
+		if ( (pos = ExtractResponse( RecvBuffer, 7 )) == NULL )
+			return ERROR;
+		if ( !strncmp(pos, "enable", 6) ) {
+			ShowAll5DigitLedSeg( ShowData[0x0d] | 0x80, 0x00, ShowData[0x0e], 0x15 | 0x80, 0x00 );
+			AgentFlag.dhcp = 1;
+		}
+		else if ( !strncmp(pos, "disable", 7) ) {
+			ShowAll5DigitLedSeg( ShowData[0x0d] | 0x80, 0x00, ShowData[0x0d], 0x04, ShowData[0x05] | 0x80 );
+			AgentFlag.dhcp = 0;
+		}
+		else {
+			return ERROR;
+		}
 	case AGENT_COMMAND_CORRECT:
 	case AGENT_COMMAND_QUIT:
 	/* */
@@ -1651,6 +1678,7 @@ static char far *EditNetConfig( char far *dest )
 /**
  * @brief
  *
+ * @param comm
  * @return int
  */
 static int SwitchAgentCommand( const char **comm )
@@ -1692,17 +1720,53 @@ static int SwitchAgentCommand( const char **comm )
 static int ExecAgent( void )
 {
 /* */
-	if ( !AgentFlag ) {
+	if ( !AgentFlag.is_exec ) {
 	/* */
 		if ( UploadFileData( DISK_RAM, GetFileInfoByName_AB(DISKA, AGENT_EXE_FILE_NAME) ) )
 			return ERROR;
 	/* Execute the remote agent */
 		LOOP_TRANSMIT_COMMAND( "runr" );
 	/* */
-		AgentFlag = 1;
+		AgentFlag.is_exec = 1;
 	}
 
 	return NORMAL;
+}
+
+/**
+ * @brief
+ *
+ * @param msec
+ * @return int
+ */
+static int SwitchRemoteDHCP( const uint msec )
+{
+	uchar _dhcp = AgentFlag.dhcp;
+
+	if ( _dhcp )
+		ShowAll5DigitLedSeg( ShowData[0x0d] | 0x80, ShowData[0x11], ShowData[0x0e], 0x15 | 0x80, 0x00 );
+	else
+		ShowAll5DigitLedSeg( ShowData[0x0d] | 0x80, ShowData[0x11], ShowData[0x0d], 0x04, ShowData[0x05] | 0x80 );
+/* */
+	BUTTONS_LASTCOUNT_RESET();
+	while ( !GetCtsButtonPressCount() ) {
+	/* Detect the button condition for switching work flow */
+		if ( GetInitButtonPressCount() ) {
+		/* Show */
+			if ( (_dhcp = !_dhcp) != 0 )
+				ShowAll5DigitLedSeg( ShowData[0x0d] | 0x80, ShowData[0x11], ShowData[0x0e], 0x15 | 0x80, 0x00 );
+			else
+				ShowAll5DigitLedSeg( ShowData[0x0d] | 0x80, ShowData[0x11], ShowData[0x0d], 0x04, ShowData[0x05] | 0x80 );
+		}
+	/* */
+		Delay2(msec);
+	}
+
+	if ( _dhcp == AgentFlag.dhcp )
+		return NORMAL;
+
+/* */
+	return AgentCommand( _dhcp ? "dhcp enable" : "dhcp disable", 2000 );
 }
 
 /**

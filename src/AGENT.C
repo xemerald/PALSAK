@@ -40,6 +40,7 @@ static int   CheckConsistency_Serial( void );
 static int   CheckConsistency_CValue( void );
 static int   OverrideFactory_Serial( void );
 static int   OverrideFactory_CValue( void );
+static int   ChangeDHCP( const int );
 
 /**
  * @brief
@@ -76,7 +77,6 @@ void main( void )
 		case AGENT_COMMAND_WBLOCK0:
 		/* Send msg. to notify the master that here is ready for receiving data */
 			BroadcastResp( RecvBuffer, 250 );
-			//sendto(SockSend, RecvBuffer, 1, MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
 		/* */
 			ret = 0;
 			while ( RecvBlockZeroData( 250 ) )
@@ -96,6 +96,7 @@ void main( void )
 		/* */
 			if ( EnrichBlockZero() )
 				goto err_return;
+		/* */
 			if ( !strncmp(comm, "serial", 6) )
 				OverrideFactory_Serial();
 			else if ( !strncmp(comm, "cvalue", 6) )
@@ -108,10 +109,20 @@ void main( void )
 		/* */
 			break;
 		case AGENT_COMMAND_DHCP:
+		/* */
+			if ( EnrichBlockZero() )
+				goto err_return;
+		/* */
+			if ( !strncmp(comm, "enable", 6) )
+				ChangeDHCP( 1 );
+			else if ( !strncmp(comm, "disable", 7) )
+				ChangeDHCP( 0 );
+		/* Send a msg to notify the master */
+			strcat(RecvBuffer, BlockZero[EEPROM_OPMODE_ADDR + 1] & OPMODE_BITS_MODE_DHCP ? "\r=enable\n" : "\r=disable\n");
+			BroadcastResp( RecvBuffer, 250 );
 			break;
 		case AGENT_COMMAND_QUIT:
 			goto end_proc;
-			break;
 		default:
 		/* Unknown command from master */
 			goto err_return;
@@ -133,7 +144,7 @@ err_return:
 end_proc:
 /* */
 	ShowAll5DigitLedSeg(0x00, ShowData[0x0e], 0x15, ShowData[0x0d] | 0x80, 0x00);
-/* Close the sockets */
+/* Close the sockets, and it will send some bytes */
 	closesocket(SockRecv);
 	closesocket(SockSend);
 /* Terminate the network interface */
@@ -510,6 +521,38 @@ static int OverrideFactory_CValue( void )
 /* */
 	EE_WriteEnable();
 	if ( EE_MultiWrite(1, EEPROM_CVALUE_ADDR, EEPROM_CVALUE_LENGTH, (char *)&BlockZero[EEPROM_CVALUE_ADDR]) ) {
+		EE_WriteProtect();
+		return ERROR;
+	}
+	EE_WriteProtect();
+
+	return NORMAL;
+}
+
+/**
+ * @brief
+ *
+ * @return int
+ */
+static int ChangeDHCP( const int state )
+{
+	WORD *l_opmode = (WORD *)&BlockZero[EEPROM_OPMODE_ADDR];
+
+/*
+ * 'cause the value stored within EEPROM in Big-Endian and the program is under Little-Endian.
+ * Here, we need a swap for the words first then continue the operation.
+ */
+	SWAP_WORD_ASM( *l_opmode );
+/* */
+	if ( state )
+		*l_opmode |= OPMODE_BITS_MODE_DHCP;
+	else
+		*l_opmode &= ~OPMODE_BITS_MODE_DHCP;
+/* After the operaion, swap the word back */
+	SWAP_WORD_ASM( *l_opmode );
+/* */
+	EE_WriteEnable();
+	if ( EE_MultiWrite(0, EEPROM_OPMODE_ADDR, EEPROM_OPMODE_LENGTH, (char *)l_opmode) ) {
 		EE_WriteProtect();
 		return ERROR;
 	}
