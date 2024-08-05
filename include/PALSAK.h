@@ -114,7 +114,8 @@ typedef enum {
 #define STRATEGY_CHK_CON     0x0020
 #define STRATEGY_CRT_SER     0x0040
 #define STRATEGY_CRT_CVL     0x0080
-#define STRATEGY_CHK_CN      0x0100
+#define STRATEGY_SET_DHCP    0x0100
+#define STRATEGY_CHK_CN      0x0200
 #define STRATEGY_UPD_FW      0x8000
 
 /**
@@ -127,9 +128,10 @@ typedef enum {
 	X(WORKFLOW_2    , STRATEGY_CHK_MAC | STRATEGY_GET_NET | STRATEGY_WRT_BL0 | STRATEGY_CHK_CON                   ) \
 	X(WORKFLOW_3    , STRATEGY_CHK_MAC | STRATEGY_GET_NET | STRATEGY_WRT_BL0 | STRATEGY_CHK_CON | STRATEGY_UPL_FW ) \
 	X(WORKFLOW_4    , STRATEGY_CHK_CN                                                                             ) \
-	X(WORKFLOW_5    , STRATEGY_CHK_MAC | STRATEGY_SET_NET                                                         ) \
+	X(WORKFLOW_5    , STRATEGY_SET_NET | STRATEGY_SET_DHCP                                                        ) \
 	X(WORKFLOW_6    , STRATEGY_CRT_SER | STRATEGY_CRT_CVL                                                         ) \
-	X(WORKFLOW_COUNT, 0                                                                                           )
+	X(WORKFLOW_7    , STRATEGY_SET_DHCP                                                                           ) \
+	X(WORKFLOW_COUNT, 0x0000                                                                                      )
 
 #define X(a, b) a,
 typedef enum {
