@@ -112,22 +112,24 @@ typedef enum {
 #define STRATEGY_SET_NET     0x0008
 #define STRATEGY_WRT_BL0     0x0010
 #define STRATEGY_CHK_CON     0x0020
-#define STRATEGY_CHK_CN      0x0040
-#define STRATEGY_UPD_FW      0x0080
+#define STRATEGY_CRT_SER     0x0040
+#define STRATEGY_CRT_CVL     0x0080
+#define STRATEGY_CHK_CN      0x0100
+#define STRATEGY_UPD_FW      0x8000
 
 /**
  * @brief Workflow combaination
  *
  */
 #define WORKFLOWS_TABLE \
-	X(WORKFLOW_0    , STRATEGY_UPD_FW                                                          ) \
-	X(WORKFLOW_1    , STRATEGY_CHK_MAC | STRATEGY_GET_NET                                      ) \
-	X(WORKFLOW_2    , STRATEGY_CHK_MAC | STRATEGY_GET_NET | STRATEGY_WRT_BL0 | STRATEGY_CHK_CON) \
-	X(WORKFLOW_3    , STRATEGY_CHK_MAC | STRATEGY_GET_NET | STRATEGY_WRT_BL0 | STRATEGY_UPL_FW ) \
-	X(WORKFLOW_4    , STRATEGY_CHK_CN                                                          ) \
-	X(WORKFLOW_5    , STRATEGY_CHK_MAC | STRATEGY_SET_NET                                      ) \
-	X(WORKFLOW_6    , STRATEGY_CHK_MAC | STRATEGY_GET_NET | STRATEGY_CHK_CON                   ) \
-	X(WORKFLOW_COUNT, 0                                                                        )
+	X(WORKFLOW_0    , STRATEGY_UPD_FW                                                                             ) \
+	X(WORKFLOW_1    , STRATEGY_CHK_MAC | STRATEGY_GET_NET                                                         ) \
+	X(WORKFLOW_2    , STRATEGY_CHK_MAC | STRATEGY_GET_NET | STRATEGY_WRT_BL0 | STRATEGY_CHK_CON                   ) \
+	X(WORKFLOW_3    , STRATEGY_CHK_MAC | STRATEGY_GET_NET | STRATEGY_WRT_BL0 | STRATEGY_CHK_CON | STRATEGY_UPL_FW ) \
+	X(WORKFLOW_4    , STRATEGY_CHK_CN                                                                             ) \
+	X(WORKFLOW_5    , STRATEGY_CHK_MAC | STRATEGY_SET_NET                                                         ) \
+	X(WORKFLOW_6    , STRATEGY_CHK_MAC | STRATEGY_GET_NET | STRATEGY_CRT_SER | STRATEGY_CRT_CVL                   ) \
+	X(WORKFLOW_COUNT, 0                                                                                           )
 
 #define X(a, b) a,
 typedef enum {
