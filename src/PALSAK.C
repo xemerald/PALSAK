@@ -225,9 +225,31 @@ void main( void )
 		ForceFlushSocket( SockRecv );
 	}
 /* */
-	if ( AgentFlag && AgentCommand( "quit", 1000 ) == ERROR ) {
+	if ( WorkflowFlag & STRATEGY_CRT_SER ) {
+		if ( ExecAgent() )
+			goto err_return;
+		if ( AgentCommand( "correct serial", 2000 ) == ERROR )
+			goto err_return;
+	/* */
+		ForceFlushSocket( SockRecv );
+	}
+/* */
+	if ( WorkflowFlag & STRATEGY_CRT_CVL ) {
+		if ( ExecAgent() )
+			goto err_return;
+		if ( AgentCommand( "correct cvalue", 2000 ) == ERROR )
+			goto err_return;
+	/* */
+		ForceFlushSocket( SockRecv );
+	}
+/* */
+	if ( AgentFlag && AgentCommand( "quit", 2000 ) == ERROR ) {
 		AgentFlag = 0;
 		goto err_return;
+	}
+	else {
+	/* */
+		ForceFlushSocket( SockRecv );
 	}
 
 /* If it shows the MAC flag, just get the MAC and show it */
@@ -567,15 +589,15 @@ static int TransmitDataRaw( const char *data, int data_length )
  */
 static void ForceFlushSocket( int sock )
 {
-	uchar i;
 	int   fromlen = sizeof(struct sockaddr);
 	struct sockaddr_in _addr;
 
 /* Show 'FLUSH.' on the 7-seg led */
 	ShowAll5DigitLedSeg( ShowData[0x0f], 0x0e, 0x3e, ShowData[0x05], 0xb7 );
-/* Flush the receiving buffer of the sock */
-	for ( i = 0; i < NETWORK_OPERATION_RETRY; i++ )
-		while ( recvfrom(sock, RecvBuffer, RECVBUF_SIZE, MSG_OOB, (struct sockaddr *)&_addr, &fromlen) > 0 );
+/* Directly flush the receiving buffer of the sock NETWORK_OPERATION_RETRY times */
+	recvfrom(sock, RecvBuffer, RECVBUF_SIZE, MSG_OOB, (struct sockaddr *)&_addr, &fromlen);
+	recvfrom(sock, RecvBuffer, RECVBUF_SIZE, MSG_OOB, (struct sockaddr *)&_addr, &fromlen);
+	recvfrom(sock, RecvBuffer, RECVBUF_SIZE, MSG_OOB, (struct sockaddr *)&_addr, &fromlen);
 /* */
 	Delay2(2000);
 
@@ -1009,6 +1031,13 @@ static int AgentCommand( const char *comm, const uint msec )
 	/* Show 'C. Con.' on the 7-seg led */
 		ShowAll5DigitLedSeg( ShowData[0x0c] | 0x80, 0x00, ShowData[0x0c], 0x1d, 0x95 );
 		break;
+	case AGENT_COMMAND_CORRECT:
+	/* Show 'Cr. C.' or 'Cr. S.' on the 7-seg led */
+		if ( !strncmp(sub_comm, "serial", 6) )
+			ShowAll5DigitLedSeg( ShowData[0x0c], 0x05 | 0x80, 0x00, ShowData[0x05] | 0x80, 0x00 );
+		else if ( !strncmp(sub_comm, "cvalue", 6) )
+			ShowAll5DigitLedSeg( ShowData[0x0c], 0x05 | 0x80, 0x00, ShowData[0x0c] | 0x80, 0x00 );
+		break;
 	case AGENT_COMMAND_QUIT:
 	/* Show 'End A.' on the 7-seg led */
 		ShowAll5DigitLedSeg( ShowData[0x0e], 0x15, ShowData[0x0d], 0x00, ShowData[0x0a] | 0x80 );
@@ -1101,6 +1130,7 @@ static int AgentCommand( const char *comm, const uint msec )
 		}
 
 		break;
+	case AGENT_COMMAND_CORRECT:
 	case AGENT_COMMAND_QUIT:
 	/* */
 		Delay2(msec);

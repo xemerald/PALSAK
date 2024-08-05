@@ -74,8 +74,9 @@ void main( void )
 	/* */
 		switch ( SwitchCommand( &comm ) ) {
 		case AGENT_COMMAND_WBLOCK0:
-		/* Send a byte to notify the master that here is ready for receiving data */
-			sendto(SockSend, RecvBuffer, 1, MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
+		/* Send msg. to notify the master that here is ready for receiving data */
+			BroadcastResp( RecvBuffer, 250 );
+			//sendto(SockSend, RecvBuffer, 1, MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
 		/* */
 			ret = 0;
 			while ( RecvBlockZeroData( 250 ) )
@@ -87,7 +88,7 @@ void main( void )
 			break;
 		case AGENT_COMMAND_CHECKCON:
 		/* */
-			if ( EnrichSurveyResp() )
+			if ( EnrichBlockZero() || EnrichSurveyResp() )
 				goto err_return;
 			BroadcastResp( RecvBuffer, 250 );
 			break;
@@ -101,12 +102,15 @@ void main( void )
 				OverrideFactory_CValue();
 			else
 				goto err_return;
+		/* Send a msg to notify the master */
+			strcat(RecvBuffer, "\rSuccess\n");
+			BroadcastResp( RecvBuffer, 250 );
 		/* */
 			break;
 		case AGENT_COMMAND_DHCP:
 			break;
 		case AGENT_COMMAND_QUIT:
-			comm = NULL;
+			goto end_proc;
 			break;
 		default:
 		/* Unknown command from master */
@@ -117,26 +121,24 @@ void main( void )
 		Delay2(2000);
 		continue;
 
-	err_return:
+err_return:
 	/* If go into error condition, there will an "Error" reps. And show the 'ERROR' on the 7-seg led */
 		strcat(RecvBuffer, "\rError\n");
 		BroadcastResp( RecvBuffer, 250 );
 		SHOW_ERROR_5DIGITLED();
 		Delay2(2000);
 
-	} while( comm );
+	} while( 1 );
 
 end_proc:
 /* */
-	strcat(RecvBuffer, "\rBye\n");
-	BroadcastResp( RecvBuffer, 250 );
 	ShowAll5DigitLedSeg(0x00, ShowData[0x0e], 0x15, ShowData[0x0d] | 0x80, 0x00);
 /* Close the sockets */
 	closesocket(SockRecv);
 	closesocket(SockSend);
 /* Terminate the network interface */
 	Nterm();
-	Delay2(2000);
+	Delay2(1000);
 
 	return;
 
