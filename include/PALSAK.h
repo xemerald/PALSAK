@@ -128,7 +128,7 @@ typedef enum {
 	X(WORKFLOW_3    , STRATEGY_CHK_MAC | STRATEGY_GET_NET | STRATEGY_WRT_BL0 | STRATEGY_CHK_CON | STRATEGY_UPL_FW ) \
 	X(WORKFLOW_4    , STRATEGY_CHK_CN                                                                             ) \
 	X(WORKFLOW_5    , STRATEGY_CHK_MAC | STRATEGY_SET_NET                                                         ) \
-	X(WORKFLOW_6    , STRATEGY_CHK_MAC | STRATEGY_GET_NET | STRATEGY_CRT_SER | STRATEGY_CRT_CVL                   ) \
+	X(WORKFLOW_6    , STRATEGY_CRT_SER | STRATEGY_CRT_CVL                                                         ) \
 	X(WORKFLOW_COUNT, 0                                                                                           )
 
 #define X(a, b) a,
