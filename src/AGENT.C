@@ -311,12 +311,12 @@ static int SwitchCommand( const char **comm )
 #undef X
 
 /* Trim the input string from left */
-	for ( ; isspace(**comm) && **comm; *comm++ );
+	for ( ; isspace(**comm) && **comm; (*comm)++ );
 /* Switch the function by input command */
 	for ( i = 0; i < AGENT_COMMAND_COUNT; i++ ) {
 		if ( !strncmp(*comm, agent_comm[i], comm_len[i]) ) {
 		/* */
-			for ( *comm += comm_len[i]; isspace(**comm) && **comm; *comm++ );
+			for ( *comm += comm_len[i]; isspace(**comm) && **comm; (*comm)++ );
 		/* */
 			break;
 		}
