@@ -62,8 +62,7 @@ void main( void )
 	Delay2(5);
 /* Initialization for network interface library */
 	if ( InitBroadcastNetwork() < 0 ) {
-		SHOW_ERROR_5DIGITLED();
-		Delay2(2000);
+		SHOW_ERROR_5DIGITLED( 2000 );
 		return;
 	}
 /* Main loop */
@@ -128,28 +127,25 @@ void main( void )
 			goto err_return;
 		}
 	/* */
-		SHOW_GOOD_5DIGITLED();
-		Delay2(2000);
+		SHOW_GOOD_5DIGITLED( 2000 );
 		continue;
 
 err_return:
 	/* If go into error condition, there will an "Error" reps. And show the 'ERROR' on the 7-seg led */
 		strcat(RecvBuffer, "\rError\n");
 		BroadcastResp( RecvBuffer, 250 );
-		SHOW_ERROR_5DIGITLED();
-		Delay2(2000);
+		SHOW_ERROR_5DIGITLED( 2000 );
 
 	} while( 1 );
 
 end_proc:
-/* */
-	ShowAll5DigitLedSeg(0x00, ShowData[0x0e], 0x15, ShowData[0x0d] | 0x80, 0x00);
 /* Close the sockets, and it will send some bytes */
 	closesocket(SockRecv);
 	closesocket(SockSend);
 /* Terminate the network interface */
 	Nterm();
-	Delay2(1000);
+/* */
+	ShowAll5DigitLedSeg(0x00, ShowData[0x0e], 0x15, ShowData[0x0d] | 0x80, 0x00, 1000 );
 
 	return;
 
@@ -163,7 +159,6 @@ end_proc:
 static int InitBroadcastNetwork( void )
 {
 	char optval = 1;
-	struct sockaddr_in _addr;
 
 /* Close the previous sockets for following process */
 	closesocket(SockSend);
@@ -174,38 +169,35 @@ static int InitBroadcastNetwork( void )
 /* External variables for broadcast setting: Setup for accepting broadcast packet */
 	bAcceptBroadcast = 1;
 
-/* Create the sending socket */
-	if ( (SockSend = socket(PF_INET, SOCK_DGRAM, 0)) < 0 )
+	if (
+	/* Create the sending socket */
+		(SockSend = socket(PF_INET, SOCK_DGRAM, 0)) < 0 ||
+	/* Set the socket to reuse the address */
+		setsockopt(SockSend, SOL_SOCKET, SO_DONTROUTE, &optval, sizeof(optval)) < 0 ||
+	/* Set the broadcast ability */
+		setsockopt(SockSend, SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval)) < 0 ||
+	/* Create the receiving socket */
+		(SockRecv = socket(PF_INET, SOCK_DGRAM, 0)) < 0 ||
+	/* Set the socket to reuse the address */
+		setsockopt(SockRecv, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0
+	) {
 		return ERROR;
-/* Set the socket to reuse the address */
-	if ( setsockopt(SockSend, SOL_SOCKET, SO_DONTROUTE, &optval, sizeof(optval)) < 0 )
-		return ERROR;
-/* Set the broadcast ability */
-	if ( setsockopt(SockSend, SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval)) < 0 )
-		return ERROR;
+	}
 
-/* Create the receiving socket */
-	if ( (SockRecv = socket(PF_INET, SOCK_DGRAM, 0)) < 0 )
-		return ERROR;
-/* Set the socket to reuse the address */
-	if ( setsockopt(SockRecv, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0 )
-		return ERROR;
 /* Bind the receiving socket to the port number 54321 */
-	memset(&_addr, 0, sizeof(struct sockaddr));
-	_addr.sin_family = AF_INET;
-	_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	_addr.sin_port = htons(CONTROL_PORT);
-	if ( bind(SockRecv, (struct sockaddr *)&_addr, sizeof(struct sockaddr)) < 0 )
+	memset(&TransmitAddr, 0, sizeof(struct sockaddr));
+	TransmitAddr.sin_family = AF_INET;
+	TransmitAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	TransmitAddr.sin_port = htons(CONTROL_PORT);
+	if ( bind(SockRecv, (struct sockaddr *)&TransmitAddr, sizeof(struct sockaddr)) < 0 )
 		return ERROR;
-/* Set the timeout of receiving socket to 0.25 sec. */
-	SOCKET_RXTOUT(SockRecv, 250);
+/* Set the timeout of receiving socket to 0.05 sec. */
+	SOCKET_RXTOUT(SockRecv, 50);
 
 /* Set the transmitting address info */
-	memset(&_addr, 0, sizeof(struct sockaddr));
-	_addr.sin_family = AF_INET;
-	_addr.sin_addr.s_addr = htonl(INADDR_BROADCAST);
-	_addr.sin_port = htons(LISTEN_PORT);
-	TransmitAddr = _addr;
+	TransmitAddr.sin_family = AF_INET;
+	TransmitAddr.sin_addr.s_addr = htonl(INADDR_BROADCAST);
+	TransmitAddr.sin_port = htons(LISTEN_PORT);
 
 	return NORMAL;
 }
@@ -219,10 +211,8 @@ static int InitBroadcastNetwork( void )
 static int RecvBlockZeroData( const uint msec )
 {
 	int   ret = 0;
-	int   fromlen = sizeof(struct sockaddr);
 	int   remain = EEPROM_SET_TOTAL_LENGTH + 2;  /* Add another two bytes for CRC16 */
 	BYTE *bufptr = (BYTE *)RecvBuffer;
-	struct sockaddr_in _addr;
 
 /* */
 	if ( CRC16_MakeTable() )
@@ -232,9 +222,9 @@ static int RecvBlockZeroData( const uint msec )
 	memset(bufptr, 0, RECVBUF_SIZE);
 	do {
 	/* Show the "-L-" message on the 7-seg led */
-		SHOW_2DASH_5DIGITLED( 0, 0x0e );
+		SHOW_2DASH_5DIGITLED( 0, 0x0e, 0 );
 	/* Receiving the command from the master & show the "-O-" message */
-		if ( (ret = recvfrom(SockRecv, (char *)bufptr, remain, 0, (struct sockaddr *)&_addr, &fromlen)) <= 0 ) {
+		if ( (ret = recvfrom(SockRecv, (char *)bufptr, remain, 0, NULL, NULL)) <= 0 ) {
 			Show5DigitLed(3, 0x00);
 			Delay2(msec);
 		}
@@ -267,20 +257,17 @@ static int RecvBlockZeroData( const uint msec )
 static char *RecvCommand( const uint msec )
 {
 	int   ret = 0;
-	int   fromlen = sizeof(struct sockaddr);
 	int   remain = RECVBUF_SIZE - 1;
 	char *result = NULL;
 	char *bufptr = RecvBuffer;
-	struct sockaddr_in _addr;
 
 /* Flush the input buffer */
 	memset(bufptr, 0, RECVBUF_SIZE);
 	do {
 	/* Show the "-L-" message on the 7-seg led */
-		SHOW_2DASH_5DIGITLED( 0, 0x0e );
-		Delay2(msec);
+		SHOW_2DASH_5DIGITLED( 0, 0x0e, msec );
 	/* Receiving the command from the master & show the "-O-" message */
-		if ( (ret = recvfrom(SockRecv, bufptr, remain, 0, (struct sockaddr *)&_addr, &fromlen)) <= 0 ) {
+		if ( (ret = recvfrom(SockRecv, bufptr, remain, 0, NULL, NULL)) <= 0 ) {
 			Show5DigitLed(3, 0x00);
 			Delay2(msec);
 		}

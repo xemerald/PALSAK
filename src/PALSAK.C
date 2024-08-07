@@ -131,8 +131,7 @@ void main( void )
 		if ( CheckFirmwareVer( PreBuffer, 2000 ) == ERROR || (strlen(PreBuffer) && DownloadFirmware( PreBuffer ) == ERROR) )
 			goto err_return;
 	/* Show the 'Good' on the 7-seg led */
-		SHOW_GOOD_5DIGITLED();
-		Delay2(1000);
+		SHOW_GOOD_5DIGITLED( 1000 );
 		goto normal_return;
 	}
 
@@ -162,21 +161,18 @@ void main( void )
  */
 	if ( CheckPalertDisk( CHECK, 1000 ) == ERROR ) {
 	/* Show the ERROR result on the 7-seg led */
-		SHOW_ERROR_5DIGITLED();
-		Delay2(1000);
+		SHOW_ERROR_5DIGITLED( 1000 );
 	/* If the resetting result is still error, just give it up */
 		if ( CheckPalertDisk( RESET, 1000 ) == ERROR )
 			goto err_return;
 	/* Show the 'Good' on the 7-seg led */
-		SHOW_GOOD_5DIGITLED();
-		Delay2(1000);
+		SHOW_GOOD_5DIGITLED( 1000 );
 	/* Since we reset the disk, we should upload the firmware again */
 		WorkflowFlag |= STRATEGY_UPL_FW;
 	}
 	else {
 	/* Show the 'Good' on the 7-seg led */
-		SHOW_GOOD_5DIGITLED();
-		Delay2(1000);
+		SHOW_GOOD_5DIGITLED( 1000 );
 	}
 /*
  * Fetching the network setting of palert & save it.
@@ -185,8 +181,7 @@ void main( void )
 		if ( GetPalertNetworkConfig( 1000 ) == ERROR )
 			goto err_return;
 	/* Show the 'Good' on the 7-seg led */
-		SHOW_GOOD_5DIGITLED();
-		Delay2(1000);
+		SHOW_GOOD_5DIGITLED( 1000 );
 	}
 /*
  * Otherwise, after resetting disk, we need to upload firmware.
@@ -198,8 +193,7 @@ void main( void )
 		if ( UploadPalertFirmware( 2000 ) == ERROR )
 			goto err_return;
 	/* Show the Good result on the 7-seg led */
-		SHOW_GOOD_5DIGITLED();
-		Delay2(1000);
+		SHOW_GOOD_5DIGITLED( 1000 );
 	}
 /* */
 	if ( WorkflowFlag & STRATEGY_SET_NET ) {
@@ -207,8 +201,7 @@ void main( void )
 		if ( SetPalertNetwork( 400 ) == ERROR )
 			goto err_return;
 	/* Show the Good result on the 7-seg led */
-		SHOW_GOOD_5DIGITLED();
-		Delay2(1000);
+		SHOW_GOOD_5DIGITLED( 1000 );
 	}
 /* */
 	if ( WorkflowFlag & STRATEGY_WRT_BL0 ) {
@@ -285,8 +278,7 @@ normal_return:
 	return;
 err_return:
 /* Show the 'ERROR' on the 7-seg led */
-	SHOW_ERROR_5DIGITLED();
-	Delay2(2000);
+	SHOW_ERROR_5DIGITLED( 2000 );
 	goto normal_return;
 }
 
@@ -353,13 +345,8 @@ static int InitControlSocket( const char *dotted_ip )
 	/* Set the socket to reuse the address */
 		setsockopt(SockSend, SOL_SOCKET, SO_DONTROUTE, &optval, sizeof(optval)) < 0 ||
 	/* Set the broadcast ability */
-		setsockopt(SockSend, SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval)) < 0
-	) {
-		return ERROR;
-	}
-
-/* Create the receiving socket */
-	if (
+		setsockopt(SockSend, SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval)) < 0 ||
+	/* Create the receiving socket */
 		(SockRecv = dotted_ip ? SockSend : socket(PF_INET, SOCK_DGRAM, 0)) < 0 ||
 	/* Set the socket to reuse the address */
 		setsockopt(SockRecv, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0
@@ -372,8 +359,8 @@ static int InitControlSocket( const char *dotted_ip )
 	TransmitAddr.sin_port = htons(dotted_ip ? CONTROL_BIND_PORT : LISTEN_PORT);
 	if ( bind(SockRecv, (struct sockaddr *)&TransmitAddr, sizeof(struct sockaddr)) < 0 )
 		return ERROR;
-/* Set the timeout of receiving socket to 0.001 sec. */
-	SOCKET_RXTOUT(SockRecv, 1);
+/* Set the timeout of receiving socket to 0.05 sec. */
+	SOCKET_RXTOUT(SockRecv, 50);
 
 /* Finally, really set the transmitting address info */
 	TransmitAddr.sin_family = AF_INET;
@@ -446,7 +433,7 @@ static void SwitchWorkflow( const uint msec )
 #undef X
 
 /* Show the " F.XX " message on the 7-seg led */
-	ShowAll5DigitLedSeg( 0x00, ShowData[0x0f] | 0x80, ShowData[flow_num / 10], ShowData[flow_num % 10], 0x00 );
+	ShowAll5DigitLedSeg( 0x00, ShowData[0x0f] | 0x80, ShowData[flow_num / 10], ShowData[flow_num % 10], 0x00, 0 );
 /* */
 	BUTTONS_LASTCOUNT_RESET();
 /*
@@ -484,7 +471,7 @@ static int SwitchDHCPorStatic( const uint msec )
 	uint delay_msec = msec;
 
 /* Show 'U.PLUG.' on the 7-seg led */
-	ShowAll5DigitLedSeg( 0xbe, 0x67, 0x0e, 0x3e, 0xde );
+	ShowAll5DigitLedSeg( 0xbe, 0x67, 0x0e, 0x3e, 0xde, 0 );
 /* Wait until ethernet unplug */
 	while ( bEthernetLinkOk )
 		Delay2(1);
@@ -549,7 +536,7 @@ static int TransmitCommand( const char *comm )
 	char comm_buf[COMMBUF_SIZE];
 
 /* Show the '-S-' message on the 7-seg led */
-	SHOW_2DASH_5DIGITLED( 0, ShowData[0x05] );
+	SHOW_2DASH_5DIGITLED( 0, ShowData[0x05], 0 );
 /* Appending the '\r' to the input command */
 	sprintf(comm_buf, "%s\r", comm);
 /* Flush the receiving buffer from client, just in case */
@@ -583,8 +570,6 @@ static int TransmitDataRaw( const char *data, int data_length )
 /* Sending the data bytes by command line method */
 	if ( sendto(SockSend, (char *)data, data_length, MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr)) <= 0 )
 		FatalError(2000);
-/* Flush the input buffer */
-	memset(RecvBuffer, 0, RECVBUF_SIZE);
 /* Receiving the response from the other side */
 	while ( (ret = recvfrom(SockRecv, RecvBuffer, RECVBUF_SIZE, 0, NULL, NULL)) <= 0 ) {
 		if ( ++trycount >= NETWORK_OPERATION_RETRY )
@@ -605,10 +590,12 @@ static int TransmitDataRaw( const char *data, int data_length )
 static void ForceFlushSocket( int sock )
 {
 /* Show 'FLUSH.' on the 7-seg led */
-	ShowAll5DigitLedSeg( ShowData[0x0f], 0x0e, 0x3e, ShowData[0x05], 0xb7 );
+	ShowAll5DigitLedSeg( ShowData[0x0f], 0x0e, 0x3e, ShowData[0x05], 0xb7, 0 );
 /* Directly flush the receiving buffer of the sock until it is empty */
 	while ( recvfrom(sock, RecvBuffer, RECVBUF_SIZE, 0, NULL, NULL) > 0 )
 		Delay2(250);
+/* Flush the input buffer */
+	memset(RecvBuffer, 0, RECVBUF_SIZE);
 
 	return;
 }
@@ -729,8 +716,7 @@ static int GetPalertNetworkConfig( const uint msec )
 	}
 	EE_WriteProtect();
 /* Show 'F. nEt.' on the 7-seg led */
-	ShowAll5DigitLedSeg( ShowData[0x0f] | 0x80, 0x00, 0x15, ShowData[0x0e], 0x91 );
-	Delay2(msec);
+	ShowAll5DigitLedSeg( ShowData[0x0f] | 0x80, 0x00, 0x15, ShowData[0x0e], 0x91, msec );
 
 	return NORMAL;
 }
@@ -751,7 +737,7 @@ static int SetPalertNetwork( const uint msec )
 /* Read from EEPROM block 2 where the saved network setting within */
 	if ( !EE_MultiRead(EEPROM_NETWORK_SET_BLOCK, EEPROM_NETWORK_TMP_ADDR, EEPROM_NETWORK_SET_LENGTH, PreBuffer) ) {
 	/* Show 'U.PLUG.' on the 7-seg led */
-		ShowAll5DigitLedSeg( 0xbe, 0x67, 0x0e, 0x3e, 0xde );
+		ShowAll5DigitLedSeg( 0xbe, 0x67, 0x0e, 0x3e, 0xde, 0 );
 	/* Wait until ethernet unplug */
 		while ( bEthernetLinkOk )
 			Delay2(1);
@@ -775,18 +761,19 @@ static int SetPalertNetwork( const uint msec )
 	/* Send out the IP address request command for following connection */
 		LOOP_TRANSMIT_COMMAND( "ip" );
 	/* Extract the IP address from the raw response & connect to it */
-		if ( (pos = ExtractResponse( RecvBuffer, IPV4_STRING )) == NULL )
+		if (
+			(pos = ExtractResponse( RecvBuffer, IPV4_STRING )) == NULL ||
+			InitControlSocket( pos )
+		) {
 			return ERROR;
-		if ( InitControlSocket( pos ) )
-			return ERROR;
+		}
 	/* One more carriage return to flush the broadcast record */
 		LOOP_TRANSMIT_COMMAND( "" );
 	/* */
 		sprintf(str_ptr, "ip %u.%u.%u.%u", (BYTE)PreBuffer[0], (BYTE)PreBuffer[1], (BYTE)PreBuffer[2], (BYTE)PreBuffer[3]);
 		LOOP_TRANSMIT_COMMAND( str_ptr );
 	/* Show 'S. iP.' on the 7-seg led */
-		ShowAll5DigitLedSeg( ShowData[0x05] | 0x80, 0x00, 0x04, 0xe7, 0x00 );
-		Delay2(msec);
+		ShowAll5DigitLedSeg( ShowData[0x05] | 0x80, 0x00, 0x04, 0xe7, 0x00, msec );
 	/* Send out the IP address request command for rechecking */
 		LOOP_TRANSMIT_COMMAND( "ip" );
 	/* Extract the IP address from the raw response */
@@ -801,8 +788,7 @@ static int SetPalertNetwork( const uint msec )
 		sprintf(str_ptr, "mask %u.%u.%u.%u", (BYTE)PreBuffer[4], (BYTE)PreBuffer[5], (BYTE)PreBuffer[6], (BYTE)PreBuffer[7]);
 		LOOP_TRANSMIT_COMMAND( str_ptr );
 	/* Show 'S.MASk.' on the 7-seg led */
-		ShowAll5DigitLedSeg( ShowData[0x05] | 0x80, 0x76, ShowData[0x0a], ShowData[0x05], 0xb7 );
-		Delay2(msec);
+		ShowAll5DigitLedSeg( ShowData[0x05] | 0x80, 0x76, ShowData[0x0a], ShowData[0x05], 0xb7, msec );
 	/* Send out the Mask request command for rechecking */
 		LOOP_TRANSMIT_COMMAND( "mask" );
 	/* Extract the Mask from the raw response */
@@ -817,8 +803,7 @@ static int SetPalertNetwork( const uint msec )
 		sprintf(str_ptr, "gateway %u.%u.%u.%u", (BYTE)PreBuffer[8], (BYTE)PreBuffer[9], (BYTE)PreBuffer[10], (BYTE)PreBuffer[11]);
 		LOOP_TRANSMIT_COMMAND( str_ptr );
 	/* Show 'S.GAtE.' on the 7-seg led */
-		ShowAll5DigitLedSeg( ShowData[0x05] | 0x80, 0x5e, ShowData[0x0a], 0x11, ShowData[0x0e] | 0x80 );
-		Delay2(msec);
+		ShowAll5DigitLedSeg( ShowData[0x05] | 0x80, 0x5e, ShowData[0x0a], 0x11, ShowData[0x0e] | 0x80, msec );
 	/* Send out the Gateway address request command */
 		LOOP_TRANSMIT_COMMAND( "gateway" );
 	/* Extract the Gateway address from the raw response */
@@ -857,59 +842,54 @@ static int CheckServerConnect( const uint msec )
 	}
 
 /* Show 'ntP.' on the 7-seg led */
-	ShowAll5DigitLedSeg( 0x00, 0x15, 0x11, 0xe7, 0x00 );
+	ShowAll5DigitLedSeg( 0x00, 0x15, 0x11, 0xe7, 0x00, msec );
 /* Start the system time service */
 	SysTimeInit( TAIWAN_TIME_ZONE );
 	SYSTIME_SERVICE_START();
-	Delay2(msec);
 /* NTP server connection test */
 	sprintf(RecvBuffer, "%u.%u.%u.%u", (BYTE)PreBuffer[41], (BYTE)PreBuffer[43], (BYTE)PreBuffer[45], (BYTE)PreBuffer[47]);
 	if ( NTPConnect( RecvBuffer, DEFAULT_NTP_UDP_PORT ) != SYSTIME_SUCCESS || (NTPProcess() != SYSTIME_SUCCESS && NTPProcess() != SYSTIME_SUCCESS) ) {
-		SHOW_ERROR_5DIGITLED();
+		SHOW_ERROR_5DIGITLED( msec );
 	}
 	else {
 	/* If we can get the offset from ntp server, then write it into HW(RTC) timer */
-		SHOW_GOOD_5DIGITLED();
+		SHOW_GOOD_5DIGITLED( msec );
 		SysTimeToHWTime( TAIWAN_TIME_ZONE );
 	}
 /* This one second delay is for waiting RTC write-in */
 	NTPClose();
-	Delay2(msec + 1000);
+	Delay2(1000);
 /* Close the system time service & ntp connection */
 	SYSTIME_SERVICE_STOP();
 
 /* Show 'tCP.0.' on the 7-seg led */
-	ShowAll5DigitLedSeg( 0x00, 0x11, ShowData[0x0c], 0xe7, ShowData[0x00] | 0x80 );
-	Delay2(msec);
+	ShowAll5DigitLedSeg( 0x00, 0x11, ShowData[0x0c], 0xe7, ShowData[0x00] | 0x80, msec );
 /* TCP server 0 connection test */
 	sprintf(RecvBuffer, "%u.%u.%u.%u", (BYTE)PreBuffer[28], (BYTE)PreBuffer[29], (BYTE)PreBuffer[30], (BYTE)PreBuffer[31] );
 	if ( (sock = ConnectTCP( RecvBuffer, 502 )) == ERROR )
-		SHOW_ERROR_5DIGITLED();
+		SHOW_ERROR_5DIGITLED( msec );
 	else
-		SHOW_GOOD_5DIGITLED();
-	Delay2(msec);
+		SHOW_GOOD_5DIGITLED( msec );
 	closesocket(sock);
 /* Show 'tCP.1.' on the 7-seg led */
-	ShowAll5DigitLedSeg( 0x00, 0x11, ShowData[0x0c], 0xe7, ShowData[0x01] | 0x80 );
+	ShowAll5DigitLedSeg( 0x00, 0x11, ShowData[0x0c], 0xe7, ShowData[0x01] | 0x80, msec );
 	Delay2(msec);
 /* TCP server 1 connection test */
 	sprintf(RecvBuffer, "%u.%u.%u.%u", (BYTE)PreBuffer[32], (BYTE)PreBuffer[33], (BYTE)PreBuffer[34], (BYTE)PreBuffer[35] );
 	if ( (sock = ConnectTCP( RecvBuffer, 502 )) == ERROR )
-		SHOW_ERROR_5DIGITLED();
+		SHOW_ERROR_5DIGITLED( msec );
 	else
-		SHOW_GOOD_5DIGITLED();
-	Delay2(msec);
+		SHOW_GOOD_5DIGITLED( msec );
 	closesocket(sock);
 
 /* Show 'FtP.' on the 7-seg led */
-	ShowAll5DigitLedSeg( 0x00, ShowData[0x0f], 0x11, 0xe7, 0x00 );
+	ShowAll5DigitLedSeg( 0x00, ShowData[0x0f], 0x11, 0xe7, 0x00, msec );
 	Delay2(msec);
 /* FW(FTP) server connection test by using the checking firmware function */
 	if ( CheckFirmwareVer( PreBuffer, 2000 ) )
-		SHOW_ERROR_5DIGITLED();
+		SHOW_ERROR_5DIGITLED( msec );
 	else
-		SHOW_GOOD_5DIGITLED();
-	Delay2(msec);
+		SHOW_GOOD_5DIGITLED( msec );
 	FTPClose();
 
 	return NORMAL;
@@ -955,10 +935,8 @@ static int CheckPalertDisk( const int mode, const uint msec )
 		return ERROR;
 /* Parsing the size with integer */
 	sscanf(pos, "%hu", (uchar *)&PreBuffer[2]);
-/* Show it on the 7-seg led */
-	ShowAll5DigitLedSeg( ShowData[PreBuffer[0]], 0x01, ShowData[PreBuffer[1]], 0x01, ShowData[PreBuffer[2]] );
-/* Display for "msec" msec. */
-	Delay2(msec);
+/* Show it on the 7-seg led, display for "msec" msec. */
+	ShowAll5DigitLedSeg( ShowData[PreBuffer[0]], 0x01, ShowData[PreBuffer[1]], 0x01, ShowData[PreBuffer[2]], msec );
 
 /* Check the size */
 	if ( (uchar)PreBuffer[0] != DISKA_SIZE || (uchar)PreBuffer[1] != DISKB_SIZE || (uchar)PreBuffer[2] != RESERVE_SIZE )
@@ -979,32 +957,27 @@ static int CheckPalertDisk( const int mode, const uint msec )
 static int UploadPalertFirmware( const uint msec )
 {
 /* Show 'FLASH.' on the 7-seg led */
-	ShowAll5DigitLedSeg( ShowData[0x0f], 0x0e, ShowData[0x0a], ShowData[0x05], 0xb7 );
-	Delay2(msec);
+	ShowAll5DigitLedSeg( ShowData[0x0f], 0x0e, ShowData[0x0a], ShowData[0x05], 0xb7, msec );
 /* Flushing the disk a */
 	LOOP_TRANSMIT_COMMAND( "del /y" );
 /* Show 'del. A' on the 7-seg led */
-	ShowAll5DigitLedSeg( ShowData[0x0d], ShowData[0x0e], 0x8e, 0x00, ShowData[0x0a] );
-	Delay2(msec);
+	ShowAll5DigitLedSeg( ShowData[0x0d], ShowData[0x0e], 0x8e, 0x00, ShowData[0x0a], msec );
 /* Flushing the disk b */
 	LOOP_TRANSMIT_COMMAND( "delb /y" );
 /* Show 'del. b' on the 7-seg led */
-	ShowAll5DigitLedSeg( ShowData[0x0d], ShowData[0x0e], 0x8e, 0x00, ShowData[0x0b] );
-	Delay2(msec);
+	ShowAll5DigitLedSeg( ShowData[0x0d], ShowData[0x0e], 0x8e, 0x00, ShowData[0x0b], msec );
 
 /* Start to upload the firmware */
 	if ( UploadFileData( DISKA, GetFileInfoByNo_AB(DISKB, 0) ) )
 		return ERROR;
 /* Show 'Fin. F' on the 7-seg led */
-	ShowAll5DigitLedSeg( ShowData[0x0f], 0x04, 0x95, 0x00, ShowData[0x0f] );
-	Delay2(msec);
+	ShowAll5DigitLedSeg( ShowData[0x0f], 0x04, 0x95, 0x00, ShowData[0x0f], msec );
 
 /* Start to upload the auto batch file */
 	if ( UploadFileData( DISKA, GetFileInfoByName_AB(DISKA, AUTOEXEC_FILE_NAME) ) )
 		return ERROR;
 /* Show 'Fin. b' on the 7-seg led */
-	ShowAll5DigitLedSeg( ShowData[0x0f], 0x04, 0x95, 0x00, ShowData[0x0b] );
-	Delay2(msec);
+	ShowAll5DigitLedSeg( ShowData[0x0f], 0x04, 0x95, 0x00, ShowData[0x0b], msec );
 
 	return NORMAL;
 }
@@ -1031,35 +1004,33 @@ static int AgentCommand( const char *comm, const uint msec )
 	switch ( agent_comm ) {
 	case AGENT_COMMAND_WBLOCK0:
 	/* Show 'F. b.0. ' on the 7-seg led */
-		ShowAll5DigitLedSeg( ShowData[0x0f] | 0x80, 0x00, ShowData[0x0b] | 0x80, ShowData[0x00] | 0x80, 0x00 );
+		ShowAll5DigitLedSeg( ShowData[0x0f] | 0x80, 0x00, ShowData[0x0b] | 0x80, ShowData[0x00] | 0x80, 0x00, msec );
 	/* */
 		if ( ReadFileBlockZero( GetFileInfoByName_AB(DISKA, BLOCK_0_FILE_NAME), (BYTE far *)PreBuffer, PREBUF_SIZE ) )
 			return ERROR;
 		break;
 	case AGENT_COMMAND_CHECKCON:
 	/* Show 'C. Con.' on the 7-seg led */
-		ShowAll5DigitLedSeg( ShowData[0x0c] | 0x80, 0x00, ShowData[0x0c], 0x1d, 0x95 );
+		ShowAll5DigitLedSeg( ShowData[0x0c] | 0x80, 0x00, ShowData[0x0c], 0x1d, 0x95, msec );
 		break;
 	case AGENT_COMMAND_CORRECT:
 	/* Show 'Cr. C.' or 'Cr. S.' on the 7-seg led */
 		if ( !strncmp(sub_comm, "serial", 6) )
-			ShowAll5DigitLedSeg( ShowData[0x0c], 0x05 | 0x80, 0x00, ShowData[0x05] | 0x80, 0x00 );
+			ShowAll5DigitLedSeg( ShowData[0x0c], 0x05 | 0x80, 0x00, ShowData[0x05] | 0x80, 0x00, msec );
 		else if ( !strncmp(sub_comm, "cvalue", 6) )
-			ShowAll5DigitLedSeg( ShowData[0x0c], 0x05 | 0x80, 0x00, ShowData[0x0c] | 0x80, 0x00 );
+			ShowAll5DigitLedSeg( ShowData[0x0c], 0x05 | 0x80, 0x00, ShowData[0x0c] | 0x80, 0x00, msec );
 		break;
 	case AGENT_COMMAND_DHCP:
-		ShowAll5DigitLedSeg( ShowData[0x0d], 0x37, ShowData[0x0c], 0xe7, 0x00 );
+		ShowAll5DigitLedSeg( ShowData[0x0d], 0x37, ShowData[0x0c], 0xe7, 0x00, msec );
 		break;
 	case AGENT_COMMAND_QUIT:
 	/* Show 'End A.' on the 7-seg led */
-		ShowAll5DigitLedSeg( ShowData[0x0e], 0x15, ShowData[0x0d], 0x00, ShowData[0x0a] | 0x80 );
+		ShowAll5DigitLedSeg( ShowData[0x0e], 0x15, ShowData[0x0d], 0x00, ShowData[0x0a] | 0x80, msec );
 		break;
 	default:
 	/* Unknown command */
 		return ERROR;
 	}
-/* */
-	Delay2(msec);
 
 /* Sending the command to remote agent */
 	LOOP_TRANSMIT_COMMAND( comm );
@@ -1067,7 +1038,7 @@ static int AgentCommand( const char *comm, const uint msec )
 	switch ( agent_comm ) {
 	case AGENT_COMMAND_WBLOCK0:
 	/* Show 'S. b.0. ' on the 7-seg led */
-		ShowAll5DigitLedSeg( ShowData[0x05] | 0x80, 0x00, ShowData[0x0b] | 0x80, ShowData[0x00] | 0x80, 0x00 );
+		ShowAll5DigitLedSeg( ShowData[0x05] | 0x80, 0x00, ShowData[0x0b] | 0x80, ShowData[0x00] | 0x80, 0x00, msec );
 	/* Send the Block zero data to the agent */
 		do {
 			if ( !TransmitDataRaw( PreBuffer, EEPROM_SET_TOTAL_LENGTH + 2 ) ) {
@@ -1086,22 +1057,18 @@ static int AgentCommand( const char *comm, const uint msec )
 		/* Something wrong, goto error return */
 			return ERROR;
 		} while ( 1 );
-	/* */
-		Delay2(msec);
 		break;
 	case AGENT_COMMAND_CHECKCON:
 	/* Extract the remote palert serial from the raw response */
 		if ( (pos = ExtractResponse( RecvBuffer, PSERIAL_STRING )) == NULL )
 			return ERROR;
 	/* Show the serial on the 7-seg led */
-		ShowAll5DigitLedSeg( ShowData[pos[0] - '0'], ShowData[pos[1] - '0'], ShowData[pos[2] - '0'], ShowData[pos[3] - '0'], ShowData[pos[4] - '0'] | 0x80 );
-		Delay2(msec);
+		ShowAll5DigitLedSeg( ShowData[pos[0] - '0'], ShowData[pos[1] - '0'], ShowData[pos[2] - '0'], ShowData[pos[3] - '0'], ShowData[pos[4] - '0'] | 0x80, msec );
 	/* Compare the applied serial & factory serial */
 		sscanf(pos, "%5s:%5s", data, _data);
 		if ( strncmp(data, _data, 5) ) {
 		/* Show 'S.diff.' on the 7-seg led */
-			ShowAll5DigitLedSeg( ShowData[0x05] | 0x80, ShowData[0x0d], 0x04, ShowData[0x0f], ShowData[0x0f] | 0x80 );
-			Delay2(msec);
+			ShowAll5DigitLedSeg( ShowData[0x05] | 0x80, ShowData[0x0d], 0x04, ShowData[0x0f], ShowData[0x0f] | 0x80, msec );
 		}
 	/* Move the pointer to the next data */
 		pos += PSERIAL_STRING + 1;
@@ -1113,8 +1080,7 @@ static int AgentCommand( const char *comm, const uint msec )
 			sscanf(pos, "%17s:%17s", data, _data);
 			if ( strncmp(data, _data, 17) ) {
 			/* Show 'CX.dif.' on the 7-seg led */
-				ShowAll5DigitLedSeg( ShowData[0x0c], ShowData[i == 0 ? 0x01 : 0x00] | 0x80, ShowData[0x0d], 0x04, ShowData[0x0f] | 0x80 );
-				Delay2(msec);
+				ShowAll5DigitLedSeg( ShowData[0x0c], ShowData[i == 0 ? 0x01 : 0x00] | 0x80, ShowData[0x0d], 0x04, ShowData[0x0f] | 0x80, msec );
 			/* Parse the value to bytes & rearrange for display */
 				sscanf(
 					pos, "%2hx-%2hx-%2hx-%2hx-%2hx-%2hx:%2hx-%2hx-%2hx-%2hx-%2hx-%2hx",
@@ -1147,16 +1113,17 @@ static int AgentCommand( const char *comm, const uint msec )
 		if ( (pos = ExtractResponse( RecvBuffer, 7 )) == NULL )
 			return ERROR;
 		if ( !strncmp(pos, "enable", 6) ) {
-			ShowAll5DigitLedSeg( ShowData[0x0d] | 0x80, 0x00, ShowData[0x0e], 0x15 | 0x80, 0x00 );
+			ShowAll5DigitLedSeg( ShowData[0x0d] | 0x80, 0x00, ShowData[0x0e], 0x15 | 0x80, 0x00, msec );
 			AgentFlag.dhcp = 1;
 		}
 		else if ( !strncmp(pos, "disable", 7) ) {
-			ShowAll5DigitLedSeg( ShowData[0x0d] | 0x80, 0x00, ShowData[0x0d], 0x04, ShowData[0x05] | 0x80 );
+			ShowAll5DigitLedSeg( ShowData[0x0d] | 0x80, 0x00, ShowData[0x0d], 0x04, ShowData[0x05] | 0x80, msec );
 			AgentFlag.dhcp = 0;
 		}
 		else {
 			return ERROR;
 		}
+		break;
 	case AGENT_COMMAND_CORRECT:
 	case AGENT_COMMAND_QUIT:
 	/* */
@@ -1188,12 +1155,14 @@ static int UploadFileData( const int disk, const FILE_DATA far *fileptr )
 	ulong addrindex = 0;
 	BYTE far *out_ptr = (BYTE far *)PreBuffer;
 
-/* Checking this opened file is file or not, and check the size of this file */
-	if ( fileptr == NULL || fileptr->mark != 0x7188 || fileptr->size <= 0 )
+	if (
+	/* Checking this opened file is file or not, and check the size of this file */
+		fileptr == NULL || fileptr->mark != 0x7188 || fileptr->size <= 0 ||
+	/* Initialize the CRC16 table for following CRC16 computation */
+		CRC16_MakeTable()
+	) {
 		return ERROR;
-/* Initialize the CRC16 table for following CRC16 computation */
-	if ( CRC16_MakeTable() )
-		return ERROR;
+	}
 /* Send out the uploading request command */
 	LOOP_TRANSMIT_COMMAND( disk == DISKA ? "load" : disk == DISKB ? "loadb" : "loadr" );
 /* Start to show the progress and waiting for 150 ms */
@@ -1275,7 +1244,7 @@ static int UploadFileData( const int disk, const FILE_DATA far *fileptr )
 	/* Show the progress on the 7-seg led */
 		ShowProg5DigitsLed( block + 1, blockall );
 	}
-/* For finishing, last for 100 ms */
+/* For finishing, last for 150 ms */
 	Delay2(150);
 /* Sending the carrier return */
 	LOOP_TRANSMIT_COMMAND( "" );
@@ -1297,37 +1266,33 @@ static int CheckFirmwareVer( char *new_name, const uint msec )
 
 /* */
 	new_name[0] = '\0';
-	if ( !FTPConnect( FTPHost, FTPPort, FTPUser, FTPPass ) ) {
-		if ( !FTPListDir( FTPPath, "plt*.exe", RecvBuffer, RECVBUF_SIZE ) ) {
-		/* Here, we can access the FTP server, therefore the return should be normal at lease */
-			result = NORMAL;
-			if ( GetFileName_AB(DISKB, 0, new_name) < 0 ) {
-			/* Show '00000' on the 7-seg led */
-				ShowAll5DigitLedSeg( ShowData[0x00], ShowData[0x00], ShowData[0x00], ShowData[0x00], ShowData[0x00] );
-			}
-			else {
-			/* Show existed version number on the 7-seg led */
-				ShowAll5DigitLedSeg( ShowData[new_name[3] - '0'], ShowData[new_name[4] - '0'], ShowData[new_name[5] - '0'], ShowData[new_name[6] - '0'], ShowData[new_name[7] - '0'] );
-			}
-			Delay2(msec);
-		/* Scan the list to find the firmware newer than we have */
-			for ( rname = strtok(RecvBuffer, "\r\n"); rname; rname = strtok(NULL, "\r\n") ) {
-				if ( !strlen(new_name) || strncmp(rname, new_name, 8) > 0 ) {
-				/* We got a candidate, turn the return to larger than zero */
-					memcpy(new_name, rname, 12);
-					result = 1;
-				}
+	if (
+		!FTPConnect( FTPHost, FTPPort, FTPUser, FTPPass ) &&
+		!FTPListDir( FTPPath, "plt*.exe", RecvBuffer, RECVBUF_SIZE )
+	) {
+	/* Here, we can access the FTP server, therefore the return should be normal at lease */
+		result = NORMAL;
+		if ( GetFileName_AB(DISKB, 0, new_name) < 0 )
+		/* Show '00000' on the 7-seg led */
+			ShowAll5DigitLedSeg( ShowData[0x00], ShowData[0x00], ShowData[0x00], ShowData[0x00], ShowData[0x00], msec );
+		else
+		/* Show existed version number on the 7-seg led */
+			ShowAll5DigitLedSeg( ShowData[new_name[3] - '0'], ShowData[new_name[4] - '0'], ShowData[new_name[5] - '0'], ShowData[new_name[6] - '0'], ShowData[new_name[7] - '0'], msec );
+	/* Scan the list to find the firmware newer than we have */
+		for ( rname = strtok(RecvBuffer, "\r\n"); rname; rname = strtok(NULL, "\r\n") ) {
+			if ( !strlen(new_name) || strncmp(rname, new_name, 8) > 0 ) {
+			/* We got a candidate, turn the return to larger than zero */
+				memcpy(new_name, rname, 12);
+				result = 1;
 			}
 		}
 	}
 /* If we got a candidate, then show it on the 7-seg led */
 	if ( result > 0 ) {
 		new_name[12] = '\0';
-		ShowAll5DigitLedSeg( 0x00, 0x11, 0x9d, 0x00, 0x00 );
-		Delay2(msec);
+		ShowAll5DigitLedSeg( 0x00, 0x11, 0x9d, 0x00, 0x00, msec );
 	/* Show new version number on the 7-seg led */
-		ShowAll5DigitLedSeg( ShowData[new_name[3] - '0'], ShowData[new_name[4] - '0'], ShowData[new_name[5] - '0'], ShowData[new_name[6] - '0'], ShowData[new_name[7] - '0'] );
-		Delay2(msec);
+		ShowAll5DigitLedSeg( ShowData[new_name[3] - '0'], ShowData[new_name[4] - '0'], ShowData[new_name[5] - '0'], ShowData[new_name[6] - '0'], ShowData[new_name[7] - '0'], msec );
 	/* */
 		result = NORMAL;
 	}
@@ -1471,8 +1436,7 @@ static int ConnectTCP( const char *host, uint port )
 				start_time = GetTimeTicks();
 				while ( !SOCKET_ISOPEN(sock) ) {
 					if ( (GetTimeTicks() - start_time) >= TCP_CONNECT_TIMEOUT ) {
-						SHOW_TIMEOUT_5DIGITLED();
-						Delay2(500);
+						SHOW_TIMEOUT_5DIGITLED( 500 );
 						goto err_return;
 					}
 					YIELD();
@@ -1660,12 +1624,10 @@ static char far *EditNetConfig( char far *dest )
 			}
 		/* */
 			while ( !isdigit(dest[i]) ) {
-				if ( dest[i] == '\0' ) {
+				if ( dest[i] == '\0' )
 					i = j = 0;
-				}
-				else {
+				else
 					i++;
-				}
 			}
 		}
 	/* */
@@ -1744,9 +1706,9 @@ static int SwitchRemoteDHCP( const uint msec )
 	uchar _dhcp = AgentFlag.dhcp;
 
 	if ( _dhcp )
-		ShowAll5DigitLedSeg( ShowData[0x0d] | 0x80, ShowData[0x11], ShowData[0x0e], 0x15 | 0x80, 0x00 );
+		ShowAll5DigitLedSeg( ShowData[0x0d] | 0x80, ShowData[0x11], ShowData[0x0e], 0x15 | 0x80, 0x00, 0 );
 	else
-		ShowAll5DigitLedSeg( ShowData[0x0d] | 0x80, ShowData[0x11], ShowData[0x0d], 0x04, ShowData[0x05] | 0x80 );
+		ShowAll5DigitLedSeg( ShowData[0x0d] | 0x80, ShowData[0x11], ShowData[0x0d], 0x04, ShowData[0x05] | 0x80, 0 );
 /* */
 	BUTTONS_LASTCOUNT_RESET();
 	while ( !GetCtsButtonPressCount() ) {
@@ -1754,12 +1716,10 @@ static int SwitchRemoteDHCP( const uint msec )
 		if ( GetInitButtonPressCount() ) {
 		/* Show */
 			if ( (_dhcp = !_dhcp) != 0 )
-				ShowAll5DigitLedSeg( ShowData[0x0d] | 0x80, ShowData[0x11], ShowData[0x0e], 0x15 | 0x80, 0x00 );
+				ShowAll5DigitLedSeg( ShowData[0x0d] | 0x80, ShowData[0x11], ShowData[0x0e], 0x15 | 0x80, 0x00, msec );
 			else
-				ShowAll5DigitLedSeg( ShowData[0x0d] | 0x80, ShowData[0x11], ShowData[0x0d], 0x04, ShowData[0x05] | 0x80 );
+				ShowAll5DigitLedSeg( ShowData[0x0d] | 0x80, ShowData[0x11], ShowData[0x0d], 0x04, ShowData[0x05] | 0x80, msec );
 		}
-	/* */
-		Delay2(msec);
 	}
 
 	if ( _dhcp == AgentFlag.dhcp )
@@ -1777,10 +1737,9 @@ static int SwitchRemoteDHCP( const uint msec )
 static void FatalError( const int msec )
 {
 /* Show 'FAtAL.' on the 7-seg led */
-	ShowAll5DigitLedSeg( ShowData[0x0f], ShowData[0x0a], 0x11, ShowData[0x0a], 0x8e );
+	ShowAll5DigitLedSeg( ShowData[0x0f], ShowData[0x0a], 0x11, ShowData[0x0a], 0x8e, msec );
 /* Reset the network setting */
 	SetNetworkConfig( NETWORK_DEFAULT );
-	Delay2(msec);
 /* Reset the system */
 	ResetProgram();
 
