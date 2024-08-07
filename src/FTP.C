@@ -95,8 +95,7 @@ int FTPConnect( const char *host, const uint port, const char *user, const char 
 		/* Timeout condition */
 			else if ( errno == ETIMEDOUT ) {
 				if ( (GetTimeTicks() - sendtime) > timeout ) {
-					SHOW_TIMEOUT_5DIGITLED();
-					Delay2(500);
+					SHOW_TIMEOUT_5DIGITLED( 500 );
 					goto err_return;
 				}
 			}
@@ -193,8 +192,7 @@ int FTPListDir( const char *path, const char *pattern, char *buf, const int bufl
 	/* Timeout condition */
 		else if ( errno == ETIMEDOUT ) {
 			if ( (GetTimeTicks() - sendtime) > TCP_CONNECT_TIMEOUT ) {
-				SHOW_TIMEOUT_5DIGITLED();
-				Delay2(500);
+				SHOW_TIMEOUT_5DIGITLED( 500 );
 				goto err_return;
 			}
 		}
@@ -308,8 +306,7 @@ int FTPRetrFile( const char *path, const char *rfname, const char *lfname, uint 
 	/* Timeout condition */
 		else if ( errno == ETIMEDOUT ) {
 			if ( (GetTimeTicks() - sendtime) > TCP_CONNECT_TIMEOUT ) {
-				SHOW_TIMEOUT_5DIGITLED();
-				Delay2(500);
+				SHOW_TIMEOUT_5DIGITLED( 500 );
 				goto err_return;
 			}
 		}
@@ -386,8 +383,7 @@ static int ConnectTCP( const char *host, uint port )
 				start_time = GetTimeTicks();
 				while ( !SOCKET_ISOPEN(sock) ) {
 					if ( (GetTimeTicks() - start_time) >= TCP_CONNECT_TIMEOUT ) {
-						SHOW_TIMEOUT_5DIGITLED();
-						Delay2(500);
+						SHOW_TIMEOUT_5DIGITLED( 500 );
 						goto err_return;
 					}
 					YIELD();
@@ -427,9 +423,8 @@ static int ReceiveTCP( const int sock, const int timeout )
 	result = recv(sock, InternalBuffer, INTERNAL_BUF_SIZE, 0);
 	SOCKET_RXTOUT(sock, TOUT_READ);
 /* */
-	if ( result < INTERNAL_BUF_SIZE ) {
+	if ( result < INTERNAL_BUF_SIZE )
 		InternalBuffer[result < 0 ? 0 : result] = '\0';
-	}
 
 	return result;
 }
@@ -443,12 +438,9 @@ static int ParseFTPResp( void )
 {
 	int result = 0;
 
-	if ( sscanf(InternalBuffer, "%d %*s", &result) == 1 ) {
-	/* Display "XXX" on the 7-seg led */
-		ShowAll5DigitLedSeg( 0x00, ShowData[InternalBuffer[0] - '0'], ShowData[InternalBuffer[1] - '0'], ShowData[InternalBuffer[2] - '0'] | 0x80, 0x00 );
-	/* Display for 250 msec. */
-		Delay2(250);
-	}
+	if ( sscanf(InternalBuffer, "%d %*s", &result) == 1 )
+	/* Display "XXX" on the 7-seg led, last for 250 msec. */
+		ShowAll5DigitLedSeg( 0x00, ShowData[InternalBuffer[0] - '0'], ShowData[InternalBuffer[1] - '0'], ShowData[InternalBuffer[2] - '0'] | 0x80, 0x00, 250 );
 
 	return result;
 }

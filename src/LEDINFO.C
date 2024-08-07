@@ -33,14 +33,18 @@ static BYTE DisplayContent[DISPLAY_CONTENT_MAX] = { 0x00 };
  * @param data_3
  * @param data_4
  * @param data_5
+ * @param delay_msec
  */
-void ShowAll5DigitLedSeg( BYTE data_1, BYTE data_2, BYTE data_3, BYTE data_4, BYTE data_5 )
+void ShowAll5DigitLedSeg( BYTE data_1, BYTE data_2, BYTE data_3, BYTE data_4, BYTE data_5, uint delay_msec )
 {
 	Show5DigitLedSeg(1, data_1);
 	Show5DigitLedSeg(2, data_2);
 	Show5DigitLedSeg(3, data_3);
 	Show5DigitLedSeg(4, data_4);
 	Show5DigitLedSeg(5, data_5);
+/* */
+	if ( delay_msec )
+		Delay2(delay_msec);
 
 	return;
 }
