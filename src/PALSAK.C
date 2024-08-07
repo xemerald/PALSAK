@@ -1127,7 +1127,7 @@ static int AgentCommand( const char *comm )
 	case AGENT_COMMAND_CORRECT:
 	case AGENT_COMMAND_QUIT:
 	/* */
-		Delay2(2000);
+		Delay2(1000);
 		break;
 	default:
 	/* Unknown command */

@@ -36,8 +36,6 @@ static int   BroadcastResp( char * );
 static int   EnrichBlockZero( void );
 static int   EnrichSurveyResp( void );
 static int   WriteBlockZero( void );
-static int   CheckConsistency_Serial( void );
-static int   CheckConsistency_CValue( void );
 static int   OverrideFactory_Serial( void );
 static int   OverrideFactory_CValue( void );
 static int   ModifyDHCP( const int );
@@ -96,12 +94,12 @@ void main( void )
 			if ( EnrichBlockZero() )
 				goto err_return;
 		/* */
-			if ( !strncmp(comm, "serial", 6) && CheckConsistency_Serial() == 0 )
-				OverrideFactory_Serial();
-			else if ( !strncmp(comm, "cvalue", 6) && CheckConsistency_CValue() == 0 )
-				OverrideFactory_CValue();
-			else
+			if (
+				!(!strncmp(comm, "serial", 6) && !OverrideFactory_Serial()) &&
+				!(!strncmp(comm, "cvalue", 6) && !OverrideFactory_CValue())
+			) {
 				goto err_return;
+			}
 		/* Send a msg to notify the master */
 			strcat(RecvBuffer, "\rSuccess\n");
 			BroadcastResp( RecvBuffer );
@@ -112,10 +110,13 @@ void main( void )
 			if ( EnrichBlockZero() )
 				goto err_return;
 		/* */
-			if ( !strncmp(comm, "enable", 6) )
-				ModifyDHCP( 1 );
-			else if ( !strncmp(comm, "disable", 7) )
-				ModifyDHCP( 0 );
+			if (
+				*comm &&
+				!(!strncmp(comm, "enable", 6) && !ModifyDHCP( 1 )) &&
+				!(!strncmp(comm, "disable", 7) && !ModifyDHCP( 0 ))
+			) {
+				goto err_return;
+			}
 		/* Send a msg to notify the master */
 			strcat(RecvBuffer, BlockZero[EEPROM_OPMODE_ADDR + 1] & OPMODE_BITS_MODE_DHCP ? "\r=enable\n" : "\r=disable\n");
 			BroadcastResp( RecvBuffer );
@@ -441,59 +442,26 @@ static int WriteBlockZero( void )
  *
  * @return int
  */
-static int CheckConsistency_Serial( void )
+static int OverrideFactory_Serial( void )
 {
 	BYTE serial[EEPROM_SERIAL_LENGTH];
 
 /* */
 	if ( !EE_MultiRead(1, EEPROM_SERIAL_ADDR, EEPROM_SERIAL_LENGTH, (char *)serial) ) {
 	/* */
-		if ( BlockZero[EEPROM_SERIAL_ADDR] == serial[0] && BlockZero[EEPROM_SERIAL_ADDR + 1] == serial[1] )
-			return 1;
-		else
-			return 0;
-	/* */
+		if ( BlockZero[EEPROM_SERIAL_ADDR] != serial[0] || BlockZero[EEPROM_SERIAL_ADDR + 1] != serial[1] ) {
+			EE_WriteEnable();
+			if ( EE_MultiWrite(1, EEPROM_SERIAL_ADDR, EEPROM_SERIAL_LENGTH, (char *)&BlockZero[EEPROM_SERIAL_ADDR]) ) {
+				EE_WriteProtect();
+				return ERROR;
+			}
+			EE_WriteProtect();
+		}
+		return NORMAL;
 	}
-
-	return ERROR;
-}
-
-/**
- * @brief
- *
- * @return int
- */
-static int CheckConsistency_CValue( void )
-{
-	BYTE cvalue[EEPROM_CVALUE_LENGTH];
 
 /* */
-	if ( !EE_MultiRead(1, EEPROM_CVALUE_ADDR, EEPROM_CVALUE_LENGTH, (char *)cvalue) ) {
-		if ( !memcmp(&BlockZero[EEPROM_CVALUE_ADDR], cvalue, EEPROM_CVALUE_LENGTH) )
-			return 1;
-		else
-			return 0;
-	}
-
 	return ERROR;
-}
-
-/**
- * @brief
- *
- * @return int
- */
-static int OverrideFactory_Serial( void )
-{
-/* */
-	EE_WriteEnable();
-	if ( EE_MultiWrite(1, EEPROM_SERIAL_ADDR, EEPROM_SERIAL_LENGTH, (char *)&BlockZero[EEPROM_SERIAL_ADDR]) ) {
-		EE_WriteProtect();
-		return ERROR;
-	}
-	EE_WriteProtect();
-
-	return NORMAL;
 }
 
 /**
@@ -503,15 +471,24 @@ static int OverrideFactory_Serial( void )
  */
 static int OverrideFactory_CValue( void )
 {
-/* */
-	EE_WriteEnable();
-	if ( EE_MultiWrite(1, EEPROM_CVALUE_ADDR, EEPROM_CVALUE_LENGTH, (char *)&BlockZero[EEPROM_CVALUE_ADDR]) ) {
-		EE_WriteProtect();
-		return ERROR;
-	}
-	EE_WriteProtect();
+	BYTE cvalue[EEPROM_CVALUE_LENGTH];
 
-	return NORMAL;
+/* */
+	if ( !EE_MultiRead(1, EEPROM_CVALUE_ADDR, EEPROM_CVALUE_LENGTH, (char *)cvalue) ) {
+		if ( memcmp(&BlockZero[EEPROM_CVALUE_ADDR], cvalue, EEPROM_CVALUE_LENGTH) ) {
+		/* */
+			EE_WriteEnable();
+			if ( EE_MultiWrite(1, EEPROM_CVALUE_ADDR, EEPROM_CVALUE_LENGTH, (char *)&BlockZero[EEPROM_CVALUE_ADDR]) ) {
+				EE_WriteProtect();
+				return ERROR;
+			}
+			EE_WriteProtect();
+		}
+		return NORMAL;
+	}
+
+/* */
+	return ERROR;
 }
 
 /**
