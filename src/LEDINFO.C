@@ -119,7 +119,7 @@ void ShowContent5DigitsLedPage( uint page )
  * @param msec
  * @param start_pos
  */
-void ShowContent5DigitsLedRoller( uint start_pos )
+void ShowContent5DigitsLedRoller( uint start_pos, uint delay_msec )
 {
 /* From Led-1 to Led-5 */
 	Show5DigitLedSeg(1, (int)DisplayContent[start_pos++ % ContentLength]);
@@ -127,6 +127,9 @@ void ShowContent5DigitsLedRoller( uint start_pos )
 	Show5DigitLedSeg(3, (int)DisplayContent[start_pos++ % ContentLength]);
 	Show5DigitLedSeg(4, (int)DisplayContent[start_pos++ % ContentLength]);
 	Show5DigitLedSeg(5, (int)DisplayContent[start_pos   % ContentLength]);
+/* */
+	if ( delay_msec )
+		Delay2(delay_msec);
 
 	return;
 }

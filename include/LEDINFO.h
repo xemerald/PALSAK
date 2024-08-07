@@ -42,7 +42,7 @@ extern uint ContentPages;
 void  ShowAll5DigitLedSeg( BYTE, BYTE, BYTE, BYTE, BYTE, uint );
 void  ShowProg5DigitsLed( ulong, const ulong );
 void  ShowContent5DigitsLedPage( uint );
-void  ShowContent5DigitsLedRoller( uint );
+void  ShowContent5DigitsLedRoller( uint, uint );
 BYTE *SetDisplayContent( const BYTE *, uint );
 BYTE *EncodeAddrDisplayContent( const char * );
 
