@@ -29,18 +29,18 @@ static struct sockaddr_in TransmitAddr;
 static char RecvBuffer[RECVBUF_SIZE];
 /* */
 static int   InitBroadcastNetwork( void );
-static int   RecvBlockZeroData( const uint );
-static char *RecvCommand( const uint );
+static int   RecvBlockZeroData( void );
+static char *RecvCommand( void );
 static int   SwitchCommand( const char ** );
-static int   BroadcastResp( char *, const uint   );
+static int   BroadcastResp( char * );
 static int   EnrichBlockZero( void );
 static int   EnrichSurveyResp( void );
-static int   WriteDefSetting( void );
+static int   WriteBlockZero( void );
 static int   CheckConsistency_Serial( void );
 static int   CheckConsistency_CValue( void );
 static int   OverrideFactory_Serial( void );
 static int   OverrideFactory_CValue( void );
-static int   ChangeDHCP( const int );
+static int   ModifyDHCP( const int );
 
 /**
  * @brief
@@ -68,43 +68,43 @@ void main( void )
 /* Main loop */
 	do {
 	/* */
-		comm = RecvCommand( 250 );
+		comm = RecvCommand();
 	/* */
 		memset(BlockZero, 0xff, EEPROM_SET_TOTAL_LENGTH);
 	/* */
 		switch ( SwitchCommand( &comm ) ) {
 		case AGENT_COMMAND_WBLOCK0:
 		/* Send msg. to notify the master that here is ready for receiving data */
-			BroadcastResp( RecvBuffer, 250 );
+			BroadcastResp( RecvBuffer );
 		/* */
 			ret = 0;
-			while ( RecvBlockZeroData( 250 ) )
+			while ( RecvBlockZeroData() )
 				if ( ++ret >= NETWORK_OPERATION_RETRY )
 					goto err_return;
 		/* */
-			if ( EnrichBlockZero() || WriteDefSetting() )
+			if ( EnrichBlockZero() || WriteBlockZero() )
 				goto err_return;
 			break;
 		case AGENT_COMMAND_CHECKCON:
 		/* */
 			if ( EnrichBlockZero() || EnrichSurveyResp() )
 				goto err_return;
-			BroadcastResp( RecvBuffer, 250 );
+			BroadcastResp( RecvBuffer );
 			break;
 		case AGENT_COMMAND_CORRECT:
 		/* */
 			if ( EnrichBlockZero() )
 				goto err_return;
 		/* */
-			if ( !strncmp(comm, "serial", 6) )
+			if ( !strncmp(comm, "serial", 6) && CheckConsistency_Serial() == 0 )
 				OverrideFactory_Serial();
-			else if ( !strncmp(comm, "cvalue", 6) )
+			else if ( !strncmp(comm, "cvalue", 6) && CheckConsistency_CValue() == 0 )
 				OverrideFactory_CValue();
 			else
 				goto err_return;
 		/* Send a msg to notify the master */
 			strcat(RecvBuffer, "\rSuccess\n");
-			BroadcastResp( RecvBuffer, 250 );
+			BroadcastResp( RecvBuffer );
 		/* */
 			break;
 		case AGENT_COMMAND_DHCP:
@@ -113,12 +113,12 @@ void main( void )
 				goto err_return;
 		/* */
 			if ( !strncmp(comm, "enable", 6) )
-				ChangeDHCP( 1 );
+				ModifyDHCP( 1 );
 			else if ( !strncmp(comm, "disable", 7) )
-				ChangeDHCP( 0 );
+				ModifyDHCP( 0 );
 		/* Send a msg to notify the master */
 			strcat(RecvBuffer, BlockZero[EEPROM_OPMODE_ADDR + 1] & OPMODE_BITS_MODE_DHCP ? "\r=enable\n" : "\r=disable\n");
-			BroadcastResp( RecvBuffer, 250 );
+			BroadcastResp( RecvBuffer );
 			break;
 		case AGENT_COMMAND_QUIT:
 			goto end_proc;
@@ -133,7 +133,7 @@ void main( void )
 err_return:
 	/* If go into error condition, there will an "Error" reps. And show the 'ERROR' on the 7-seg led */
 		strcat(RecvBuffer, "\rError\n");
-		BroadcastResp( RecvBuffer, 250 );
+		BroadcastResp( RecvBuffer );
 		SHOW_ERROR_5DIGITLED( 2000 );
 
 	} while( 1 );
@@ -205,10 +205,9 @@ static int InitBroadcastNetwork( void )
 /**
  * @brief
  *
- * @param msec
  * @return int
  */
-static int RecvBlockZeroData( const uint msec )
+static int RecvBlockZeroData( void )
 {
 	int   ret = 0;
 	int   remain = EEPROM_SET_TOTAL_LENGTH + 2;  /* Add another two bytes for CRC16 */
@@ -226,7 +225,7 @@ static int RecvBlockZeroData( const uint msec )
 	/* Receiving the command from the master & show the "-O-" message */
 		if ( (ret = recvfrom(SockRecv, (char *)bufptr, remain, 0, NULL, NULL)) <= 0 ) {
 			Show5DigitLed(3, 0x00);
-			Delay2(msec);
+			Delay2(250);
 		}
 		else {
 			CRC16_AddDataN(bufptr, ret);
@@ -251,10 +250,9 @@ static int RecvBlockZeroData( const uint msec )
 /**
  * @brief
  *
- * @param msec
  * @return int
  */
-static char *RecvCommand( const uint msec )
+static char *RecvCommand( void )
 {
 	int   ret = 0;
 	int   remain = RECVBUF_SIZE - 1;
@@ -265,11 +263,11 @@ static char *RecvCommand( const uint msec )
 	memset(bufptr, 0, RECVBUF_SIZE);
 	do {
 	/* Show the "-L-" message on the 7-seg led */
-		SHOW_2DASH_5DIGITLED( 0, 0x0e, msec );
+		SHOW_2DASH_5DIGITLED( 0, 0x0e, 250 );
 	/* Receiving the command from the master & show the "-O-" message */
 		if ( (ret = recvfrom(SockRecv, bufptr, remain, 0, NULL, NULL)) <= 0 ) {
 			Show5DigitLed(3, 0x00);
-			Delay2(msec);
+			Delay2(250);
 		}
 		else {
 			bufptr += ret;
@@ -295,13 +293,13 @@ static char *RecvCommand( const uint msec )
 static int SwitchCommand( const char **comm )
 {
 	int i;
-/***/
+/* */
 #define X(a, b, c) b,
 	char *agent_comm[] = {
 		AGENT_COMMANDS_TABLE
 	};
 #undef X
-/***/
+/* */
 #define X(a, b, c) c,
 	int comm_len[] = {
 		AGENT_COMMANDS_TABLE
@@ -329,11 +327,11 @@ static int SwitchCommand( const char **comm )
  * @param resp
  * @return int
  */
-static int BroadcastResp( char *resp, const uint msec )
+static int BroadcastResp( char *resp )
 {
 /* Broadcasting the command to others */
 	sendto(SockSend, resp, strlen(resp), MSG_DONTROUTE, (struct sockaddr *)&TransmitAddr, sizeof(TransmitAddr));
-	Delay2(msec);
+	Delay2(250);
 
 	return NORMAL;
 }
@@ -420,7 +418,7 @@ static int EnrichSurveyResp( void )
  *
  * @return int
  */
-static int WriteDefSetting( void )
+static int WriteBlockZero( void )
 {
 	int   i;
 	BYTE *dataptr;
@@ -521,7 +519,7 @@ static int OverrideFactory_CValue( void )
  *
  * @return int
  */
-static int ChangeDHCP( const int state )
+static int ModifyDHCP( const int state )
 {
 	WORD *l_opmode = (WORD *)&BlockZero[EEPROM_OPMODE_ADDR];
 
