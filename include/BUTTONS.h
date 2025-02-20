@@ -18,11 +18,16 @@ extern "C" {
  */
 #include "./include/u7186EX/7186e.h"
 
-/* The checking result of func. */
+/* The status of pin */
 #define PIN_IS_OPEN   0
 #define PIN_IS_CLOSE  1
 
-/*
+/* The status of button */
+#define BUTTON_IS_RELEASE  0
+#define BUTTON_IS_PRESS    1
+
+/**
+ * @name External variables
  *
  */
 extern volatile uchar InitPressCount;
@@ -34,13 +39,15 @@ extern volatile uchar CtsPressLastCount;
 #define BUTTONS_LASTCOUNT_RESET() \
 		{ InitPressLastCount = InitPressCount; CtsPressLastCount = CtsPressLastCount; }
 
-/*
+/**
+ * @name
  *
  */
 void  ButtonService( void );
 void  InitButtonService( void );
 uchar GetInitButtonPressCount( void );
 uchar GetCtsButtonPressCount( void );
+uchar IsBothButtonPress( void );
 
 /* */
 #define START_BUTTONS_SERVICE() \

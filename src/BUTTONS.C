@@ -21,6 +21,8 @@ volatile uchar CtsPressLastCount;
 /* */
 static uchar InitPinStatus;
 static uchar CtsPinStatus;
+static uchar BothPressStatus;
+static uchar LastBothPressStatus;
 
 /**
  * @brief
@@ -28,21 +30,28 @@ static uchar CtsPinStatus;
  */
 void ButtonService( void )
 {
+/* When the red button is pressed, the init. pin will be closed */
 	if ( ReadInitPin() ) {
 		InitPinStatus = PIN_IS_CLOSE;
 	}
 	else if ( InitPinStatus == PIN_IS_CLOSE ) {
-		InitPressCount++;
+		InitPressCount += BothPressStatus ? 0 : 1;
 		InitPinStatus = PIN_IS_OPEN;
 	}
 
+/* When the black button is pressed, the cts. pin will be opened */
 	if ( !GetCtsStatus_1() ) {
 		CtsPinStatus = PIN_IS_OPEN;
 	}
 	else if ( CtsPinStatus == PIN_IS_OPEN ) {
-		CtsPressCount++;
+		CtsPressCount += BothPressStatus ? 0 : 1;
 		CtsPinStatus = PIN_IS_CLOSE;
 	}
+
+	if ( InitPinStatus == PIN_IS_CLOSE && CtsPinStatus == PIN_IS_OPEN )
+		BothPressStatus = BUTTON_IS_PRESS;
+	else if ( BothPressStatus && InitPinStatus == PIN_IS_OPEN && CtsPinStatus == PIN_IS_CLOSE )
+		BothPressStatus = BUTTON_IS_RELEASE;
 
 	return;
 }
@@ -53,12 +62,14 @@ void ButtonService( void )
  */
 void InitButtonService( void )
 {
-/* */
+/* The normal stated of init. pin is open */
 	InitPressCount = InitPressLastCount = 0;
 	InitPinStatus  = PIN_IS_OPEN;
-/* */
+/* The normal stated of cts. pin is close */
 	CtsPressCount = CtsPressLastCount = 0;
 	CtsPinStatus  = PIN_IS_CLOSE;
+/* */
+	LastBothPressStatus = BothPressStatus = BUTTON_IS_RELEASE;
 
 	return;
 }
@@ -111,4 +122,23 @@ uchar GetCtsButtonPressCount( void )
 	}
 
 	return result;
+}
+
+/**
+ * @brief
+ *
+ * @return uchar
+ */
+uchar IsBothButtonPress( void )
+{
+/* */
+	if ( !LastBothPressStatus && BothPressStatus ) {
+		LastBothPressStatus = BothPressStatus;
+		return BUTTON_IS_PRESS;
+	}
+	else if ( !BothPressStatus ) {
+		LastBothPressStatus = BothPressStatus;
+	}
+
+	return BUTTON_IS_RELEASE;
 }
