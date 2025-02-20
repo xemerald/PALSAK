@@ -584,7 +584,7 @@ static int TransmitDataRaw( const char *data, int data_length )
 		if ( ++trycount >= NETWORK_OPERATION_RETRY )
 			return ERROR;
 	/* */
-		Delay2(250);
+		Delay2(250 * (1 << trycount));
 	}
 	RecvBuffer[ret] = '\0';
 
