@@ -87,6 +87,7 @@ static int  SwitchRemoteDHCP( void );
 static void FatalError( void );
 static int  ResetProgram( void );
 
+/* If any button is pressed when transmit command, the whole program will reset */
 #define LOOP_TRANSMIT_COMMAND(_COMM) \
 		{ \
 			BUTTONS_LASTCOUNT_RESET(); \
@@ -758,7 +759,7 @@ static int SetPalertNetwork( void )
 				delay_msec = 0;
 			}
 		/* */
-			if ( GetInitButtonPressCount() && GetCtsButtonPressCount() ) {
+			if ( IsBothButtonPress() ) {
 				EditNetConfig( str_ptr );
 				ParseNetConfig( str_ptr, (BYTE far *)&PreBuffer[0], (BYTE far *)&PreBuffer[4], (BYTE far *)&PreBuffer[8] );
 			}
@@ -1572,9 +1573,6 @@ static char far *EditNetConfig( char far *dest )
 	/* */
 		if ( GetInitButtonPressCount() ) {
 		/* */
-			if ( GetCtsButtonPressCount() )
-				break;
-		/* */
 			dest[i]++;
 		/* Digits limitation condition */
 			if ( dest[i] > limits[limit_idx] )
@@ -1584,9 +1582,6 @@ static char far *EditNetConfig( char far *dest )
 		}
 	/* */
 		if ( GetCtsButtonPressCount() ) {
-		/* */
-			if ( GetInitButtonPressCount() )
-				break;
 		/* */
 			if ( dest[i++] >= limits[limit_idx] ) {
 				switch ( limit_idx ) {
@@ -1629,6 +1624,9 @@ static char far *EditNetConfig( char far *dest )
 					i++;
 			}
 		}
+	/* */
+		if ( IsBothButtonPress() )
+			break;
 	/* */
 		Delay2(10);
 	} while ( 1 );
@@ -1703,6 +1701,7 @@ static int SwitchRemoteDHCP( void )
 {
 	uchar _dhcp = AgentFlag.dhcp;
 
+/* Check the previous state of DHCP & display it */
 	if ( _dhcp )
 		ShowAll5DigitLedSeg( ShowData[0x0d] | 0x80, ShowData[0x11], ShowData[0x0e], 0x15 | 0x80, 0x00, 0 );
 	else
@@ -1710,9 +1709,9 @@ static int SwitchRemoteDHCP( void )
 /* */
 	BUTTONS_LASTCOUNT_RESET();
 	while ( !GetCtsButtonPressCount() ) {
-	/* Detect the button condition for switching work flow */
+	/* Detect the button condition for switching DHCP setting */
 		if ( GetInitButtonPressCount() ) {
-		/* Show */
+		/* Change the display if the setting has been changed */
 			if ( (_dhcp = !_dhcp) != 0 )
 				ShowAll5DigitLedSeg( ShowData[0x0d] | 0x80, ShowData[0x11], ShowData[0x0e], 0x15 | 0x80, 0x00, 0 );
 			else
@@ -1721,10 +1720,11 @@ static int SwitchRemoteDHCP( void )
 		Delay2(1);
 	}
 
+/* If the setting is the same as previous state, just return normal to the caller */
 	if ( _dhcp == AgentFlag.dhcp )
 		return NORMAL;
 
-/* */
+/* Or here will send the agent command to the remote agent */
 	return AgentCommand( _dhcp ? "dhcp enable" : "dhcp disable" );
 }
 
@@ -1751,7 +1751,8 @@ static void FatalError( void )
  */
 static int ResetProgram( void )
 {
-	((void (far *)(void))0xFFFF0000L)();  /* Program start address. */
+/* Program start address. */
+	((void (far *)(void))0xFFFF0000L)();
 
 	return 0;
 }

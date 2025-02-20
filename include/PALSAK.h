@@ -93,12 +93,12 @@ extern "C" {
 	X(DIGIT_LIMIT_TO_TWO   , '2') \
 	X(DIGIT_LIMIT_TO_THREE , '3') \
 	X(DIGIT_LIMIT_TO_FIVE  , '5') \
-	X(DIGIT_LIMIT_TO_NINE  , '9') \
-	X(DIGIT_LIMIT_COUNT    , '0')
+	X(DIGIT_LIMIT_TO_NINE  , '9')
 
 #define X(a, b) a,
 typedef enum {
 	DIGIT_LIMIT_TABLE
+	DIGIT_LIMIT_COUNT
 } DIGIT_LIMITS;
 #undef X
 
@@ -130,12 +130,12 @@ typedef enum {
 	X(WORKFLOW_4    , STRATEGY_CHK_CN                                                                             ) \
 	X(WORKFLOW_5    , STRATEGY_SET_NET | STRATEGY_SET_DHCP                                                        ) \
 	X(WORKFLOW_6    , STRATEGY_CRT_SER | STRATEGY_CRT_CVL                                                         ) \
-	X(WORKFLOW_7    , STRATEGY_SET_DHCP                                                                           ) \
-	X(WORKFLOW_COUNT, 0x0000                                                                                      )
+	X(WORKFLOW_7    , STRATEGY_SET_DHCP                                                                           )
 
 #define X(a, b) a,
 typedef enum {
 	WORKFLOWS_TABLE
+	WORKFLOW_COUNT
 } WORKFLOWS;
 #undef X
 
@@ -149,12 +149,12 @@ typedef enum {
 	X(AGENT_COMMAND_CHECKCON, "checkcon"  , 8) \
 	X(AGENT_COMMAND_CORRECT , "correct %s", 7) \
 	X(AGENT_COMMAND_DHCP    , "dhcp %s"   , 4) \
-	X(AGENT_COMMAND_QUIT    , "quit"      , 4) \
-	X(AGENT_COMMAND_COUNT   , "count"     , 5)
+	X(AGENT_COMMAND_QUIT    , "quit"      , 4)
 
 #define X(a, b, c) a,
 typedef enum {
 	AGENT_COMMANDS_TABLE
+	AGENT_COMMAND_COUNT
 } AGENT_COMMANDS;
 #undef X
 
