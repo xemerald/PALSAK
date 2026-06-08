@@ -347,10 +347,11 @@ static int EnrichBlockZero( void )
 	WORD  l_opmode;
 	WORD *r_opmode = (WORD *)&BlockZero[EEPROM_OPMODE_ADDR];
 
-/* Those information should always be keep, include the device serial & correction value */
+/* Those information should always be keep, include the device serial, correction value & allowed IP 0 */
 	if (
 		!EE_MultiRead(0, EEPROM_SERIAL_ADDR, EEPROM_SERIAL_LENGTH, (char *)&BlockZero[EEPROM_SERIAL_ADDR]) &&
-		!EE_MultiRead(0, EEPROM_CVALUE_ADDR, EEPROM_CVALUE_LENGTH, (char *)&BlockZero[EEPROM_CVALUE_ADDR])
+		!EE_MultiRead(0, EEPROM_CVALUE_ADDR, EEPROM_CVALUE_LENGTH, (char *)&BlockZero[EEPROM_CVALUE_ADDR]) &&
+		!EE_MultiRead(0, EEPROM_ALLOWIP_0_ADDR, EEPROM_ALLOWIP_0_LENGTH, (char *)&BlockZero[EEPROM_ALLOWIP_0_ADDR])
 	) {
 	/* Then fetch the DHCP setting & keep it */
 		if ( !EE_MultiRead(0, EEPROM_OPMODE_ADDR, EEPROM_OPMODE_LENGTH, (char *)&l_opmode) ) {

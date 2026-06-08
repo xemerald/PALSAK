@@ -208,14 +208,16 @@ typedef enum {
  * @brief
  *
  */
-#define EEPROM_BYTE_PER_LINE  8
-#define EEPROM_SET_END_ADDR   0x70
-#define EEPROM_SERIAL_ADDR    0x08
-#define EEPROM_SERIAL_LENGTH  2
-#define EEPROM_CVALUE_ADDR    0x30
-#define EEPROM_CVALUE_LENGTH  12
-#define EEPROM_OPMODE_ADDR    0x3c
-#define EEPROM_OPMODE_LENGTH  2
+#define EEPROM_BYTE_PER_LINE     8
+#define EEPROM_SET_END_ADDR      0x70
+#define EEPROM_SERIAL_ADDR       0x08
+#define EEPROM_SERIAL_LENGTH     2
+#define EEPROM_CVALUE_ADDR       0x30
+#define EEPROM_CVALUE_LENGTH     12
+#define EEPROM_OPMODE_ADDR       0x3c
+#define EEPROM_OPMODE_LENGTH     2
+#define EEPROM_ALLOWIP_0_ADDR    0x5a
+#define EEPROM_ALLOWIP_0_LENGTH  4
 
 /**
  * @brief 40118 Operation mode(OPMODE) flags
