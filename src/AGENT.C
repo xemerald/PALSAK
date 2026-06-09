@@ -347,12 +347,12 @@ static int EnrichBlockZero( void )
 
 /* Those information should always be keep, include the device serial, correction values & allowed IP 0 */
 	if (
-		!EE_MultiRead(0, EEPROM_SERIAL_ADDR, EEPROM_SERIAL_LENGTH, (char *)&BlockZero[EEPROM_SERIAL_ADDR]) &&
-		!EE_MultiRead(0, EEPROM_CVALUE_1_ADDR, EEPROM_CVALUES_LENGTH, (char *)&BlockZero[EEPROM_CVALUE_1_ADDR]) &&
-		!EE_MultiRead(0, EEPROM_ALLOWIP_0_ADDR, EEPROM_ALLOWIP_0_LENGTH, (char *)&BlockZero[EEPROM_ALLOWIP_0_ADDR])
+		!EE_MultiRead(EEPROM_SETTING_CONFIG_BLOCK, EEPROM_SERIAL_ADDR, EEPROM_SERIAL_LENGTH, (char *)&BlockZero[EEPROM_SERIAL_ADDR]) &&
+		!EE_MultiRead(EEPROM_SETTING_CONFIG_BLOCK, EEPROM_CVALUE_1_ADDR, EEPROM_CVALUES_LENGTH, (char *)&BlockZero[EEPROM_CVALUE_1_ADDR]) &&
+		!EE_MultiRead(EEPROM_SETTING_CONFIG_BLOCK, EEPROM_ALLOWIP_0_ADDR, EEPROM_ALLOWIP_0_LENGTH, (char *)&BlockZero[EEPROM_ALLOWIP_0_ADDR])
 	) {
 	/* Then fetch the DHCP setting & keep it */
-		if ( !EE_MultiRead(0, EEPROM_OPMODE_ADDR, EEPROM_OPMODE_LENGTH, (char *)&l_opmode) ) {
+		if ( !EE_MultiRead(EEPROM_SETTING_CONFIG_BLOCK, EEPROM_OPMODE_ADDR, EEPROM_OPMODE_LENGTH, (char *)&l_opmode) ) {
 		/*
 		 * 'cause the value stored within EEPROM in Big-Endian and the program is under Little-Endian.
 		 * Here, we need a swap for the words first then continue the operation.
@@ -387,13 +387,13 @@ static int EnrichSurveyResp( void )
 
 /* Read from EEPROM block 1 where factory setting within */
 	if (
-		!EE_MultiRead(1, EEPROM_SERIAL_ADDR, EEPROM_SERIAL_LENGTH, (char *)serial) &&
-		!EE_MultiRead(1, EEPROM_CVALUE_1_ADDR, EEPROM_CVALUES_LENGTH, (char *)cvalue)
+		!EE_MultiRead(EEPROM_FACTORY_CONFIG_BLOCK, EEPROM_SERIAL_ADDR, EEPROM_SERIAL_LENGTH, (char *)serial) &&
+		!EE_MultiRead(EEPROM_FACTORY_CONFIG_BLOCK, EEPROM_CVALUE_1_ADDR, EEPROM_CVALUES_LENGTH, (char *)cvalue)
 	) {
 	/* Find the last position of the message */
 		for ( bufptr = RecvBuffer; *bufptr; bufptr++ );
 	/* */
-		cvptr = &BlockZero[EEPROM_CVALUES_LENGTH];
+		cvptr = &BlockZero[EEPROM_CVALUE_1_ADDR];
 		sprintf(
 			bufptr,
 			"\rPalert Serial=%.5u:%.5u\n"
@@ -426,7 +426,7 @@ static int WriteBlockZero( void )
 /* */
 	EE_WriteEnable();
 	for ( i = 0x00, dataptr = BlockZero; i < EEPROM_SET_END_ADDR; i += 0x10, dataptr += 0x10 ) {
-		if ( EE_MultiWrite(0, i, 0x10, (char *)dataptr) ) {
+		if ( EE_MultiWrite(EEPROM_SETTING_CONFIG_BLOCK, i, 0x10, (char *)dataptr) ) {
 			EE_WriteProtect();
 			return ERROR;
 		}
@@ -510,7 +510,7 @@ static int ModifyDHCP( const int state )
 	SWAP_WORD_ASM( *l_opmode );
 /* */
 	EE_WriteEnable();
-	if ( EE_MultiWrite(0, EEPROM_OPMODE_ADDR, EEPROM_OPMODE_LENGTH, (char *)l_opmode) ) {
+	if ( EE_MultiWrite(EEPROM_SETTING_CONFIG_BLOCK, EEPROM_OPMODE_ADDR, EEPROM_OPMODE_LENGTH, (char *)l_opmode) ) {
 		EE_WriteProtect();
 		return ERROR;
 	}
