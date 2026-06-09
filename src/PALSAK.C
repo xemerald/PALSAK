@@ -218,10 +218,11 @@ void main( void )
 		ForceFlushSocket( SockRecv );
 	}
 /* */
-	if ( WorkflowFlag & STRATEGY_CHK_CON ) {
+	if ( WorkflowFlag & STRATEGY_SET_DHCP ) {
 		if (
 			ExecAgent() ||
-			AgentCommand( "checkcon" ) == ERROR
+			AgentCommand( "dhcp" ) == ERROR ||
+			SwitchRemoteDHCP() == ERROR
 		) {
 			goto err_return;
 		}
@@ -251,17 +252,17 @@ void main( void )
 		ForceFlushSocket( SockRecv );
 	}
 /* */
-	if ( WorkflowFlag & STRATEGY_SET_DHCP ) {
+	if ( WorkflowFlag & STRATEGY_CHK_CON ) {
 		if (
 			ExecAgent() ||
-			AgentCommand( "dhcp" ) == ERROR ||
-			SwitchRemoteDHCP() == ERROR
+			AgentCommand( "checkcon" ) == ERROR
 		) {
 			goto err_return;
 		}
 	/* */
 		ForceFlushSocket( SockRecv );
 	}
+
 /* */
 	if ( AgentFlag.is_exec && AgentCommand( "quit" ) == ERROR ) {
 		AgentFlag.is_exec = 0;

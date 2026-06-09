@@ -90,10 +90,10 @@ extern "C" {
  *
  */
 #define DIGIT_LIMIT_TABLE \
-	X(DIGIT_LIMIT_TO_TWO   , '2') \
-	X(DIGIT_LIMIT_TO_THREE , '3') \
-	X(DIGIT_LIMIT_TO_FIVE  , '5') \
-	X(DIGIT_LIMIT_TO_NINE  , '9')
+	X( DIGIT_LIMIT_TO_TWO   , '2' ) \
+	X( DIGIT_LIMIT_TO_THREE , '3' ) \
+	X( DIGIT_LIMIT_TO_FIVE  , '5' ) \
+	X( DIGIT_LIMIT_TO_NINE  , '9' )
 
 #define X(a, b) a,
 typedef enum {
@@ -123,15 +123,15 @@ typedef enum {
  *
  */
 #define WORKFLOWS_TABLE \
-	X(WORKFLOW_0    , STRATEGY_UPD_FW                                                                             ) \
-	X(WORKFLOW_1    , STRATEGY_CHK_MAC | STRATEGY_GET_NET                                                         ) \
-	X(WORKFLOW_2    , STRATEGY_CHK_MAC | STRATEGY_GET_NET | STRATEGY_WRT_BL0 | STRATEGY_CHK_CON                   ) \
-	X(WORKFLOW_3    , STRATEGY_CHK_MAC | STRATEGY_GET_NET | STRATEGY_WRT_BL0 | STRATEGY_CHK_CON | STRATEGY_UPL_FW ) \
-	X(WORKFLOW_4    , STRATEGY_CHK_CN                                                                             ) \
-	X(WORKFLOW_5    , STRATEGY_SET_NET | STRATEGY_SET_DHCP                                                        ) \
-	X(WORKFLOW_6    , STRATEGY_FAC_OVR                                                                            ) \
-	X(WORKFLOW_7    , STRATEGY_FAC_APL                                                                            ) \
-	X(WORKFLOW_8    , STRATEGY_SET_DHCP                                                                           )
+	X( WORKFLOW_0, STRATEGY_UPD_FW                                                                             ) \
+	X( WORKFLOW_1, STRATEGY_GET_NET | STRATEGY_CHK_MAC                                                         ) \
+	X( WORKFLOW_2, STRATEGY_GET_NET | STRATEGY_WRT_BL0 | STRATEGY_CHK_CON | STRATEGY_CHK_MAC                   ) \
+	X( WORKFLOW_3, STRATEGY_GET_NET | STRATEGY_UPL_FW | STRATEGY_WRT_BL0 | STRATEGY_CHK_CON | STRATEGY_CHK_MAC ) \
+	X( WORKFLOW_4, STRATEGY_CHK_CN                                                                             ) \
+	X( WORKFLOW_5, STRATEGY_SET_NET | STRATEGY_CHK_MAC                                                         ) \
+	X( WORKFLOW_6, STRATEGY_SET_DHCP | STRATEGY_CHK_MAC                                                        ) \
+	X( WORKFLOW_7, STRATEGY_FAC_OVR | STRATEGY_CHK_CON                                                         ) \
+	X( WORKFLOW_8, STRATEGY_FAC_APL | STRATEGY_CHK_CON                                                         )
 
 #define X(a, b) a,
 typedef enum {
@@ -146,12 +146,12 @@ typedef enum {
  *
  */
 #define AGENT_COMMANDS_TABLE \
-	X(AGENT_COMMAND_WBLOCK0 , "wblock0"    , 7) \
-	X(AGENT_COMMAND_CHECKCON, "checkcon"   , 8) \
-	X(AGENT_COMMAND_OVERRIDE, "override %s", 8) \
-	X(AGENT_COMMAND_FACTORY , "factory %s" , 7) \
-	X(AGENT_COMMAND_DHCP    , "dhcp %s"    , 4) \
-	X(AGENT_COMMAND_QUIT    , "quit"       , 4)
+	X( AGENT_COMMAND_WBLOCK0 , "wblock0"    , 7 ) \
+	X( AGENT_COMMAND_CHECKCON, "checkcon"   , 8 ) \
+	X( AGENT_COMMAND_OVERRIDE, "override %s", 8 ) \
+	X( AGENT_COMMAND_FACTORY , "factory %s" , 7 ) \
+	X( AGENT_COMMAND_DHCP    , "dhcp %s"    , 4 ) \
+	X( AGENT_COMMAND_QUIT    , "quit"       , 4 )
 
 #define X(a, b, c) a,
 typedef enum {
@@ -165,9 +165,9 @@ typedef enum {
  *
  */
 #define FACTORY_PARAMS_TABLE \
-	X(FACTORY_PARAM_SERIAL , "serial" , 6, 0x5b | 0x80, 0x00) \
-	X(FACTORY_PARAM_CVALUE0, "cvalue0", 7, 0x4e, 0x7e | 0x80) \
-	X(FACTORY_PARAM_CVALUE1, "cvalue1", 7, 0x4e, 0x30 | 0x80)
+	X( FACTORY_PARAM_SERIAL , "serial" , 6, 0x5b | 0x80, 0x00 ) \
+	X( FACTORY_PARAM_CVALUE0, "cvalue0", 7, 0x4e, 0x7e | 0x80 ) \
+	X( FACTORY_PARAM_CVALUE1, "cvalue1", 7, 0x4e, 0x30 | 0x80 )
 
 #define X(a, b, c, d, e) a,
 typedef enum {
