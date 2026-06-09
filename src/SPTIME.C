@@ -295,6 +295,7 @@ int NTPProcess( void )
 	static uchar i_compensate = 0;
 	static uchar first_time = 1;
 /* */
+	int  result = SYSTIME_SUCCESS;
 	long offset_sec;
 	long offset_frac;
 	timeval_s tv1, tv2, tv3, tv4;
@@ -312,12 +313,19 @@ int NTPProcess( void )
 	SysTimeGet( &tv1 );
 	*(ulong *)&InternalBuffer[40] = HTONS_FP( tv1.tv_sec + EPOCH_DIFF_JAN1970 );
 	*(ulong *)&InternalBuffer[44] = HTONS_FP( LFRAC_TO_NFRAC( tv1.tv_frac ) );
-/* Send to the server */
-	if ( send(NTPSock, InternalBuffer, 48, 0) <= 0 )
-		return SYSTIME_WARNING;
-/* Read from the server */
-	if ( recv(NTPSock, InternalBuffer, INTERNAL_BUF_SIZE, 0) <= 0 )
-		return SYSTIME_WARNING;
+/* Networking communication */
+	if (
+	/* Send to the server */
+		send(NTPSock, InternalBuffer, 48, 0) <= 0 ||
+	/* Read from the server */
+		recv(NTPSock, InternalBuffer, INTERNAL_BUF_SIZE, 0) <= 0
+	) {
+	/* */
+		first_time = 1;
+		result     = SYSTIME_WARNING;
+	/* */
+		goto CARRY_TIMEBASE;
+	}
 /* Get the local received timestamp */
 	SysTimeGet( &tv4 );
 /* Checking part */
@@ -408,6 +416,7 @@ int NTPProcess( void )
 	}
 	else {
 		first_time = 0;
+		i_compensate = 0;
 	}
 /* Debug information */
 #ifdef __SYSTIME__DEBUG__
@@ -416,6 +425,7 @@ int NTPProcess( void )
 	Print("\r\nFrequency:  %+ld(%+ld) ppm.", (CompensateFrac * 15625 / 1024), CompensateFrac);
 #endif
 /* Change the time base */
+CARRY_TIMEBASE:
 	_asm {
 		xor ax, ax
 		xchg ax, _SoftTimeSec
@@ -423,7 +433,7 @@ int NTPProcess( void )
 		adc word ptr _SoftTimeBase+2, 0
 	}
 
-	return SYSTIME_SUCCESS;
+	return result;
 }
 
 /**
