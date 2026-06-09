@@ -1728,11 +1728,11 @@ static int SwitchAgentFactory( const int agent_comm )
 	switch ( agent_comm ) {
 	case AGENT_COMMAND_OVERRIDE:
 	/* Show the "Or. XX " message on the 7-seg led */
-		ShowAll5DigitLedSeg( ShowData[0x00], 0x05 | 0x80, 0x00, show_data_digit_4[param], show_data_digit_5[param], 2000 );
+		ShowAll5DigitLedSeg( ShowData[0x00], 0x05 | 0x80, 0x00, show_data_digit_4[param], show_data_digit_5[param], 0 );
 		break;
 	case AGENT_COMMAND_FACTORY: default:
 	/* Show the "Ft. XX " message on the 7-seg led */
-		ShowAll5DigitLedSeg( ShowData[0x0f], 0x0f | 0x80, 0x00, show_data_digit_4[param], show_data_digit_5[param], 2000 );
+		ShowAll5DigitLedSeg( ShowData[0x0f], 0x0f | 0x80, 0x00, show_data_digit_4[param], show_data_digit_5[param], 0 );
 		break;
 	}
 
@@ -1744,8 +1744,8 @@ static int SwitchAgentFactory( const int agent_comm )
 		/* */
 			param = ++param % FACTORY_PARAM_COUNT;
 		/* Change the display if the parameter has been changed (Only on digit 4 & 5) */
-			Show5DigitLed(4, show_data_digit_4[param]);
-			Show5DigitLed(5, show_data_digit_5[param]);
+			Show5DigitLedSeg(4, show_data_digit_4[param]);
+			Show5DigitLedSeg(5, show_data_digit_5[param]);
 		}
 		Delay2(1);
 	}
