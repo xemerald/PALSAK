@@ -446,12 +446,15 @@ static int WriteBlockZero( void )
  */
 static int ProcFactoryParam( const int comm, const unsigned addr, const int length )
 {
-	BYTE  buf_setting[length];
-	BYTE  buf_factory[length];
+	BYTE *buf_setting = BlockZero;
+	BYTE *buf_factory = BlockZero + length;
 	BYTE *ref_buf;
 	int   write_block;
 
-/* */
+/* Check the length, in case, we will run out of the buffer */
+	if ( length >= (EEPROM_SET_TOTAL_LENGTH >> 1) )
+		return ERROR;
+/* Assign the pointer by the agent command */
 	switch ( comm ) {
 	case AGENT_COMMAND_OVERRIDE:
 		write_block = EEPROM_FACTORY_CONFIG_BLOCK;
@@ -462,13 +465,14 @@ static int ProcFactoryParam( const int comm, const unsigned addr, const int leng
 		ref_buf     = buf_factory;
 		break;
 	}
-/* */
+/* First, read the parameter from two blocks */
 	if (
 		!EE_MultiRead(EEPROM_SETTING_CONFIG_BLOCK, addr, length, (char *)buf_setting) &&
 		!EE_MultiRead(EEPROM_FACTORY_CONFIG_BLOCK, addr, length, (char *)buf_factory)
 	) {
+	/* Then, compare between the two parameters */
 		if ( memcmp(buf_setting, buf_factory, length) ) {
-		/* */
+		/* Finally, write back to the designated block */
 			EE_WriteEnable();
 			if ( EE_MultiWrite(write_block, addr, length, (char *)ref_buf) ) {
 				EE_WriteProtect();
