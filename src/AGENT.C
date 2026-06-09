@@ -93,7 +93,7 @@ void main( void )
 		/* */
 			if (
 				!(!strncmp(comm, "serial", 6) && !ProcFactoryParam( ret, EEPROM_SERIAL_ADDR, EEPROM_SERIAL_LENGTH )) &&
-				!(!strncmp(comm, "cvalue1", 7) && !ProcFactoryParam( ret, EEPROM_CVALUE_1_ADDR, EEPROM_CVALUE_LENGTH ))
+				!(!strncmp(comm, "cvalue1", 7) && !ProcFactoryParam( ret, EEPROM_CVALUE_1_ADDR, EEPROM_CVALUE_LENGTH )) &&
 				!(!strncmp(comm, "cvalue0", 7) && !ProcFactoryParam( ret, EEPROM_CVALUE_0_ADDR, EEPROM_CVALUE_LENGTH ))
 			) {
 				goto err_return;
