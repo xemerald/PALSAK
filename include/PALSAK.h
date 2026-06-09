@@ -106,17 +106,17 @@ typedef enum {
  * @brief Workflow unit define
  *
  */
+#define STRATEGY_UPD_FW      0x0000
 #define STRATEGY_CHK_MAC     0x0001
 #define STRATEGY_UPL_FW      0x0002
 #define STRATEGY_GET_NET     0x0004
 #define STRATEGY_SET_NET     0x0008
 #define STRATEGY_WRT_BL0     0x0010
 #define STRATEGY_CHK_CON     0x0020
-#define STRATEGY_CRT_SER     0x0040
-#define STRATEGY_CRT_CVL     0x0080
+#define STRATEGY_FAC_OVR     0x0040
+#define STRATEGY_FAC_APL     0x0080
 #define STRATEGY_SET_DHCP    0x0100
 #define STRATEGY_CHK_CN      0x0200
-#define STRATEGY_UPD_FW      0x8000
 
 /**
  * @brief Workflow combaination
@@ -129,8 +129,9 @@ typedef enum {
 	X(WORKFLOW_3    , STRATEGY_CHK_MAC | STRATEGY_GET_NET | STRATEGY_WRT_BL0 | STRATEGY_CHK_CON | STRATEGY_UPL_FW ) \
 	X(WORKFLOW_4    , STRATEGY_CHK_CN                                                                             ) \
 	X(WORKFLOW_5    , STRATEGY_SET_NET | STRATEGY_SET_DHCP                                                        ) \
-	X(WORKFLOW_6    , STRATEGY_CRT_SER | STRATEGY_CRT_CVL                                                         ) \
-	X(WORKFLOW_7    , STRATEGY_SET_DHCP                                                                           )
+	X(WORKFLOW_6    , STRATEGY_FAC_OVR                                                                            ) \
+	X(WORKFLOW_7    , STRATEGY_FAC_APL                                                                            ) \
+	X(WORKFLOW_8    , STRATEGY_SET_DHCP                                                                           )
 
 #define X(a, b) a,
 typedef enum {
@@ -145,17 +146,34 @@ typedef enum {
  *
  */
 #define AGENT_COMMANDS_TABLE \
-	X(AGENT_COMMAND_WBLOCK0 , "wblock0"   , 7) \
-	X(AGENT_COMMAND_CHECKCON, "checkcon"  , 8) \
-	X(AGENT_COMMAND_CORRECT , "correct %s", 7) \
-	X(AGENT_COMMAND_DHCP    , "dhcp %s"   , 4) \
-	X(AGENT_COMMAND_QUIT    , "quit"      , 4)
+	X(AGENT_COMMAND_WBLOCK0 , "wblock0"    , 7) \
+	X(AGENT_COMMAND_CHECKCON, "checkcon"   , 8) \
+	X(AGENT_COMMAND_OVERRIDE, "override %s", 8) \
+	X(AGENT_COMMAND_FACTORY , "factory %s" , 7) \
+	X(AGENT_COMMAND_DHCP    , "dhcp %s"    , 4) \
+	X(AGENT_COMMAND_QUIT    , "quit"       , 4)
 
 #define X(a, b, c) a,
 typedef enum {
 	AGENT_COMMANDS_TABLE
 	AGENT_COMMAND_COUNT
 } AGENT_COMMANDS;
+#undef X
+
+/**
+ * @brief Cirtical factory parameters
+ *
+ */
+#define FACTORY_PARAMS_TABLE \
+	X(FACTORY_PARAM_SERIAL , "serial" , 6, ShowData[0x05] | 0x80, 0x00) \
+	X(FACTORY_PARAM_CVALUE0, "cvalue0", 7, ShowData[0x0c], ShowData[0x00] | 0x80) \
+	X(FACTORY_PARAM_CVALUE1, "cvalue1", 7, ShowData[0x0c], ShowData[0x01] | 0x80)
+
+#define X(a, b, c, d, e) a,
+typedef enum {
+	FACTORY_PARAMS_TABLE
+	FACTORY_PARAM_COUNT
+} FACTORY_PARAMS;
 #undef X
 
 /**
@@ -196,10 +214,17 @@ typedef enum {
 #define NETWORK_DEFAULT    1
 
 /**
+ * @brief
+ *
+ */
+#define EEPROM_SETTING_CONFIG_BLOCK  0x00
+#define EEPROM_FACTORY_CONFIG_BLOCK  0x01
+#define EEPROM_NETWORK_CONFIG_BLOCK  0x02
+
+/**
  * @brief Temporary P-Alert Network setting storage information
  *
  */
-#define EEPROM_NETWORK_SET_BLOCK   0x02
 #define EEPROM_NETWORK_TMP_ADDR    0x00
 #define EEPROM_NETWORK_DEF_ADDR    0x18
 #define EEPROM_NETWORK_SET_LENGTH  18
@@ -212,8 +237,10 @@ typedef enum {
 #define EEPROM_SET_END_ADDR      0x70
 #define EEPROM_SERIAL_ADDR       0x08
 #define EEPROM_SERIAL_LENGTH     2
-#define EEPROM_CVALUE_ADDR       0x30
-#define EEPROM_CVALUE_LENGTH     12
+#define EEPROM_CVALUE_1_ADDR     0x30
+#define EEPROM_CVALUE_0_ADDR     0x36
+#define EEPROM_CVALUE_LENGTH     6
+#define EEPROM_CVALUES_LENGTH    12
 #define EEPROM_OPMODE_ADDR       0x3c
 #define EEPROM_OPMODE_LENGTH     2
 #define EEPROM_ALLOWIP_0_ADDR    0x5a

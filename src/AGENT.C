@@ -36,8 +36,7 @@ static int   BroadcastResp( char * );
 static int   EnrichBlockZero( void );
 static int   EnrichSurveyResp( void );
 static int   WriteBlockZero( void );
-static int   OverrideFactory_Serial( void );
-static int   OverrideFactory_CValue( void );
+static int   ProcFactoryParam( const int, const unsigned, const int );
 static int   ModifyDHCP( const int );
 
 /**
@@ -70,7 +69,7 @@ void main( void )
 	/* */
 		memset(BlockZero, 0xff, EEPROM_SET_TOTAL_LENGTH);
 	/* */
-		switch ( SwitchCommand( &comm ) ) {
+		switch ( (ret = SwitchCommand( &comm )) ) {
 		case AGENT_COMMAND_WBLOCK0:
 		/* Send msg. to notify the master that here is ready for receiving data */
 			BroadcastResp( RecvBuffer );
@@ -89,14 +88,13 @@ void main( void )
 				goto err_return;
 			BroadcastResp( RecvBuffer );
 			break;
-		case AGENT_COMMAND_CORRECT:
-		/* */
-			if ( EnrichBlockZero() )
-				goto err_return;
+		case AGENT_COMMAND_OVERRIDE:
+		case AGENT_COMMAND_FACTORY:
 		/* */
 			if (
-				!(!strncmp(comm, "serial", 6) && !OverrideFactory_Serial()) &&
-				!(!strncmp(comm, "cvalue", 6) && !OverrideFactory_CValue())
+				!(!strncmp(comm, "serial", 6) && !ProcFactoryParam( ret, EEPROM_SERIAL_ADDR, EEPROM_SERIAL_LENGTH )) &&
+				!(!strncmp(comm, "cvalue1", 7) && !ProcFactoryParam( ret, EEPROM_CVALUE_1_ADDR, EEPROM_CVALUE_LENGTH ))
+				!(!strncmp(comm, "cvalue0", 7) && !ProcFactoryParam( ret, EEPROM_CVALUE_0_ADDR, EEPROM_CVALUE_LENGTH ))
 			) {
 				goto err_return;
 			}
@@ -293,7 +291,7 @@ static char *RecvCommand( void )
  */
 static int SwitchCommand( const char **comm )
 {
-	int i;
+	register int i;
 /* */
 #define X(a, b, c) b,
 	char *agent_comm[] = {
@@ -347,10 +345,10 @@ static int EnrichBlockZero( void )
 	WORD  l_opmode;
 	WORD *r_opmode = (WORD *)&BlockZero[EEPROM_OPMODE_ADDR];
 
-/* Those information should always be keep, include the device serial, correction value & allowed IP 0 */
+/* Those information should always be keep, include the device serial, correction values & allowed IP 0 */
 	if (
 		!EE_MultiRead(0, EEPROM_SERIAL_ADDR, EEPROM_SERIAL_LENGTH, (char *)&BlockZero[EEPROM_SERIAL_ADDR]) &&
-		!EE_MultiRead(0, EEPROM_CVALUE_ADDR, EEPROM_CVALUE_LENGTH, (char *)&BlockZero[EEPROM_CVALUE_ADDR]) &&
+		!EE_MultiRead(0, EEPROM_CVALUE_1_ADDR, EEPROM_CVALUES_LENGTH, (char *)&BlockZero[EEPROM_CVALUE_1_ADDR]) &&
 		!EE_MultiRead(0, EEPROM_ALLOWIP_0_ADDR, EEPROM_ALLOWIP_0_LENGTH, (char *)&BlockZero[EEPROM_ALLOWIP_0_ADDR])
 	) {
 	/* Then fetch the DHCP setting & keep it */
@@ -385,17 +383,17 @@ static int EnrichSurveyResp( void )
 	char *bufptr;
 	BYTE *cvptr;
 	BYTE  serial[EEPROM_SERIAL_LENGTH];
-	BYTE  cvalue[EEPROM_CVALUE_LENGTH];
+	BYTE  cvalue[EEPROM_CVALUES_LENGTH];
 
 /* Read from EEPROM block 1 where factory setting within */
 	if (
 		!EE_MultiRead(1, EEPROM_SERIAL_ADDR, EEPROM_SERIAL_LENGTH, (char *)serial) &&
-		!EE_MultiRead(1, EEPROM_CVALUE_ADDR, EEPROM_CVALUE_LENGTH, (char *)cvalue)
+		!EE_MultiRead(1, EEPROM_CVALUE_1_ADDR, EEPROM_CVALUES_LENGTH, (char *)cvalue)
 	) {
 	/* Find the last position of the message */
 		for ( bufptr = RecvBuffer; *bufptr; bufptr++ );
 	/* */
-		cvptr = &BlockZero[EEPROM_CVALUE_ADDR];
+		cvptr = &BlockZero[EEPROM_CVALUES_LENGTH];
 		sprintf(
 			bufptr,
 			"\rPalert Serial=%.5u:%.5u\n"
@@ -422,8 +420,8 @@ static int EnrichSurveyResp( void )
  */
 static int WriteBlockZero( void )
 {
-	int   i;
-	BYTE *dataptr;
+	register int i;
+	BYTE        *dataptr;
 
 /* */
 	EE_WriteEnable();
@@ -441,45 +439,38 @@ static int WriteBlockZero( void )
 /**
  * @brief
  *
+ * @param comm
+ * @param addr
+ * @param length
  * @return int
  */
-static int OverrideFactory_Serial( void )
+static int ProcFactoryParam( const int comm, const unsigned addr, const int length )
 {
-	BYTE serial[EEPROM_SERIAL_LENGTH];
+	BYTE  buf_setting[length];
+	BYTE  buf_factory[length];
+	BYTE *ref_buf;
+	int   write_block;
 
 /* */
-	if ( !EE_MultiRead(1, EEPROM_SERIAL_ADDR, EEPROM_SERIAL_LENGTH, (char *)serial) ) {
-	/* */
-		if ( BlockZero[EEPROM_SERIAL_ADDR] != serial[0] || BlockZero[EEPROM_SERIAL_ADDR + 1] != serial[1] ) {
-			EE_WriteEnable();
-			if ( EE_MultiWrite(1, EEPROM_SERIAL_ADDR, EEPROM_SERIAL_LENGTH, (char *)&BlockZero[EEPROM_SERIAL_ADDR]) ) {
-				EE_WriteProtect();
-				return ERROR;
-			}
-			EE_WriteProtect();
-		}
-		return NORMAL;
+	switch ( comm ) {
+	case AGENT_COMMAND_OVERRIDE:
+		write_block = EEPROM_FACTORY_CONFIG_BLOCK;
+		ref_buf     = buf_setting;
+		break;
+	case AGENT_COMMAND_FACTORY: default:
+		write_block = EEPROM_SETTING_CONFIG_BLOCK;
+		ref_buf     = buf_factory;
+		break;
 	}
-
 /* */
-	return ERROR;
-}
-
-/**
- * @brief
- *
- * @return int
- */
-static int OverrideFactory_CValue( void )
-{
-	BYTE cvalue[EEPROM_CVALUE_LENGTH];
-
-/* */
-	if ( !EE_MultiRead(1, EEPROM_CVALUE_ADDR, EEPROM_CVALUE_LENGTH, (char *)cvalue) ) {
-		if ( memcmp(&BlockZero[EEPROM_CVALUE_ADDR], cvalue, EEPROM_CVALUE_LENGTH) ) {
+	if (
+		!EE_MultiRead(EEPROM_SETTING_CONFIG_BLOCK, addr, length, (char *)buf_setting) &&
+		!EE_MultiRead(EEPROM_FACTORY_CONFIG_BLOCK, addr, length, (char *)buf_factory)
+	) {
+		if ( memcmp(buf_setting, buf_factory, length) ) {
 		/* */
 			EE_WriteEnable();
-			if ( EE_MultiWrite(1, EEPROM_CVALUE_ADDR, EEPROM_CVALUE_LENGTH, (char *)&BlockZero[EEPROM_CVALUE_ADDR]) ) {
+			if ( EE_MultiWrite(write_block, addr, length, (char *)ref_buf) ) {
 				EE_WriteProtect();
 				return ERROR;
 			}

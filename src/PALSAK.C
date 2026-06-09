@@ -83,6 +83,7 @@ static int   ConnectTCP( const char *, uint );
 
 static int  SwitchAgentCommand( const char ** );
 static int  ExecAgent( void );
+static int  SwitchAgentFactory( const int );
 static int  SwitchRemoteDHCP( void );
 static void FatalError( void );
 static int  ResetProgram( void );
@@ -118,7 +119,7 @@ void main( void )
 	SwitchWorkflow();
 
 /* If it shows the UPD flag (Workflow 0), just return after finishing */
-	if ( WorkflowFlag & STRATEGY_UPD_FW ) {
+	if ( WorkflowFlag == STRATEGY_UPD_FW ) {
 	/* */
 		if ( SwitchDHCPorStatic( 400 ) == ERROR )
 			goto err_return;
@@ -228,10 +229,10 @@ void main( void )
 		ForceFlushSocket( SockRecv );
 	}
 /* */
-	if ( WorkflowFlag & STRATEGY_CRT_SER ) {
+	if ( WorkflowFlag & STRATEGY_FAC_OVR ) {
 		if (
 			ExecAgent() ||
-			AgentCommand( "correct serial" ) == ERROR
+			SwitchAgentFactory( AGENT_COMMAND_OVERRIDE ) == ERROR
 		) {
 			goto err_return;
 		}
@@ -239,10 +240,10 @@ void main( void )
 		ForceFlushSocket( SockRecv );
 	}
 /* */
-	if ( WorkflowFlag & STRATEGY_CRT_CVL ) {
+	if ( WorkflowFlag & STRATEGY_FAC_APL ) {
 		if (
 			ExecAgent() ||
-			AgentCommand( "correct cvalue" ) == ERROR
+			SwitchAgentFactory( AGENT_COMMAND_FACTORY ) == ERROR
 		) {
 			goto err_return;
 		}
@@ -309,7 +310,7 @@ static void SetNetworkConfig( uint set )
 		break;
 	}
 /* */
-	if ( !EE_MultiRead(EEPROM_NETWORK_SET_BLOCK, set, EEPROM_NETWORK_SET_LENGTH, PreBuffer) ) {
+	if ( !EE_MultiRead(EEPROM_NETWORK_CONFIG_BLOCK, set, EEPROM_NETWORK_SET_LENGTH, PreBuffer) ) {
 		SetIp((uchar *)&PreBuffer[0]);
 		SetMask((uchar *)&PreBuffer[4]);
 		SetGateway((uchar *)&PreBuffer[8]);
@@ -718,7 +719,7 @@ static int GetPalertNetworkConfig( void )
 
 /* */
 	EE_WriteEnable();
-	if ( EE_MultiWrite(EEPROM_NETWORK_SET_BLOCK, EEPROM_NETWORK_TMP_ADDR, EEPROM_NETWORK_SET_LENGTH, PreBuffer) ) {
+	if ( EE_MultiWrite(EEPROM_NETWORK_CONFIG_BLOCK, EEPROM_NETWORK_TMP_ADDR, EEPROM_NETWORK_SET_LENGTH, PreBuffer) ) {
 		EE_WriteProtect();
 		return ERROR;
 	}
@@ -742,7 +743,7 @@ static int SetPalertNetwork( void )
 	char far * const str_ptr = PreBuffer + EEPROM_NETWORK_SET_LENGTH + 1;
 
 /* Read from EEPROM block 2 where the saved network setting within */
-	if ( !EE_MultiRead(EEPROM_NETWORK_SET_BLOCK, EEPROM_NETWORK_TMP_ADDR, EEPROM_NETWORK_SET_LENGTH, PreBuffer) ) {
+	if ( !EE_MultiRead(EEPROM_NETWORK_CONFIG_BLOCK, EEPROM_NETWORK_TMP_ADDR, EEPROM_NETWORK_SET_LENGTH, PreBuffer) ) {
 	/* Show 'U.PLUG.' on the 7-seg led */
 		ShowAll5DigitLedSeg( 0xbe, 0x67, 0x0e, 0x3e, 0xde, 0 );
 	/* Wait until ethernet unplug */
@@ -1014,12 +1015,13 @@ static int AgentCommand( const char *comm )
 	/* Show 'C. Con.' on the 7-seg led */
 		ShowAll5DigitLedSeg( ShowData[0x0c] | 0x80, 0x00, ShowData[0x0c], 0x1d, 0x95, 2000 );
 		break;
-	case AGENT_COMMAND_CORRECT:
-	/* Show 'Cr. C.' or 'Cr. S.' on the 7-seg led */
-		if ( !strncmp(sub_comm, "serial", 6) )
-			ShowAll5DigitLedSeg( ShowData[0x0c], 0x05 | 0x80, 0x00, ShowData[0x05] | 0x80, 0x00, 2000 );
-		else if ( !strncmp(sub_comm, "cvalue", 6) )
-			ShowAll5DigitLedSeg( ShowData[0x0c], 0x05 | 0x80, 0x00, ShowData[0x0c] | 0x80, 0x00, 2000 );
+	case AGENT_COMMAND_OVERRIDE:
+	/* Show 'Or....' on the 7-seg led */
+		ShowAll5DigitLedSeg( ShowData[0x00], 0x05 | 0x80, 0x80, 0x80, 0x80, 2000 );
+		break;
+	case AGENT_COMMAND_FACTORY:
+	/* Show 'Ft....' on the 7-seg led */
+		ShowAll5DigitLedSeg( ShowData[0x0f], 0x11 | 0x80, 0x80, 0x80, 0x80, 2000 );
 		break;
 	case AGENT_COMMAND_DHCP:
 		ShowAll5DigitLedSeg( ShowData[0x0d], 0x37, ShowData[0x0c], 0xe7, 0x00, 2000 );
@@ -1125,7 +1127,8 @@ static int AgentCommand( const char *comm )
 			return ERROR;
 		}
 		break;
-	case AGENT_COMMAND_CORRECT:
+	case AGENT_COMMAND_OVERRIDE:
+	case AGENT_COMMAND_FACTORY:
 	case AGENT_COMMAND_QUIT:
 	/* */
 		Delay2(1000);
@@ -1690,6 +1693,74 @@ static int ExecAgent( void )
 	}
 
 	return NORMAL;
+}
+
+/**
+ * @brief
+ *
+ * @param agent_comm
+ * @return int
+ */
+static int SwitchAgentFactory( const int agent_comm )
+{
+	uchar param = FACTORY_PARAM_SERIAL;
+	char  comm_buf[COMMBUF_SIZE];
+/* */
+#define X(a, b, c, d, e) b,
+	char *fac_params[] = {
+		FACTORY_PARAMS_TABLE
+	};
+#undef X
+/* */
+#define X(a, b, c, d, e) d,
+	BYTE show_data_digit_4[] = {
+		FACTORY_PARAMS_TABLE
+	};
+#undef X
+/* */
+#define X(a, b, c, d, e) e,
+	BYTE show_data_digit_5[] = {
+		FACTORY_PARAMS_TABLE
+	};
+#undef X
+
+/* Switch the display */
+	switch ( agent_comm ) {
+	case AGENT_COMMAND_OVERRIDE:
+	/* Show the "Or. XX " message on the 7-seg led */
+		ShowAll5DigitLedSeg( ShowData[0x00], 0x05 | 0x80, 0x00, show_data_digit_4[param], show_data_digit_5[param], 2000 );
+		break;
+	case AGENT_COMMAND_FACTORY: default:
+	/* Show the "Ft. XX " message on the 7-seg led */
+		ShowAll5DigitLedSeg( ShowData[0x0f], 0x11 | 0x80, 0x00, show_data_digit_4[param], show_data_digit_5[param], 2000 );
+		break;
+	}
+
+/* */
+	BUTTONS_LASTCOUNT_RESET();
+	while ( !GetCtsButtonPressCount() ) {
+	/* Detect the button condition for switching factory parameters */
+		if ( GetInitButtonPressCount() ) {
+		/* */
+			param = ++param % FACTORY_PARAM_COUNT;
+		/* Change the display if the parameter has been changed (Only on digit 4 & 5) */
+			Show5DigitLed(4, show_data_digit_4[param]);
+			Show5DigitLed(5, show_data_digit_5[param]);
+		}
+		Delay2(1);
+	}
+
+/* Generate the command by the selected parameters */
+	switch ( agent_comm ) {
+	case AGENT_COMMAND_OVERRIDE:
+		sprintf(comm_buf, "override %s", fac_params[param]);
+		break;
+	case AGENT_COMMAND_FACTORY: default:
+		sprintf(comm_buf, "factory %s", fac_params[param]);
+		break;
+	}
+/* Finally, send the agent command to the remote agent */
+	return AgentCommand( comm_buf );
 }
 
 /**
