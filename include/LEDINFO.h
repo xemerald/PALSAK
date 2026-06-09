@@ -30,7 +30,7 @@ extern "C" {
 
 /* Display "t.o." on the 7-seg led */
 #define SHOW_TIMEOUT_5DIGITLED(MSEC) \
-		ShowAll5DigitLedSeg(0x00, 0x91, 0x9d, 0x00, 0x00, (MSEC))
+		ShowAll5DigitLedSeg(0x00, 0x8f, 0x9d, 0x00, 0x00, (MSEC))
 
 /* Mark for seq. */
 extern const BYTE SeqMark[];

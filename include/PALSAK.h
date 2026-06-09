@@ -165,9 +165,9 @@ typedef enum {
  *
  */
 #define FACTORY_PARAMS_TABLE \
-	X(FACTORY_PARAM_SERIAL , "serial" , 6, ShowData[0x05] | 0x80, 0x00) \
-	X(FACTORY_PARAM_CVALUE0, "cvalue0", 7, ShowData[0x0c], ShowData[0x00] | 0x80) \
-	X(FACTORY_PARAM_CVALUE1, "cvalue1", 7, ShowData[0x0c], ShowData[0x01] | 0x80)
+	X(FACTORY_PARAM_SERIAL , "serial" , 6, 0x5b | 0x80, 0x00) \
+	X(FACTORY_PARAM_CVALUE0, "cvalue0", 7, 0x4e, 0x7e | 0x80) \
+	X(FACTORY_PARAM_CVALUE1, "cvalue1", 7, 0x4e, 0x30 | 0x80)
 
 #define X(a, b, c, d, e) a,
 typedef enum {

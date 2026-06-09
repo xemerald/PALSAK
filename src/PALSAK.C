@@ -725,7 +725,7 @@ static int GetPalertNetworkConfig( void )
 	}
 	EE_WriteProtect();
 /* Show 'F. nEt.' on the 7-seg led */
-	ShowAll5DigitLedSeg( ShowData[0x0f] | 0x80, 0x00, 0x15, ShowData[0x0e], 0x91, 1000 );
+	ShowAll5DigitLedSeg( ShowData[0x0f] | 0x80, 0x00, 0x15, ShowData[0x0e], 0x0f | 0x80, 1000 );
 
 	return NORMAL;
 }
@@ -811,7 +811,7 @@ static int SetPalertNetwork( void )
 		sprintf(str_ptr, "gateway %u.%u.%u.%u", (BYTE)PreBuffer[8], (BYTE)PreBuffer[9], (BYTE)PreBuffer[10], (BYTE)PreBuffer[11]);
 		LOOP_TRANSMIT_COMMAND( str_ptr );
 	/* Show 'S.GAtE.' on the 7-seg led */
-		ShowAll5DigitLedSeg( ShowData[0x05] | 0x80, 0x5e, ShowData[0x0a], 0x11, ShowData[0x0e] | 0x80, 1000 );
+		ShowAll5DigitLedSeg( ShowData[0x05] | 0x80, 0x5e, ShowData[0x0a], 0x0f, ShowData[0x0e] | 0x80, 1000 );
 	/* Send out the Gateway address request command */
 		LOOP_TRANSMIT_COMMAND( "gateway" );
 	/* Extract the Gateway address from the raw response */
@@ -849,7 +849,7 @@ static int CheckServerConnect( void )
 	}
 
 /* Show 'ntP.' on the 7-seg led */
-	ShowAll5DigitLedSeg( 0x00, 0x15, 0x11, 0xe7, 0x00, 1000 );
+	ShowAll5DigitLedSeg( 0x00, 0x15, 0x0f, 0xe7, 0x00, 1000 );
 /* Start the system time service */
 	SysTimeInit( TAIWAN_TIME_ZONE );
 	SYSTIME_SERVICE_START();
@@ -870,7 +870,7 @@ static int CheckServerConnect( void )
 	SYSTIME_SERVICE_STOP();
 
 /* Show 'tCP.0.' on the 7-seg led */
-	ShowAll5DigitLedSeg( 0x00, 0x11, ShowData[0x0c], 0xe7, ShowData[0x00] | 0x80, 1000 );
+	ShowAll5DigitLedSeg( 0x00, 0x0f, ShowData[0x0c], 0xe7, ShowData[0x00] | 0x80, 1000 );
 /* TCP server 0 connection test */
 	sprintf(RecvBuffer, "%u.%u.%u.%u", (BYTE)PreBuffer[28], (BYTE)PreBuffer[29], (BYTE)PreBuffer[30], (BYTE)PreBuffer[31] );
 	if ( (sock = ConnectTCP( RecvBuffer, 502 )) == ERROR )
@@ -879,7 +879,7 @@ static int CheckServerConnect( void )
 		SHOW_GOOD_5DIGITLED( 1000 );
 	closesocket(sock);
 /* Show 'tCP.1.' on the 7-seg led */
-	ShowAll5DigitLedSeg( 0x00, 0x11, ShowData[0x0c], 0xe7, ShowData[0x01] | 0x80, 1000 );
+	ShowAll5DigitLedSeg( 0x00, 0x0f, ShowData[0x0c], 0xe7, ShowData[0x01] | 0x80, 1000 );
 /* TCP server 1 connection test */
 	sprintf(RecvBuffer, "%u.%u.%u.%u", (BYTE)PreBuffer[32], (BYTE)PreBuffer[33], (BYTE)PreBuffer[34], (BYTE)PreBuffer[35] );
 	if ( (sock = ConnectTCP( RecvBuffer, 502 )) == ERROR )
@@ -889,7 +889,7 @@ static int CheckServerConnect( void )
 	closesocket(sock);
 
 /* Show 'FtP.' on the 7-seg led */
-	ShowAll5DigitLedSeg( 0x00, ShowData[0x0f], 0x11, 0xe7, 0x00, 1000 );
+	ShowAll5DigitLedSeg( 0x00, ShowData[0x0f], 0x0f, 0xe7, 0x00, 1000 );
 /* FW(FTP) server connection test by using the checking firmware function */
 	if ( CheckFirmwareVer( PreBuffer ) )
 		SHOW_ERROR_5DIGITLED( 1000 );
@@ -1021,7 +1021,7 @@ static int AgentCommand( const char *comm )
 		break;
 	case AGENT_COMMAND_FACTORY:
 	/* Show 'Ft....' on the 7-seg led */
-		ShowAll5DigitLedSeg( ShowData[0x0f], 0x11 | 0x80, 0x80, 0x80, 0x80, 2000 );
+		ShowAll5DigitLedSeg( ShowData[0x0f], 0x0f | 0x80, 0x80, 0x80, 0x80, 2000 );
 		break;
 	case AGENT_COMMAND_DHCP:
 		ShowAll5DigitLedSeg( ShowData[0x0d], 0x37, ShowData[0x0c], 0xe7, 0x00, 2000 );
@@ -1293,7 +1293,7 @@ static int CheckFirmwareVer( char *new_name )
 /* If we got a candidate, then show it on the 7-seg led */
 	if ( result > 0 ) {
 		new_name[12] = '\0';
-		ShowAll5DigitLedSeg( 0x00, 0x11, 0x9d, 0x00, 0x00, 2000 );
+		ShowAll5DigitLedSeg( 0x00, 0x0f, 0x9d, 0x00, 0x00, 2000 );
 	/* Show new version number on the 7-seg led */
 		ShowAll5DigitLedSeg( ShowData[new_name[3] - '0'], ShowData[new_name[4] - '0'], ShowData[new_name[5] - '0'], ShowData[new_name[6] - '0'], ShowData[new_name[7] - '0'], 2000 );
 	/* */
@@ -1732,7 +1732,7 @@ static int SwitchAgentFactory( const int agent_comm )
 		break;
 	case AGENT_COMMAND_FACTORY: default:
 	/* Show the "Ft. XX " message on the 7-seg led */
-		ShowAll5DigitLedSeg( ShowData[0x0f], 0x11 | 0x80, 0x00, show_data_digit_4[param], show_data_digit_5[param], 2000 );
+		ShowAll5DigitLedSeg( ShowData[0x0f], 0x0f | 0x80, 0x00, show_data_digit_4[param], show_data_digit_5[param], 2000 );
 		break;
 	}
 
@@ -1806,7 +1806,7 @@ static int SwitchRemoteDHCP( void )
 static void FatalError( void )
 {
 /* Show 'FAtAL.' on the 7-seg led */
-	ShowAll5DigitLedSeg( ShowData[0x0f], ShowData[0x0a], 0x11, ShowData[0x0a], 0x8e, 2000 );
+	ShowAll5DigitLedSeg( ShowData[0x0f], ShowData[0x0a], 0x0f, ShowData[0x0a], 0x8e, 2000 );
 /* Reset the network setting */
 	SetNetworkConfig( NETWORK_DEFAULT );
 /* Reset the system */
