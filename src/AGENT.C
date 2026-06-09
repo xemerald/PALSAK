@@ -33,7 +33,7 @@ static int   RecvBlockZeroData( void );
 static char *RecvCommand( void );
 static int   SwitchCommand( const char ** );
 static int   BroadcastResp( char * );
-static int   EnrichBlockZero( void );
+static int   RefillBlockZero( void );
 static int   EnrichSurveyResp( void );
 static int   WriteBlockZero( void );
 static int   ProcFactoryParam( const int, const unsigned, const int );
@@ -67,7 +67,8 @@ void main( void )
 	/* */
 		comm = RecvCommand();
 	/* */
-		memset(BlockZero, 0xff, EEPROM_SET_TOTAL_LENGTH);
+		if ( EE_MultiRead(EEPROM_SETTING_CONFIG_BLOCK, 0x00, EEPROM_SET_TOTAL_LENGTH, (char *)BlockZero) )
+			goto err_return;
 	/* */
 		switch ( (ret = SwitchCommand( &comm )) ) {
 		case AGENT_COMMAND_WBLOCK0:
@@ -79,12 +80,12 @@ void main( void )
 				if ( ++ret >= NETWORK_OPERATION_RETRY )
 					goto err_return;
 		/* */
-			if ( EnrichBlockZero() || WriteBlockZero() )
+			if ( RefillBlockZero() || WriteBlockZero() )
 				goto err_return;
 			break;
 		case AGENT_COMMAND_CHECKCON:
 		/* */
-			if ( EnrichBlockZero() || EnrichSurveyResp() )
+			if ( EnrichSurveyResp() )
 				goto err_return;
 			BroadcastResp( RecvBuffer );
 			break;
@@ -104,9 +105,6 @@ void main( void )
 		/* */
 			break;
 		case AGENT_COMMAND_DHCP:
-		/* */
-			if ( EnrichBlockZero() )
-				goto err_return;
 		/* */
 			if (
 				*comm &&
@@ -340,7 +338,7 @@ static int BroadcastResp( char *resp )
  *
  * @return int
  */
-static int EnrichBlockZero( void )
+static int RefillBlockZero( void )
 {
 	WORD  l_opmode;
 	WORD *r_opmode = (WORD *)&BlockZero[EEPROM_OPMODE_ADDR];
@@ -446,14 +444,11 @@ static int WriteBlockZero( void )
  */
 static int ProcFactoryParam( const int comm, const unsigned addr, const int length )
 {
-	BYTE *buf_setting = BlockZero;
-	BYTE *buf_factory = BlockZero + length;
+	BYTE  buf_factory[EEPROM_SET_TOTAL_LENGTH];
+	BYTE *buf_setting = &BlockZero[addr];
 	BYTE *ref_buf;
 	int   write_block;
 
-/* Check the length, in case, we will run out of the buffer */
-	if ( length >= (EEPROM_SET_TOTAL_LENGTH >> 1) )
-		return ERROR;
 /* Assign the pointer by the agent command */
 	switch ( comm ) {
 	case AGENT_COMMAND_OVERRIDE:
@@ -465,11 +460,8 @@ static int ProcFactoryParam( const int comm, const unsigned addr, const int leng
 		ref_buf     = buf_factory;
 		break;
 	}
-/* First, read the parameter from two blocks */
-	if (
-		!EE_MultiRead(EEPROM_SETTING_CONFIG_BLOCK, addr, length, (char *)buf_setting) &&
-		!EE_MultiRead(EEPROM_FACTORY_CONFIG_BLOCK, addr, length, (char *)buf_factory)
-	) {
+/* First, read the parameter from factory block */
+	if ( !EE_MultiRead(EEPROM_FACTORY_CONFIG_BLOCK, addr, length, (char *)buf_factory) ) {
 	/* Then, compare between the two parameters */
 		if ( memcmp(buf_setting, buf_factory, length) ) {
 		/* Finally, write back to the designated block */
@@ -490,6 +482,7 @@ static int ProcFactoryParam( const int comm, const unsigned addr, const int leng
 /**
  * @brief
  *
+ * @param state
  * @return int
  */
 static int ModifyDHCP( const int state )
