@@ -14,10 +14,10 @@
 #include <time.h>
 
 /* */
-#include "../include/u7186EX/7186e.h"
-#include "../include/u7186EX/Tcpip32.h"
+#include <u7186EX/7186e.h>
+#include <u7186EX/Tcpip32.h>
 /* */
-#include "../include/SPTIME.h"
+#include <SPTIME.h>
 
 /*
  * Byte order conversions

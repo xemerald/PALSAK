@@ -15,7 +15,7 @@ extern "C" {
 #endif
 
 /* */
-#include "./u7186EX/7186e.h"
+#include <u7186EX/7186e.h>
 
 /**
  * @brief The time zone setting for local

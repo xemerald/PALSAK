@@ -14,7 +14,7 @@
 extern "C" {
 #endif
 /* */
-#include "./u7186EX/7186e.h"
+#include <u7186EX/7186e.h>
 /* */
 ulong FileSeek( const FILE_DATA far *, const char, const uint, ulong );
 char *GetFileStr( const FILE_DATA far *, const char *, const char *, char *, const size_t );

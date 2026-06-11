@@ -14,7 +14,7 @@
 extern "C" {
 #endif
 /* */
-#include "./u7186EX/7186e.h"
+#include <u7186EX/7186e.h>
 
 /* The macro to showing " - - " on the 7-seg led */
 #define SHOW_2DASH_5DIGITLED(SEQ, DATA, MSEC) \

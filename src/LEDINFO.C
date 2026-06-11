@@ -10,9 +10,9 @@
 #include <string.h>
 #include <ctype.h>
 /* */
-#include "../include/u7186EX/7186e.h"
+#include <u7186EX/7186e.h>
 /* */
-#include "../include/PALSAK.h"
+#include <PALSAK.h>
 
 /* */
 #define DISPLAY_CONTENT_MAX    32

@@ -12,15 +12,15 @@
 #include <string.h>
 #include <ctype.h>
 /* */
-#include "../include/u7186EX/7186e.h"
-#include "../include/u7186EX/Tcpip32.h"
+#include <u7186EX/7186e.h>
+#include <u7186EX/Tcpip32.h>
 /* */
-#include "../include/PALSAK.h"
-#include "../include/FTP.h"
-#include "../include/FILE.h"
-#include "../include/LEDINFO.h"
-#include "../include/NPTIME.h"
-#include "../include/BUTTONS.h"
+#include <PALSAK.h>
+#include <FTP.h>
+#include <FILE.h>
+#include <LEDINFO.h>
+#include <NPTIME.h>
+#include <BUTTONS.h>
 
 /* Main socket */
 static volatile int SockRecv = -1;
