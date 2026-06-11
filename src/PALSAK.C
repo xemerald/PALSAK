@@ -984,15 +984,15 @@ static int UploadPalertFirmware( void )
 	ShowAll5DigitLedSeg( ShowData[0x0d], ShowData[0x0e], 0x8e, 0x00, ShowData[0x0b], 1000 );
 
 /* Chose the firmware which to be uploaded */
-	ShowAll5DigitLedSeg( 0x00, ShowData[0x05] | 0x80, ShowData[fw_select / 10], ShowData[fw_select % 10], 0x00, 0 );
+	ShowAll5DigitLedSeg( ShowData[0x0f] | 0x80, ShowData[0x05] | 0x80, 0x00, ShowData[fw_select / 10], ShowData[fw_select % 10], 0 );
 	BUTTONS_LASTCOUNT_RESET();
 	do {
 		if ( GetInitButtonPressCount() ) {
 		/* */
 			fw_select = ++fw_select % fw_count;
 		/* */
-			Show5DigitLed(3, fw_select / 10);
-			Show5DigitLed(4, fw_select % 10);
+			Show5DigitLed(4, fw_select / 10);
+			Show5DigitLed(5, fw_select % 10);
 		}
 		Delay2(1);
 	} while ( !GetCtsButtonPressCount() );
@@ -1311,7 +1311,8 @@ static int CheckFirmwareVer( char *new_name, const char *pattern )
 /* If we got a candidate, then show it on the 7-seg led */
 	if ( result > 0 ) {
 		new_name[FW_NAME_FULL_LENGTH] = '\0';
-		ShowAll5DigitLedSeg( 0x00, 0x0f, 0x9d, 0x00, 0x00, 2000 );
+	/* First, display " PLt. " of " PLA. " on the 7-seg led */
+		ShowAll5DigitLedSeg( 0x00, 0x67, 0x0e, new_name[2] == 'a' || new_name[2] == 'A' ? 0xf7 : 0x8f, 0x00, 2000 );
 	/* Show new version number on the 7-seg led */
 		ShowAll5DigitLedSeg( ShowData[new_name[3] - '0'], ShowData[new_name[4] - '0'], ShowData[new_name[5] - '0'], ShowData[new_name[6] - '0'], ShowData[new_name[7] - '0'], 2000 );
 	/* */
