@@ -157,8 +157,9 @@ static int InitControlSocket( const char *dotted_ip )
  */
 static void SwitchFWSlot( const uint msec )
 {
-	uchar slot       = FWCLIP_SLOT_0;
-	uint  delay_msec = 0;
+	uchar slot        = FWCLIP_SLOT_0;
+	uint  delay_msec  = 0;
+	BYTE  display_seg = 0x02;
 
 /* Show the " S.XX " message on the 7-seg led */
 	ShowAll5DigitLedSeg( 0x00, ShowData[0x05] | 0x80, ShowData[slot / 10], ShowData[slot % 10], 0x00, 0 );
@@ -168,6 +169,14 @@ static void SwitchFWSlot( const uint msec )
  * this number should be 0x40(64) or 0x01.
  */
 	while ( !bEthernetLinkOk ) {
+	/* */
+		if ( !(delay_msec % 100) ) {
+			Show5DigitLedSeg(1, display_seg);
+			Show5DigitLedSeg(5, display_seg);
+		/* */
+			if ( !(display_seg = (display_seg << 1) & ~0x80) )
+				display_seg = 0x02;
+		}
 	/* Increase the times of waiting network connection every 500 msec */
 		if ( ++delay_msec >= msec ) {
 		/* */
@@ -178,9 +187,6 @@ static void SwitchFWSlot( const uint msec )
 		/* */
 			delay_msec = 0;
 		}
-	/* */
-		Show5DigitLedSeg(1, delay_msec & 0x1 ? 0x80 : 0x00);
-		Show5DigitLedSeg(5, delay_msec & 0x1 ? 0x80 : 0x00);
 	/* */
 		Delay2(1);
 	}
