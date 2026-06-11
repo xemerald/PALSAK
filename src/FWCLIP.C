@@ -36,7 +36,7 @@ static void SwitchFWSlot( const uint );
 static int  TransmitCommand( const char * );
 static int  TransmitDataRaw( const char *, int );
 static void ForceFlushSocket( int );
-static int  UploadSelectedFW( const uchar );
+static int  ProcSelectedSlot( const uchar );
 static int  UploadFileData( const int, const FILE_DATA far * );
 static void FatalError( void );
 static int  ResetProgram( void );
@@ -66,7 +66,7 @@ void main( void )
 	if ( InitControlSocket( NULL ) == ERROR )
 		goto err_return;
 /* Start to upload firmware & batch file */
-	if ( UploadSelectedFW( SelectedSlot ) == ERROR )
+	if ( ProcSelectedSlot( SelectedSlot ) == ERROR )
 		goto err_return;
 /* Show the Good result on the 7-seg led */
 	SHOW_GOOD_5DIGITLED( 1000 );
@@ -177,8 +177,16 @@ static void SwitchFWSlot( const uint msec )
 			if ( !(display_seg = (display_seg << 1) & ~0x80) )
 				display_seg = 0x02;
 		}
+	/* Detect the init. pin condition for switching to the updating firmware func. */
+		if ( ReadInitPin() && slot != FWCLIP_SLOT_COUNT ) {
+		/* */
+			Show5DigitLed(3, 0x0f);
+			Show5DigitLed(4, 0x0f);
+		/* */
+			slot = FWCLIP_SLOT_COUNT;
+		}
 	/* Increase the times of waiting network connection every 500 msec */
-		if ( ++delay_msec >= msec ) {
+		if ( ++delay_msec >= msec && slot != FWCLIP_SLOT_COUNT ) {
 		/* */
 			slot = ++slot % FWCLIP_SLOT_COUNT;
 		/* Show the " S.XX " message on the 7-seg led */
@@ -274,15 +282,14 @@ static void ForceFlushSocket( int sock )
 }
 
 /**
- * @brief Upload the selected firmware of Palert to the device on the
- *        other end of the ethernet cable.
+ * @brief Process the selected firmware of Palert or just erase the flash.
  *
  * @param slot
  * @return int
  * @retval NORMAL(0) - The uploading process is successful.
  * @retval ERROR(-1) - Something happened when uploading.
  */
-static int UploadSelectedFW( const uchar slot )
+static int ProcSelectedSlot( const uchar slot )
 {
 /* */
 	FILE_DATA *_slots[FWCLIP_SLOT_COUNT];
@@ -292,16 +299,19 @@ static int UploadSelectedFW( const uchar slot )
 
 /* Show 'FLASH.' on the 7-seg led */
 	ShowAll5DigitLedSeg( ShowData[0x0f], 0x0e, ShowData[0x0a], ShowData[0x05], 0xb7, 1000 );
-/* Flushing the disk b */
-	LOOP_TRANSMIT_COMMAND( "delb /y" );
-/* Show 'del. b' on the 7-seg led */
-	ShowAll5DigitLedSeg( ShowData[0x0d], ShowData[0x0e], 0x8e, 0x00, ShowData[0x0b], 1000 );
-
-/* Start to upload the firmware */
-	if ( UploadFileData( DISK_PALSAK_FIRMWARE, _slots[slot] ) )
-		return ERROR;
-/* Show 'Fin. F' on the 7-seg led */
-	ShowAll5DigitLedSeg( ShowData[0x0f], 0x04, 0x95, 0x00, ShowData[0x0f], 2000 );
+	if ( slot < FWCLIP_SLOT_COUNT ) {
+	/* Start to upload the firmware */
+		if ( UploadFileData( DISK_PALSAK_FIRMWARE, _slots[slot] ) )
+			return ERROR;
+	/* Show 'Fin. F' on the 7-seg led */
+		ShowAll5DigitLedSeg( ShowData[0x0f], 0x04, 0x95, 0x00, ShowData[0x0f], 2000 );
+	}
+	else {
+	/* Flushing the disk b */
+		LOOP_TRANSMIT_COMMAND( "delb /y" );
+	/* Show 'del. b' on the 7-seg led */
+		ShowAll5DigitLedSeg( ShowData[0x0d], ShowData[0x0e], 0x8e, 0x00, ShowData[0x0b], 1000 );
+	}
 
 	return NORMAL;
 }

@@ -91,6 +91,14 @@ extern "C" {
 #define DISK_FWCLIP_FIRMWARE  DISKA
 
 /**
+ * @name Palert's Firmware name pattern
+ *
+ */
+#define FW_NAME_PATTERN_OLD  "plt*.exe"
+#define FW_NAME_PATTERN_NEW  "pla*.exe"
+#define FW_NAME_FULL_LENGTH  12
+
+/**
  * @brief
  *
  */

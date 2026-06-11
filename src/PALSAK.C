@@ -68,7 +68,7 @@ static int AgentCommand( const char * );
 
 static int UploadFileData( const int, const FILE_DATA far * );
 
-static int CheckFirmwareVer( char * );
+static int CheckFirmwareVer( char *, const char * );
 static int DownloadFirmware( const char * );
 
 static int ReadFileFTPInfo( const FILE_DATA far * );
@@ -127,11 +127,17 @@ void main( void )
 		if (
 			(bUseDhcp && InitDHCP() == ERROR) ||
 			ReadFileFTPInfo( GetFileInfoByName_AB(DISKA, FTP_INFO_FILE_NAME) ) == ERROR ||
-			CheckFirmwareVer( PreBuffer ) == ERROR ||
-			DownloadFirmware( PreBuffer ) == ERROR
+			FTPConnect( FTPHost, FTPPort, FTPUser, FTPPass ) ||
+			(GetFileNo_AB(DISK_PALSAK_FIRMWARE) && OS7_DeleteAllFile(DISK_PALSAK_FIRMWARE)) ||
+			CheckFirmwareVer( PreBuffer, FW_NAME_PATTERN_OLD ) == ERROR || DownloadFirmware( PreBuffer ) == ERROR ||
+			CheckFirmwareVer( PreBuffer, FW_NAME_PATTERN_NEW ) == ERROR || DownloadFirmware( PreBuffer ) == ERROR
 		) {
+		/* Close the FTP connection, just in case */
+			FTPClose();
 			goto err_return;
 		}
+	/* Just close the FTP connection */
+		FTPClose();
 	/* Show the 'Good' on the 7-seg led */
 		SHOW_GOOD_5DIGITLED( 1000 );
 		goto normal_return;
@@ -892,7 +898,7 @@ static int CheckServerConnect( void )
 /* Show 'FtP.' on the 7-seg led */
 	ShowAll5DigitLedSeg( 0x00, ShowData[0x0f], 0x0f, 0xe7, 0x00, 1000 );
 /* FW(FTP) server connection test by using the checking firmware function */
-	if ( CheckFirmwareVer( PreBuffer ) )
+	if ( CheckFirmwareVer( PreBuffer, FW_NAME_PATTERN_OLD ) )
 		SHOW_ERROR_5DIGITLED( 1000 );
 	else
 		SHOW_GOOD_5DIGITLED( 1000 );
@@ -960,6 +966,12 @@ static int CheckPalertDisk( const int mode )
  */
 static int UploadPalertFirmware( void )
 {
+	const uchar fw_count  = GetFileNo_AB(DISK_PALSAK_FIRMWARE);
+	uchar       fw_select = 0;
+
+/* There is not any firmware in the disk */
+	if ( !fw_count )
+		return ERROR;
 /* Show 'FLASH.' on the 7-seg led */
 	ShowAll5DigitLedSeg( ShowData[0x0f], 0x0e, ShowData[0x0a], ShowData[0x05], 0xb7, 1000 );
 /* Flushing the disk a */
@@ -971,8 +983,21 @@ static int UploadPalertFirmware( void )
 /* Show 'del. b' on the 7-seg led */
 	ShowAll5DigitLedSeg( ShowData[0x0d], ShowData[0x0e], 0x8e, 0x00, ShowData[0x0b], 1000 );
 
+/* Chose the firmware which to be uploaded */
+	ShowAll5DigitLedSeg( 0x00, ShowData[0x05] | 0x80, ShowData[fw_select / 10], ShowData[fw_select % 10], 0x00, 0 );
+	BUTTONS_LASTCOUNT_RESET();
+	do {
+		if ( GetInitButtonPressCount() ) {
+		/* */
+			fw_select = ++fw_select % fw_count;
+		/* */
+			Show5DigitLed(3, fw_select / 10);
+			Show5DigitLed(4, fw_select % 10);
+		}
+		Delay2(1);
+	} while ( !GetCtsButtonPressCount() );
 /* Start to upload the firmware */
-	if ( UploadFileData( DISKA, GetFileInfoByNo_AB(DISK_PALSAK_FIRMWARE, 0) ) )
+	if ( UploadFileData( DISKA, GetFileInfoByNo_AB(DISK_PALSAK_FIRMWARE, fw_select) ) )
 		return ERROR;
 /* Show 'Fin. F' on the 7-seg led */
 	ShowAll5DigitLedSeg( ShowData[0x0f], 0x04, 0x95, 0x00, ShowData[0x0f], 2000 );
@@ -1261,49 +1286,40 @@ static int UploadFileData( const int disk, const FILE_DATA far *fileptr )
  * @brief
  *
  * @param new_name
+ * @param pattern It should be "plt*.exe" or "pla*.exe"
  * @return int
  */
-static int CheckFirmwareVer( char *new_name )
+static int CheckFirmwareVer( char *new_name, const char *pattern )
 {
 	char  result = ERROR;
 	char *rname  = NULL;
 
 /* */
 	new_name[0] = '\0';
-	if (
-		!FTPConnect( FTPHost, FTPPort, FTPUser, FTPPass ) &&
-		!FTPListDir( FTPPath, "plt*.exe", RecvBuffer, RECVBUF_SIZE )
-	) {
+	if ( !FTPListDir( FTPPath, pattern, RecvBuffer, RECVBUF_SIZE ) ) {
 	/* Here, we can access the FTP server, therefore the return should be normal at lease */
 		result = NORMAL;
-		if ( GetFileName_AB(DISK_PALSAK_FIRMWARE, 0, new_name) < 0 )
-		/* Show '00000' on the 7-seg led */
-			ShowAll5DigitLedSeg( ShowData[0x00], ShowData[0x00], ShowData[0x00], ShowData[0x00], ShowData[0x00], 2000 );
-		else
-		/* Show existed version number on the 7-seg led */
-			ShowAll5DigitLedSeg( ShowData[new_name[3] - '0'], ShowData[new_name[4] - '0'], ShowData[new_name[5] - '0'], ShowData[new_name[6] - '0'], ShowData[new_name[7] - '0'], 2000 );
 	/* Scan the list to find the firmware newer than we have */
 		for ( rname = strtok(RecvBuffer, "\r\n"); rname; rname = strtok(NULL, "\r\n") ) {
 			if ( !strlen(new_name) || strncmp(rname, new_name, 8) > 0 ) {
 			/* We got a candidate, turn the return to larger than zero */
-				memcpy(new_name, rname, 12);
+				memcpy(new_name, rname, FW_NAME_FULL_LENGTH);
 				result = 1;
 			}
 		}
 	}
 /* If we got a candidate, then show it on the 7-seg led */
 	if ( result > 0 ) {
-		new_name[12] = '\0';
+		new_name[FW_NAME_FULL_LENGTH] = '\0';
 		ShowAll5DigitLedSeg( 0x00, 0x0f, 0x9d, 0x00, 0x00, 2000 );
 	/* Show new version number on the 7-seg led */
 		ShowAll5DigitLedSeg( ShowData[new_name[3] - '0'], ShowData[new_name[4] - '0'], ShowData[new_name[5] - '0'], ShowData[new_name[6] - '0'], ShowData[new_name[7] - '0'], 2000 );
 	/* */
 		result = NORMAL;
 	}
-/* Otherwise, flush the filename buffer & close the connection */
+/* Otherwise, flush the filename buffer */
 	else {
 		new_name[0] = '\0';
-		FTPClose();
 	}
 
 	return result;
@@ -1317,19 +1333,12 @@ static int CheckFirmwareVer( char *new_name )
  */
 static int DownloadFirmware( const char *target_name )
 {
-	char result = ERROR;
-
 /* First, check the target_name is not null */
-	if ( target_name && strlen(target_name) ) {
-		if ( GetFileNo_AB(DISK_PALSAK_FIRMWARE) )
-			OS7_DeleteAllFile(DISK_PALSAK_FIRMWARE);
-		if ( !FTPRetrFile( FTPPath, target_name, target_name, DISK_PALSAK_FIRMWARE ) )
-			result = NORMAL;
-	}
-/* Just close the connection */
-	FTPClose();
+	if ( target_name && strlen(target_name) )
+		if ( FTPRetrFile( FTPPath, target_name, target_name, DISK_PALSAK_FIRMWARE ) )
+			return ERROR;
 
-	return result;
+	return NORMAL;
 }
 
 /**

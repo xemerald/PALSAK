@@ -1,1 +1,1 @@
-PALSAK.EXE
+runexe
