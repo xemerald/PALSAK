@@ -292,7 +292,7 @@ static int UploadSelectedFW( const uchar slot )
 	ShowAll5DigitLedSeg( ShowData[0x0d], ShowData[0x0e], 0x8e, 0x00, ShowData[0x0b], 1000 );
 
 /* Start to upload the firmware */
-	if ( UploadFileData( DISK_FOR_FIRMWARE, _slots[slot] ) )
+	if ( UploadFileData( DISK_PALSAK_FIRMWARE, _slots[slot] ) )
 		return ERROR;
 /* Show 'Fin. F' on the 7-seg led */
 	ShowAll5DigitLedSeg( ShowData[0x0f], 0x04, 0x95, 0x00, ShowData[0x0f], 2000 );

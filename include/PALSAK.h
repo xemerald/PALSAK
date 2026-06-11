@@ -83,11 +83,12 @@ extern "C" {
  * @name All used file's information
  *
  */
-#define BLOCK_0_FILE_NAME    "block_0.ini"
-#define FTP_INFO_FILE_NAME   "ftp_info.ini"
-#define AGENT_EXE_FILE_NAME  "AGENT.EXE"
-#define AUTOEXEC_FILE_NAME   "autoexec.bat"
-#define DISK_FOR_FIRMWARE    DISKB
+#define BLOCK_0_FILE_NAME     "block_0.ini"
+#define FTP_INFO_FILE_NAME    "ftp_info.ini"
+#define AGENT_EXE_FILE_NAME   "AGENT.EXE"
+#define AUTOEXEC_FILE_NAME    "autoexec.bat"
+#define DISK_PALSAK_FIRMWARE  DISKB
+#define DISK_FWCLIP_FIRMWARE  DISKA
 
 /**
  * @brief
@@ -184,10 +185,10 @@ typedef enum {
  *
  */
 #define FWCLIP_SLOTS_TABLE \
-	X( FWCLIP_SLOT_0, GetFileInfoByNo_AB(DISKA, 0) ) \
-	X( FWCLIP_SLOT_1, GetFileInfoByNo_AB(DISKB, 0) ) \
-	X( FWCLIP_SLOT_2, GetFileInfoByNo_AB(DISKA, 1) ) \
-	X( FWCLIP_SLOT_3, GetFileInfoByNo_AB(DISKB, 1) )
+	X( FWCLIP_SLOT_0, GetFileInfoByNo_AB(DISK_FWCLIP_FIRMWARE, 0) ) \
+	X( FWCLIP_SLOT_1, GetFileInfoByNo_AB(DISK_FWCLIP_FIRMWARE, 1) ) \
+	X( FWCLIP_SLOT_2, GetFileInfoByNo_AB(DISK_FWCLIP_FIRMWARE, 2) ) \
+	X( FWCLIP_SLOT_3, GetFileInfoByNo_AB(DISK_FWCLIP_FIRMWARE, 3) )
 
 #define X(a, b) a,
 typedef enum {
