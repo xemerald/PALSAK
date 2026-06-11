@@ -38,6 +38,8 @@ static int  TransmitDataRaw( const char *, int );
 static void ForceFlushSocket( int );
 static int  UploadSelectedFW( const uchar );
 static int  UploadFileData( const int, const FILE_DATA far * );
+static void FatalError( void );
+static int  ResetProgram( void );
 
 /* If the init pin is connected when transmit command, the whole program will reset */
 #define LOOP_TRANSMIT_COMMAND(_COMM) \
@@ -276,7 +278,10 @@ static void ForceFlushSocket( int sock )
  */
 static int UploadSelectedFW( const uchar slot )
 {
-#define X(a, b) b,
+#define X(a, b, c, d) const b c = d;
+	FWCLIP_SLOTS_TABLE
+#undef X
+#define X(a, b, c, d) c,
 	FILE_DATA *_slots[] = {
 		FWCLIP_SLOTS_TABLE
 	};
@@ -412,4 +417,31 @@ static int UploadFileData( const int disk, const FILE_DATA far *fileptr )
 	LOOP_TRANSMIT_COMMAND( "" );
 
 	return NORMAL;
+}
+
+/**
+ * @brief
+ *
+ */
+static void FatalError( void )
+{
+/* Show 'FAtAL.' on the 7-seg led */
+	ShowAll5DigitLedSeg( ShowData[0x0f], ShowData[0x0a], 0x0f, ShowData[0x0a], 0x8e, 2000 );
+/* Reset the system */
+	ResetProgram();
+
+	return;
+}
+
+/**
+ * @brief
+ *
+ * @return int
+ */
+static int ResetProgram( void )
+{
+/* Program start address. */
+	((void (far *)(void))0xFFFF0000L)();
+
+	return 0;
 }

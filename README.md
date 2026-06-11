@@ -29,7 +29,7 @@ It just like a **S**wiss **A**rmy **K**nife for *P-alert* so we call it **PALSAK
 5. And then execute the Borland C++ by this command: `BC\BIN\BC.EXE`.
 6. F10->Project->Open project->Go to where you put the source of PALSAK->PALSAK.PRJ->Enter
 7. F10->Window->Directories:
-	* Include Directories: `C:\BC\INCLUDE`
+	* Include Directories: `C:\BC\INCLUDE; .\INCLUDE`
 	* Library Directories: `C:\BC\LIB`
 8. F10->Options->Compiler->Code generation:
 	* Model->Large
