@@ -17,8 +17,8 @@ extern "C" {
 /*
  *
  */
-#include "./include/u7186EX/7186e.h"
-#include "./include/u7186EX/Tcpip32.h"
+#include "./u7186EX/7186e.h"
+#include "./u7186EX/Tcpip32.h"
 /* The checking result of func. */
 #define SYSTIME_SUCCESS   0
 #define SYSTIME_WARNING  -1

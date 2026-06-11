@@ -12,11 +12,11 @@
 #include <stdio.h>
 #include <string.h>
 /* */
-#include "./include/u7186EX/7186e.h"
-#include "./include/u7186EX/Tcpip32.h"
+#include "../include/u7186EX/7186e.h"
+#include "../include/u7186EX/Tcpip32.h"
 /* */
-#include "./include/FTP.h"
-#include "./include/LEDINFO.h"
+#include "../include/FTP.h"
+#include "../include/LEDINFO.h"
 
 /* */
 static int ConnectTCP( const char *, uint );

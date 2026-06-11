@@ -12,15 +12,15 @@
 #include <string.h>
 #include <ctype.h>
 /* */
-#include "./include/u7186EX/7186e.h"
-#include "./include/u7186EX/Tcpip32.h"
+#include "../include/u7186EX/7186e.h"
+#include "../include/u7186EX/Tcpip32.h"
 /* */
-#include "./include/PALSAK.h"
-#include "./include/FTP.h"
-#include "./include/FILE.h"
-#include "./include/LEDINFO.h"
-#include "./include/NPTIME.h"
-#include "./include/BUTTONS.h"
+#include "../include/PALSAK.h"
+#include "../include/FTP.h"
+#include "../include/FILE.h"
+#include "../include/LEDINFO.h"
+#include "../include/NPTIME.h"
+#include "../include/BUTTONS.h"
 
 /* Main socket */
 static volatile int SockRecv = -1;
@@ -972,7 +972,7 @@ static int UploadPalertFirmware( void )
 	ShowAll5DigitLedSeg( ShowData[0x0d], ShowData[0x0e], 0x8e, 0x00, ShowData[0x0b], 1000 );
 
 /* Start to upload the firmware */
-	if ( UploadFileData( DISKA, GetFileInfoByNo_AB(DISKB, 0) ) )
+	if ( UploadFileData( DISKA, GetFileInfoByNo_AB(DISK_FOR_FIRMWARE, 0) ) )
 		return ERROR;
 /* Show 'Fin. F' on the 7-seg led */
 	ShowAll5DigitLedSeg( ShowData[0x0f], 0x04, 0x95, 0x00, ShowData[0x0f], 2000 );
@@ -1276,7 +1276,7 @@ static int CheckFirmwareVer( char *new_name )
 	) {
 	/* Here, we can access the FTP server, therefore the return should be normal at lease */
 		result = NORMAL;
-		if ( GetFileName_AB(DISKB, 0, new_name) < 0 )
+		if ( GetFileName_AB(DISK_FOR_FIRMWARE, 0, new_name) < 0 )
 		/* Show '00000' on the 7-seg led */
 			ShowAll5DigitLedSeg( ShowData[0x00], ShowData[0x00], ShowData[0x00], ShowData[0x00], ShowData[0x00], 2000 );
 		else
@@ -1321,9 +1321,9 @@ static int DownloadFirmware( const char *target_name )
 
 /* First, check the target_name is not null */
 	if ( target_name && strlen(target_name) ) {
-		if ( GetFileNo_AB(DISKB) )
-			OS7_DeleteAllFile(DISKB);
-		if ( !FTPRetrFile( FTPPath, target_name, target_name, DISKB ) )
+		if ( GetFileNo_AB(DISK_FOR_FIRMWARE) )
+			OS7_DeleteAllFile(DISK_FOR_FIRMWARE);
+		if ( !FTPRetrFile( FTPPath, target_name, target_name, DISK_FOR_FIRMWARE ) )
 			result = NORMAL;
 	}
 /* Just close the connection */

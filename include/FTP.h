@@ -14,7 +14,8 @@
 extern "C" {
 #endif
 /* */
-#include "./include/u7186EX/7186e.h"
+#include "./u7186EX/7186e.h"
+
 /* The checking result of func. */
 #define FTP_SUCCESS   0
 #define FTP_ERROR    -1

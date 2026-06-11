@@ -12,11 +12,11 @@
 #include <stdio.h>
 #include <ctype.h>
 /* */
-#include "./include/u7186EX/7186e.h"
-#include "./include/u7186EX/Tcpip32.h"
+#include "../include/u7186EX/7186e.h"
+#include "../include/u7186EX/Tcpip32.h"
 /* */
-#include "./include/PALSAK.h"
-#include "./include/LEDINFO.h"
+#include "../include/PALSAK.h"
+#include "../include/LEDINFO.h"
 
 /* EEPROM Block 0 filling */
 static BYTE BlockZero[EEPROM_SET_TOTAL_LENGTH];
@@ -66,7 +66,7 @@ void main( void )
 	do {
 	/* */
 		comm = RecvCommand();
-	/* */
+	/* Initialize the block zero buffer space by the real data */
 		if ( EE_MultiRead(EEPROM_SETTING_CONFIG_BLOCK, 0x00, EEPROM_SET_TOTAL_LENGTH, (char *)BlockZero) )
 			goto err_return;
 	/* */

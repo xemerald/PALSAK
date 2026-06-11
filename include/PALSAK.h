@@ -14,6 +14,9 @@
 extern "C" {
 #endif
 
+/* */
+#include "./u7186EX/7186e.h"
+
 /**
  * @brief The time zone setting for local
  *
@@ -77,13 +80,14 @@ extern "C" {
 #define NETCONFIG_FORMAT  "%03u.%03u.%03u.%03u-%02u  %03u.%03u.%03u.%03u  "
 
 /**
- * @name
+ * @name All used file's information
  *
  */
 #define BLOCK_0_FILE_NAME    "block_0.ini"
 #define FTP_INFO_FILE_NAME   "ftp_info.ini"
 #define AGENT_EXE_FILE_NAME  "AGENT.EXE"
 #define AUTOEXEC_FILE_NAME   "autoexec.bat"
+#define DISK_FOR_FIRMWARE    DISKB
 
 /**
  * @brief
@@ -140,7 +144,6 @@ typedef enum {
 } WORKFLOWS;
 #undef X
 
-
 /**
  * @brief Agent commands
  *
@@ -177,6 +180,23 @@ typedef enum {
 #undef X
 
 /**
+ * @brief Firmware clip slots
+ *
+ */
+#define FWCLIP_SLOTS_TABLE \
+	X( FWCLIP_SLOT_0, GetFileInfoByNo_AB(DISKA, 0) ) \
+	X( FWCLIP_SLOT_1, GetFileInfoByNo_AB(DISKB, 0) ) \
+	X( FWCLIP_SLOT_2, GetFileInfoByNo_AB(DISKA, 1) ) \
+	X( FWCLIP_SLOT_3, GetFileInfoByNo_AB(DISKB, 1) )
+
+#define X(a, b) a,
+typedef enum {
+	FWCLIP_SLOTS_TABLE
+	FWCLIP_SLOT_COUNT
+} FWCLIP_SLOTS;
+#undef X
+
+/**
  * @brief The checking result of func.
  *
  */
@@ -197,6 +217,11 @@ typedef enum {
 #define DISKA_SIZE   3
 #define DISKB_SIZE   4
 #define RESERVE_SIZE 0
+
+/**
+ * @brief
+ *
+ */
 #define DISK_RAM     3
 
 /**

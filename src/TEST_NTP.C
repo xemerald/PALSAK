@@ -13,10 +13,10 @@
 #include <string.h>
 #include <ctype.h>
 /* */
-#include "./include/u7186EX/7186e.h"
-#include "./include/u7186EX/Tcpip32.h"
+#include "../include/u7186EX/7186e.h"
+#include "../include/u7186EX/Tcpip32.h"
 /* */
-#include "./include/SPTIME.h"
+#include "../include/SPTIME.h"
 
 /* Main function, entry */
 void main( void )

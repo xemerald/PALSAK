@@ -9,9 +9,9 @@
  */
 
 /* */
-#include "./include/u7186EX/7186e.h"
+#include "../include/u7186EX/7186e.h"
 /* */
-#include "./include/BUTTONS.h"
+#include "../include/BUTTONS.h"
 
 /* */
 volatile uchar InitPressCount;

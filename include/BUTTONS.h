@@ -16,7 +16,7 @@ extern "C" {
 /*
  *
  */
-#include "./include/u7186EX/7186e.h"
+#include "./u7186EX/7186e.h"
 
 /* The status of pin */
 #define PIN_IS_OPEN   0
