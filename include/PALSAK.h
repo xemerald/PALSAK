@@ -184,12 +184,12 @@ typedef enum {
  *
  */
 #define FWCLIP_SLOTS_TABLE \
-	X( FWCLIP_SLOT_0, FILE_DATA *, __slot_0, GetFileInfoByNo_AB(DISKA, 0) ) \
-	X( FWCLIP_SLOT_1, FILE_DATA *, __slot_1, GetFileInfoByNo_AB(DISKB, 0)) \
-	X( FWCLIP_SLOT_2, FILE_DATA *, __slot_2, GetFileInfoByNo_AB(DISKA, 1) ) \
-	X( FWCLIP_SLOT_3, FILE_DATA *, __slot_3, GetFileInfoByNo_AB(DISKB, 1) )
+	X( FWCLIP_SLOT_0, GetFileInfoByNo_AB(DISKA, 0) ) \
+	X( FWCLIP_SLOT_1, GetFileInfoByNo_AB(DISKB, 0) ) \
+	X( FWCLIP_SLOT_2, GetFileInfoByNo_AB(DISKA, 1) ) \
+	X( FWCLIP_SLOT_3, GetFileInfoByNo_AB(DISKB, 1) )
 
-#define X(a, b, c, d) a,
+#define X(a, b) a,
 typedef enum {
 	FWCLIP_SLOTS_TABLE
 	FWCLIP_SLOT_COUNT

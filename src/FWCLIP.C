@@ -278,13 +278,10 @@ static void ForceFlushSocket( int sock )
  */
 static int UploadSelectedFW( const uchar slot )
 {
-#define X(a, b, c, d) const b c = d;
+/* */
+	FILE_DATA *_slots[FWCLIP_SLOT_COUNT];
+#define X(a, b) _slots[a] = b;
 	FWCLIP_SLOTS_TABLE
-#undef X
-#define X(a, b, c, d) c,
-	FILE_DATA *_slots[] = {
-		FWCLIP_SLOTS_TABLE
-	};
 #undef X
 
 /* Show 'FLASH.' on the 7-seg led */
