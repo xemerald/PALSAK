@@ -96,95 +96,95 @@ void SysTimeService( void )
 
 /* */
 WRITE_RTC_CHECK:
-	_asm {
-		mov cx, CorrectTimeStep
-		cmp byte ptr WriteToRTC, 0
-		je EPOCH_CHECK
-		sub WriteRTCCountDown, cx
-		jz REAL_WRITE_RTC
-		jnc EPOCH_CHECK
-	}
+_asm {
+	mov cx, CorrectTimeStep
+	cmp byte ptr WriteToRTC, 0
+	je EPOCH_CHECK
+	sub WriteRTCCountDown, cx
+	jz REAL_WRITE_RTC
+	jnc EPOCH_CHECK
+}
 REAL_WRITE_RTC:
-	_asm {
-		push ds
-		push offset TimeDateSetting
-		call far ptr SetTimeDate
-		add sp, 4
-		mov byte ptr WriteToRTC, 0
-	}
+_asm {
+	push ds
+	push offset TimeDateSetting
+	call far ptr SetTimeDate
+	add sp, 4
+	mov byte ptr WriteToRTC, 0
+}
 /* */
 EPOCH_CHECK:
-	_asm {
-		dec count_step_epoch
-		mov ax, count_step_epoch
-		or ax, ax
-		jnz SELECT_COMPENSATE
-		mov count_step_epoch, STEP_TIMES_IN_EPOCH
-		jmp STEP_RESIDUAL
-	}
+_asm {
+	dec count_step_epoch
+	mov ax, count_step_epoch
+	or ax, ax
+	jnz SELECT_COMPENSATE
+	mov count_step_epoch, STEP_TIMES_IN_EPOCH
+	jmp STEP_RESIDUAL
+}
 SELECT_COMPENSATE:
-	_asm {
-		cmp ax, RmCompensateFrac
-		jle INC_CX
-		neg ax
-		cmp ax, RmCompensateFrac
-		jl STEP_RESIDUAL
-		dec cx
-		jmp STEP_RESIDUAL
-	}
+_asm {
+	cmp ax, RmCompensateFrac
+	jle INC_CX
+	neg ax
+	cmp ax, RmCompensateFrac
+	jl STEP_RESIDUAL
+	dec cx
+	jmp STEP_RESIDUAL
+}
 INC_CX:
-	_asm {
-		inc cx
-	}
+_asm {
+	inc cx
+}
 /* If there is some residual only in sub-second, step or slew it! */
 STEP_RESIDUAL:
-	_asm {
-		mov ax, word ptr TimeResidualFrac
-		mov dx, word ptr TimeResidualFrac+2
-		or ax, dx
-		jz REAL_ADJS
-		or dx, dx
-		js NEG_RESIDUAL_CHECK
-		cmp dx, 0
-		jg ASSIGN_POS_RESIDUAL
-		jne ZERO_RESIDUAL
-		cmp word ptr TimeResidualFrac, ABS_HALF_CLOCK_STEP
-		jbe ZERO_RESIDUAL
-	}
+_asm {
+	mov ax, word ptr TimeResidualFrac
+	mov dx, word ptr TimeResidualFrac+2
+	or ax, dx
+	jz REAL_ADJS
+	or dx, dx
+	js NEG_RESIDUAL_CHECK
+	cmp dx, 0
+	jg ASSIGN_POS_RESIDUAL
+	jne ZERO_RESIDUAL
+	cmp word ptr TimeResidualFrac, ABS_HALF_CLOCK_STEP
+	jbe ZERO_RESIDUAL
+}
 ASSIGN_POS_RESIDUAL:
-	_asm {
-		add cx, ABS_HALF_CLOCK_STEP
-		sub word ptr TimeResidualFrac, ABS_HALF_CLOCK_STEP
-		sbb word ptr TimeResidualFrac+2, 0
-		jmp REAL_ADJS
-	}
+_asm {
+	add cx, ABS_HALF_CLOCK_STEP
+	sub word ptr TimeResidualFrac, ABS_HALF_CLOCK_STEP
+	sbb word ptr TimeResidualFrac+2, 0
+	jmp REAL_ADJS
+}
 NEG_RESIDUAL_CHECK:
-	_asm {
-		cmp dx, 0xFFFF
-		jg ZERO_RESIDUAL
-		jne ASSIGN_NEG_RESIDUAL
-		cmp word ptr TimeResidualFrac, 0xFFF0
-		jae ZERO_RESIDUAL
-	}
+_asm {
+	cmp dx, 0xFFFF
+	jg ZERO_RESIDUAL
+	jne ASSIGN_NEG_RESIDUAL
+	cmp word ptr TimeResidualFrac, 0xFFF0
+	jae ZERO_RESIDUAL
+}
 ASSIGN_NEG_RESIDUAL:
-	_asm {
-		sub cx, ABS_HALF_CLOCK_STEP
-		add word ptr TimeResidualFrac, ABS_HALF_CLOCK_STEP
-		adc word ptr TimeResidualFrac+2, 0
-		jmp REAL_ADJS
-	}
+_asm {
+	sub cx, ABS_HALF_CLOCK_STEP
+	add word ptr TimeResidualFrac, ABS_HALF_CLOCK_STEP
+	adc word ptr TimeResidualFrac+2, 0
+	jmp REAL_ADJS
+}
 ZERO_RESIDUAL:
-	_asm {
-		add cx, word ptr TimeResidualFrac
-		mov word ptr TimeResidualFrac, 0
-		mov word ptr TimeResidualFrac+2, 0
-	}
+_asm {
+	add cx, word ptr TimeResidualFrac
+	mov word ptr TimeResidualFrac, 0
+	mov word ptr TimeResidualFrac+2, 0
+}
 /* Keep the clock step forward */
 REAL_ADJS:
-	_asm {
-		add _SoftTimeFrac, cx
-		adc _SoftTimeSec, 0
-	}
+_asm {
+	add _SoftTimeFrac, cx
+	adc _SoftTimeSec, 0
+}
 /* Maybe we still need to deal with _SoftTimeSec carrying condition here... */
 	return;
 }
@@ -194,26 +194,27 @@ REAL_ADJS:
  *
  * @param tvs
  */
-void SysTimeGet( timeval_s far *tvs )
+void SysTimeGet( timeval_s *tvs )
 {
-	_asm {
-		les bx, dword ptr tvs
-		mov ax, _SoftTimeSec
-		mov dx, _SoftTimeFrac
-		mov cx, _SoftTimeSec
-		mov word ptr es:[bx+4], dx
-		cmp dx, HALF_EPOCH_FRAC
-		jae ADD_TIMEBASE
-		mov ax, cx
-	}
+_asm {
+	les  bx, dword ptr tvs
+	mov  ax, _SoftTimeSec
+	mov  dx, _SoftTimeFrac
+	mov  cx, _SoftTimeSec
+	cmp  ax, cx
+	je   ADD_TIMEBASE
+	mov  ax, cx
+	xor  dx, dx
+}
 ADD_TIMEBASE:
-	_asm {
-		xor dx, dx
-		add ax, word ptr _SoftTimeBase
-		adc dx, word ptr _SoftTimeBase+2
-		mov word ptr es:[bx], ax
-		mov word ptr es:[bx+2], dx
-	}
+_asm {
+	mov  word ptr es:[bx+4], dx
+	xor  dx, dx
+	add  ax, word ptr _SoftTimeBase
+	adc  dx, word ptr _SoftTimeBase+2
+	mov  word ptr es:[bx], ax
+	mov  word ptr es:[bx+2], dx
+}
 
 	return;
 }
@@ -365,14 +366,14 @@ int NTPProcess( void )
 /* Otherwise keep the adjustment in residual */
 	if ( offset_frac ) {
 	/* Disable the ISR before copy to the TimeResidualFrac */
-		_asm {
-			mov ax, word ptr offset_frac
-			mov dx, word ptr offset_frac+2
-			cli
-			mov word ptr TimeResidualFrac, ax
-			mov word ptr TimeResidualFrac+2, dx
-			sti
-		}
+	_asm {
+		mov ax, word ptr offset_frac
+		mov dx, word ptr offset_frac+2
+		cli
+		mov word ptr TimeResidualFrac, ax
+		mov word ptr TimeResidualFrac+2, dx
+		sti
+	}
 	}
 /* */
 	if ( !first_time ) {
@@ -426,12 +427,12 @@ int NTPProcess( void )
 #endif
 /* Change the time base */
 CARRY_TIMEBASE:
-	_asm {
-		xor ax, ax
-		xchg ax, _SoftTimeSec
-		add word ptr _SoftTimeBase, ax
-		adc word ptr _SoftTimeBase+2, 0
-	}
+_asm {
+	xor ax, ax
+	xchg ax, _SoftTimeSec
+	add word ptr _SoftTimeBase, ax
+	adc word ptr _SoftTimeBase+2, 0
+}
 
 	return result;
 }
